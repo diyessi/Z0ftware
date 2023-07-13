@@ -20,41 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Z0ftware/field.hpp"
+// BCD characters
+//
+// A number of 6-bit "BCD" character encodings were used, depending on the
+// application, storage medium, and CPU. Not all characters became ASCII
+// characters or even Unicode.
+//
+// Here, 6-bit characters (7-bit with parity) are embedded in std::uint8_t
+// Six 6-bit characters were big-endian packed into a 36-bit word, embedded here
+// in a std::uint64_t.
 
-#include <gtest/gtest.h>
+#ifndef Z0FTWARE_BCD_HPP
+#define Z0FTWARE_BCD_HPP
 
-TEST(BitField, ldb) {
-  std::uint64_t value = 0xfedcba9876543210;
-  EXPECT_EQ((ldb<4, 4>(value)), 1);
-  EXPECT_EQ((ldb<3, 4>(value)), 2);
-  EXPECT_EQ((ldb<4, 8>(value)), 0x21);
-  EXPECT_EQ((ldb<63, 1>(value)), 1);
-  EXPECT_EQ((ldb<62, 2>(value)), 3);
-  EXPECT_EQ((ldb<61, 3>(value)), 7);
-  EXPECT_EQ((ldb<60, 4>(value)), 0xF);
-  EXPECT_EQ((ldb<59, 5>(value)), 0x1F);
-}
+#include <cstdint>
 
-TEST(BitField, dpb) {
-  std::uint64_t value = 0xFFFFFFFFFFFFFFFF;
-  dpb<4, 4>(3, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFFF3F);
-  dpb<8, 4>(0, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFF03F);
-  dpb<8, 4>(-1, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFFF3F);
-}
+using bcd_t = std::uint8_t;
 
-TEST(BitFieldRef, ldb) {
-  std::uint64_t value = 0xfedcba9876543210;
-  std::uint64_t value1 = value;
-  using s31 = BitField<28, 4>;
-  EXPECT_EQ(s31::ref(value), 0x7);
-  s31::ref(value) = 0xC;
-  // Ref<s31>::ref(value) = 0xC;
-  EXPECT_EQ((BitField<32, 32>::ref(value)), (BitField<32, 32>::ref(value1)));
-  EXPECT_EQ((BitField<0, 28>::ref(value)), (BitField<0, 28>::ref(value1)));
-  EXPECT_EQ(s31::ref(value), 0xC);
-}
+char charFromBCD(bcd_t bcd);
+bcd_t BCDFromChar(char ascii);
 
+#endif

@@ -20,41 +20,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Z0ftware/field.hpp"
+// Helpers for working with bit fields
 
-#include <gtest/gtest.h>
+#ifndef Z0FTWARE_HOLLERITH_HPP
+#define Z0FTWARE_HOLLERITH_HPP
 
-TEST(BitField, ldb) {
-  std::uint64_t value = 0xfedcba9876543210;
-  EXPECT_EQ((ldb<4, 4>(value)), 1);
-  EXPECT_EQ((ldb<3, 4>(value)), 2);
-  EXPECT_EQ((ldb<4, 8>(value)), 0x21);
-  EXPECT_EQ((ldb<63, 1>(value)), 1);
-  EXPECT_EQ((ldb<62, 2>(value)), 3);
-  EXPECT_EQ((ldb<61, 3>(value)), 7);
-  EXPECT_EQ((ldb<60, 4>(value)), 0xF);
-  EXPECT_EQ((ldb<59, 5>(value)), 0x1F);
+#include <cstdint>
+
+// Translate Hollerith row to bit position
+template <typename T> constexpr std::uint64_t hbit(T pos) {
+  //   12  11
+  //   11  10
+  // [1]0   9
+  //    1   8
+  //    2   7
+  //    3   6
+  //    4   5
+  //    5   4
+  //    6   3
+  //    7   2
+  //    8   1
+  //    9   0
+  //
+  //                      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10, 11, 12
+  constexpr T translate[]{9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 10, 11};
+  return translate[pos];
 }
 
-TEST(BitField, dpb) {
-  std::uint64_t value = 0xFFFFFFFFFFFFFFFF;
-  dpb<4, 4>(3, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFFF3F);
-  dpb<8, 4>(0, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFF03F);
-  dpb<8, 4>(-1, value);
-  EXPECT_EQ(value, 0xFFFFFFFFFFFFFF3F);
+constexpr std::uint64_t hbits() { return 0; }
+
+template <typename Row, typename... MoreRows>
+constexpr std::uint64_t hbits(Row row, MoreRows... moreRows) {
+  return (std::uint64_t(1) << hbit(row)) | hbits(moreRows...);
 }
 
-TEST(BitFieldRef, ldb) {
-  std::uint64_t value = 0xfedcba9876543210;
-  std::uint64_t value1 = value;
-  using s31 = BitField<28, 4>;
-  EXPECT_EQ(s31::ref(value), 0x7);
-  s31::ref(value) = 0xC;
-  // Ref<s31>::ref(value) = 0xC;
-  EXPECT_EQ((BitField<32, 32>::ref(value)), (BitField<32, 32>::ref(value1)));
-  EXPECT_EQ((BitField<0, 28>::ref(value)), (BitField<0, 28>::ref(value1)));
-  EXPECT_EQ(s31::ref(value), 0xC);
-}
-
+#endif

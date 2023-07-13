@@ -224,6 +224,16 @@ public:
   }
 };
 
+template <typename T> struct Fields {};
+
+template<typename word_t=std::uint64_t>
+constexpr word_t bits() { return 0; }
+
+template <typename word_t, typename Bit, typename... MoreBits>
+constexpr word_t bits(Bit bit, MoreBits... moreBits) {
+  return (word_t(1) << bit) | bits(moreBits...);
+}
+
 // Contiguous
 class TextField {
 public:
