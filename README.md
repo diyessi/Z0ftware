@@ -1,4 +1,4 @@
-# 70ftware
+# Z0ftware
 Tools for working with IBM 704, 709, 7090 and 7094 (70x) software.
 
 ## The 70x Computers
