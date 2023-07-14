@@ -224,8 +224,6 @@ public:
   }
 };
 
-template <typename T> struct Fields {};
-
 template<typename word_t=std::uint64_t>
 constexpr word_t bits() { return 0; }
 

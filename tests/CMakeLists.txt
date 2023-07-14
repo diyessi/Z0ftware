@@ -2,6 +2,7 @@ include(GoogleTest)
 
 add_executable(Z0ftware_tests
     field.cpp
+    word.cpp
 )
 
 target_link_libraries(Z0ftware_tests
