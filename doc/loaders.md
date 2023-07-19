@@ -35,12 +35,25 @@ The file `artifacts/uasap.sap` contains the SAP assembler source, which begins w
        ORG 0                                                            SAP30032
 ```
 
-The general form of an assembler instruction is
+The *Load card* key will place the first two instructions in location 0 and 1 and transfer to 0, so memory will look like:
 
 ```
-LABEL  OPR ADDRESS,INDEX,DECREMENT COMMENT
+00000 LXA 0,4
+00001 CPY 2,4
+``````
+
+and the card reading will be positioned at
+
+```
+      TXI 1,4,-1
 ```
 
-The ```LABEL``` is up to 6 characters. Spaces will be removed. The ```OPR``` is the three character operation code. The ```ADDRESS,INDEX,DECREMENT``` are up to three expressions. The ```INDEX``` and ```DECREMENT``` default to 0.
+The ```LXA 0,4``` will copy the address part of word 0, which happens to be itself with address portion 0, to index register 4. When index registers are used, their content will be subtracted from the address part of the instruction.
 
-The first ```ORG 0``` begins the card, setting the location to 0. The ```FUL``` tells the assembler to produce binary cards suitable for the load key. The first two real instructions on the card will be ```LXA *,4```  and ```CPY *+1,4``` which the load key will have placed into storage locations 0 and 1. The load key sequence then transfers to address 0, which will actually be ```LXA 0,4``` so index 4 will be set to the address field, 0. The ```CPY 2,4``` will copy the next value from the card to the address `2 - C(IDX4)`.
+Next, ```CPY 2,4``` will read the next word from the card, i.e. ```TXI 1,4,-1```, and store it in location `2-C(IDX[4]) = 2` just in time for it to be the next instruction executed. There are no instruction cache issues to worry about since there are no caches.
+
+The ```CPY``` instruction has a conditional built into it. Normally it continues with the next instruction, but if the end of file is reached (card reader out of cards) it continues with the instruction after that, while on end of record (all 24 values have been read from the card) it continues with the instruction third after the ```CPY```. Since there are 24 words on the card, neither end of file nor end of record will occur at this time.
+
+The ```TXI 1,4,-1``` will transfer back to 1, the ```CPY``` and decrement index register 4 at the same time; it will contain `77777` (Note: this is specific to an i704 with 32,768 words or memory) which is a twos complement -1.
+
+This time the ```CPY 2,4``` will write address 3. This is the address for the end of file condition for the ```CPY```, but it is being used as a constant under the expectation that the ```CPY``` will never see an end of file. Since the end of card condition will break out of the card reading loop, this expectation is true.

@@ -14,21 +14,3 @@ Without a supply of programs to perform numeric computations the 704 would be id
 Array access was often implemented by modifying the instruction that accessed memory to have the address of the element to be accessed. The 704 had three index registers whose contents could automatically be added to the address in any instruction that accessed memory, as well as being tested and decremented in some branch instructions.
 
 Assembler programs were already being used to convert symbolic representations of instructions opcodes into their binary representations. Two pass assemblers could also automatically assign addresses to symbolic names for locations. Whirlwind had a program that could convert algebraic expressions into programs. Backus wanted an expanded version for the already developed 701, but limited memory and missing features made it impractical. Improvements to the 704, such as floating point, index registers, and core memory made the first implementation of FORTRAN, being devloped at the same time, possible on the 704 with the available software technology. Some details can be found in [Lorenzo's Abstracting Away the Machine](https://www.amazon.com/Abstracting-Away-Machine-Programming-TRANslation/dp/1082395943) and in the [Charles Babbage Institute's interview with Gene Amdahl](https://conservancy.umn.edu/bitstream/handle/11299/104341/oh107gma.pdf). Later, Lisp was developed on the 704 at MIT.
-
-### Loading
-
-The 704 has a `Load Card` button for "booting" off a card. It performs the following four instructions:
-
-```
-Select card reader for reading
-Read an instruction into address 0
-Read an instruction into address 1
-Branch to 0
-```
-In modern terms, the 704 had a four instruction BIOS that loaded a two instruction boot loader.
-
-### File Formats
-
-Since USB punched card equipment is difficult to obtain, several file formats have been developed for representing card data. The simplest is an ASCII file where each line corresponds to one alphanumeric card containing the same characters. If the line is less than 80 characters, it is assumed to be padded with spaces to 80 characters, and if it is longer than 80 characters, it is truncated to 80 characters.
-
-
