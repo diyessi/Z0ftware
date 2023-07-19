@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// 70x Number definitions
+// 70x Number definitions (needs reorg)
 
 #ifndef Z0FTWARE_WORD_HPP
 #define Z0FTWARE_WORD_HPP
