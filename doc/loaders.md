@@ -57,3 +57,29 @@ The ```CPY``` instruction has a conditional built into it. Normally it continues
 The ```TXI 1,4,-1``` will transfer back to 1, the ```CPY``` and decrement index register 4 at the same time; it will contain `77777` (Note: this is specific to an i704 with 32,768 words or memory) which is a twos complement -1.
 
 This time the ```CPY 2,4``` will write address 3. This is the address for the end of file condition for the ```CPY```, but it is being used as a constant under the expectation that the ```CPY``` will never see an end of file. Since the end of card condition will break out of the card reading loop, this expectation is true.
+
+When the card is finished the ```CPY``` will transfer control to 4 and memory will contain
+
+```
+00000 LXA 0,4
+00001 CPY 2,4
+00002 TXI 2,4,-1
+00003 000 DRML1,,DRUM1+DCLAS
+00004 CLA 3
+00005 ARS 18
+00006 ORS 7
+00007 RDR 0
+00010 PXD 0,0
+00011 LDA 3
+00013 LXD 15,4
+00014 CAD 0
+00015 TXI ,,PRE2-PRE1-1
+00016 HTR 0
+
+```
+
+In 4, the constant in 3 is loaded into AC. This constant is actually two 15-bit constants packed into one word, ```DRML1``` in the address and ```DRUM1+DCLAS``` in the decrement part of the word. The symbol ```DCLAS``` is a base for the four drum device numbers. Adding ```DRUM1``` gives the number for drum 1.
+
+ Continuing with instruction 6, the device number is OR'd into the word in address 7, effectively setting the address part of the instruction to drum 1. The operation ```RDR```, *Read Drum*, is an alias for ```RDS```, *Read Select*, so drum 1 is not selected for reading.
+
+ 
