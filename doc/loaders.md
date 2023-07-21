@@ -71,15 +71,23 @@ When the card is finished the ```CPY``` will transfer control to 4 and memory wi
 00007 RDR 0
 00010 PXD 0,0
 00011 LDA 3
-00013 LXD 15,4
-00014 CAD 0
-00015 TXI ,,PRE2-PRE1-1
-00016 HTR 0
+00012 LXD 14,4
+00013 CAD 0
+00014 TXI ,,PRE2-PRE1-1
+00015 HTR 0
 
 ```
 
 In 4, the constant in 3 is loaded into AC. This constant is actually two 15-bit constants packed into one word, ```DRML1``` in the address and ```DRUM1+DCLAS``` in the decrement part of the word. The symbol ```DCLAS``` is a base for the four drum device numbers. Adding ```DRUM1``` gives the number for drum 1.
 
- Continuing with instruction 6, the device number is OR'd into the word in address 7, effectively setting the address part of the instruction to drum 1. The operation ```RDR```, *Read Drum*, is an alias for ```RDS```, *Read Select*, so drum 1 is not selected for reading.
+ Continuing with instruction 6, the device number is OR'd into the word in address 7, effectively setting the address part of the instruction to drum 1. The operation ```RDR```, *Read Drum*, is an alias for ```RDS```, *Read Select*, so drum 1 is not selected for reading. It is unclear why instruction 4 couldn't have simply been ```RDR DRUM1+DCLAS```.
 
- 
+At 10, the ```PXD``` puts the contents of the value of the index into the accumulator's decrement. An index of 0 has value 0, so the accumulator's decrement will be set to 0. Since the ```ARS 18``` was the last operation involving the accumulator, this instruction should not be necessary.
+
+In instruction 11, the accumulator's address is set to the address from address 3, i.e. ```DRML1```, the starting drum location for SAP 4-5.
+
+Next, ```LXD 14,4``` will set index 4 to the decrement from 14, i.e. ```PRE2-PRE1-1```, where ```PRE1``` begins a later segment of the assembler that ends in ```PRE2```.
+
+The ```CAD 0``` reads a word from the drum and adds it to the accumulator.
+
+

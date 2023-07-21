@@ -118,6 +118,8 @@ std::vector<OpSpec> opSpecs704 = {
     // http://bitsavers.org/pdf/mit/computer_center/Coding_for_the_MIT-IBM_704_Computer_Oct57.pdf
     //
     // Some are mentioned by name in SAP documentation
+    {"CAC", -00700, 0000, "Copy add and carry"},
+    {"CAD", -00700, 0000, "Copy add and carry"},
     {"CFF", +00760, 0030, "Change file frame"},
     {"IOD", +00766, 0333, "In-out delay"},
     {"RCD", +00762, 0321, "Read card"},
