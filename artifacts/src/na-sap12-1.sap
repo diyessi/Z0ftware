@@ -1,0 +1,1066 @@
+   NA SAP10SYMBOLIC ASSEMBLY PROGRAM. FIRST PASS                     176NUDEK28N
+NASAP1 REM 1065 CARDS                                                   SAP10001
+       ORG 110                                                    100020SAP10002
+ CALL                                                             100030SAP10003
+ TERM                                                             100040SAP10004
+ RBITS                                                            100050SAP10005
+ INDIC                                                            100060SAP10006
+ TEQ                                                              100070SAP10007
+ CH                                                               100080SAP10008
+ CHD                                                              100090SAP10009
+ EQV                                                              100100SAP10010
+ EQVR                                                             100110SAP10011
+ SYMB                                                             100120SAP10012
+ MQ                                                               100130SAP10013
+ BHEAD BCD 100000                                                 100140SAP10014
+ THEAD                                                            100150SAP10015
+ LOC1                                                             100160SAP10016
+ LOC2                                                             100170SAP10017
+ M                                                                100180SAP10018
+ N                                                                100190SAP10019
+ LMT                                                              100200SAP10020
+ LMT1      OCTAL+16,0,16                                          100210SAP10021
+ LMT2      OCTAL+4,0,4                                            100220SAP10022
+ Q0        0                                                      100230SAP10023
+ Q1        1                                                      100240SAP10024
+ Q2        2                                                      100250SAP10025
+ Q3        3                                                      100260SAP10026
+ Q4        4                                                      100270SAP10027
+ Q5        5                                                      100280SAP10028
+ Q6        6                                                      100290SAP10029
+ Q7        7                                                      100300SAP10030
+ Q8        8                                                      100310SAP10031
+ Q9        9                                                      100320SAP10032
+ Q10       10                                                     100330SAP10033
+ MASK  BCD 1                                                      100340SAP10034
+ TBL   BCD 1000TBL                                                100350SAP10035
+ TCD   BCD 1000TCD                                                100360SAP10036
+ SYN   BCD 1000SYN                                                100370SAP10037
+ REP   BCD 1000REP                                                100380SAP10038
+ REM   BCD 1000REM                                                100390SAP10039
+ ORG   BCD 1000ORG                                                100400SAP10040
+ OCT   BCD 1000OCT                                                100410SAP10041
+ LIB   BCD 1000LIB                                                100420SAP10042
+ HED   BCD 1000HED                                                100430SAP10043
+ EQU   BCD 1000EQU                                                100440SAP10044
+ END   BCD 1000END                                                100450SAP10045
+ DEF   BCD 1000DEF                                                100460SAP10046
+ DEC   BCD 1000DEC                                                100470SAP10047
+ BSS   BCD 1000BSS                                                100480SAP10048
+ BES   BCD 1000BES                                                100490SAP10049
+ BCDO  BCD 1000BCD                                                100500SAP10050
+ VRF       2,0,-1                                                 100510SAP10051
+ PWR       0,0,18*512                                             100520SAP10052
+ RBIT      0,2                                                    100530SAP10053
+ PBIT  MZE                                                        100540SAP10054
+ 1BIT  TIX                                                        100550SAP10055
+ 2BIT  TXI                                                        100560SAP10056
+ ADDR      -1                                                     100570SAP10057
+ TAG       0,7                                                    100580SAP10058
+ DECR      0,0,-1                                                 100590SAP10059
+ COMMA     59                                                     100600SAP10060
+ DIVID     49                                                     100610SAP10061
+ BLANK     48                                                     100620SAP10062
+ MULT      44                                                     100630SAP10063
+ MINUS     32                                                     100640SAP10064
+ PLUS      16                                                     100650SAP10065
+ B         18                                                     100660SAP10066
+ E         21                                                     100670SAP10067
+ HEAD      43                                                     100680SAP10068
+ POINT     27                                                     100690SAP10069
+ OCTAL BSS 4                                                      100700SAP10070
+ BCD   BSS 14                                                     100710SAP10071
+ X4                                                               100720SAP10072
+ WOT   WTD D                       SELECT OUTPUT TAPE             100730SAP10073
+       SXD X4,4                                                   100740SAP10074
+       CLA LMT            SET BLOCK LIMITS                        100750SAP10075
+       STA WT1                                                    100760SAP10076
+       PDX 0,4                                                    100770SAP10077
+       CLA LMT2                                                   100780SAP10078
+       STO LMT                                                    100790SAP10079
+WT1    CPY 0,4            COPY RECORD TO OUTPUT TAPE              100800SAP10080
+       TIX WT1,4,1                                                100810SAP10081
+       IOD                                                        100820SAP10082
+WT2    LXD X4,4                                                   100830SAP10083
+       TRA 1,4                                                    100840SAP10084
+ SCAN7 ADD RBITS          SUM RELOCATION                          100850SAP10085
+       STO RBITS          BITS                                    100860SAP10086
+       CLA CH                                                     100870SAP10087
+       CAS COMMA                                                  100880SAP10088
+       TXL SCAN6                                                  100890SAP10089
+       TXL EQL                                                    100900SAP10090
+       CAS BLANK                                                  100910SAP10091
+       TXL SCAN6                                                  100920SAP10092
+       TXL EQL                                                    100930SAP10093
+       TXL SCAN6                                                  100940SAP10094
+ SCAN  SXD SCAN1,4        SET UP SCAN FOR                         100950SAP10095
+       CLM                                                        100960SAP10096
+       SLW RBITS                                                  100970SAP10097
+       SLW TERM                                                   100980SAP10098
+       SLW TEQ                                                    100990SAP10099
+       CLA CH                                                     101000SAP10100
+       SUB BLANK                                                  101010SAP10101
+       TZE 1,4                                                    101020SAP10102
+       CLA ADD1                                                   101030SAP10103
+       STD OP1                                                    101040SAP10104
+ SCAN6 CLA BHEAD          ENTRY POINT FOR                         101050SAP10105
+       STO THEAD          RESUMING SCAN                           101060SAP10106
+       LDQ MQ             AFTER OPERATION                         101070SAP10107
+ SCAN9 CLM                                                        101080SAP10108
+       SLW EQV                                                    101090SAP10109
+       SLW EQVR                                                   101100SAP10110
+ SCAN1 TXL SCAN8                                                  101110SAP10111
+ EQL   CLA TERM           COMPLETE EQUIVALENCE                    101120SAP10112
+       ADD TEQ            FOR EXPRESSION AND                      101130SAP10113
+       STO TEQ            EXIT FROM SCAN                          101140SAP10114
+       CLA Q2                                                     101150SAP10115
+       SBM RBITS                                                  101160SAP10116
+       TZE EQL1                                                   101170SAP10117
+       PXD                MAKE ABSOLUTE                           101180SAP10118
+       STO RBITS                                                  101190SAP10119
+ EQL1  CLA TEQ            TEST EQUIVALENCE SIGN                   101200SAP10120
+       TPL EQL2                                                   101210SAP10121
+       CAL RBITS                                                  101220SAP10122
+       TZE EQL3                                                   101230SAP10123
+       ADD Q1             PROVIDE COMPLEMENT                      101240SAP10124
+       STO RBITS          INDICATOR                               101250SAP10125
+ EQL3  CAL PBIT           COMPLEMENT EQUIVALENCE                  101260SAP10126
+       ADD TEQ                                                    101270SAP10127
+ EQL2  ANA ADDR           TAKE MODULO RESULT                      101280SAP10128
+       STO TEQ                                                    101290SAP10129
+       LXD SCAN1,4                                                101300SAP10130
+       TRA 1,4                                                    101310SAP10131
+ SCAN4 PXD                SCAN EXPRESSION,                        101320SAP10132
+       LGL 6              SEARCHING FOR                           101330SAP10133
+       STO CH             OPERATIONS                              101340SAP10134
+       CAS COMMA                                                  101350SAP10135
+       TXL SCAN3                                                  101360SAP10136
+       TXL EQ                                                     101370SAP10137
+       CAS DIVID                                                  101380SAP10138
+       TXL SCAN3                                                  101390SAP10139
+       TXL DIV                                                    101400SAP10140
+       CAS BLANK                                                  101410SAP10141
+       TXL SCAN3                                                  101420SAP10142
+       TXL EQ                                                     101430SAP10143
+       CAS MULT                                                   101440SAP10144
+       TXL SCAN3                                                  101450SAP10145
+       TXL MPY                                                    101460SAP10146
+       CAS HEAD                                                   101470SAP10147
+       TXL SCAN3                                                  101480SAP10148
+       TXL HED1                                                   101490SAP10149
+       CAS MINUS                                                  101500SAP10150
+       TXL SCAN3                                                  101510SAP10151
+       TXL SUB                                                    101520SAP10152
+       CAS PLUS                                                   101530SAP10153
+       TXL SCAN3                                                  101540SAP10154
+       TXL ADD                                                    101550SAP10155
+ SCAN3 CAL SYMB           BUILD UNIFORM                           101560SAP10156
+       ALS 6              SYMBOL                                  101570SAP10157
+       ADD CH                                                     101580SAP10158
+ SCAN8 SLW SYMB                                                   101590SAP10159
+ SCAN2 TIX SCAN4,1,1      COUNT CHARACTERS                        101600SAP10160
+       TXI SCAN5,2,-1     OBTAIN NEXT BCD WORD                    101610SAP10161
+ SCAN5 LDQ BCD,2          X                                       101620SAP10162
+       TXI SCAN4,1,5      RESET CHARACTER COUNT                   101630SAP10163
+ ADD   TSX EQ1,4                                                  101640SAP10164
+       CLA TERM           ARITHMETIC OPERATIONS                   101650SAP10165
+       ADD TEQ            FOR EXPRESSIONS                         101660SAP10166
+       STO TEQ                                                    101670SAP10167
+       CLA EQV                                                    101680SAP10168
+       STO TERM                                                   101690SAP10169
+       CLA EQVR                                                   101700SAP10170
+ ADD1  TXL SCAN7,0,-ADD                                           101710SAP10171
+ SUB   TSX EQ1,4                                                  101720SAP10172
+       CLA TERM                                                   101730SAP10173
+       ADD TEQ                                                    101740SAP10174
+       STO TEQ                                                    101750SAP10175
+       CLS EQV                                                    101760SAP10176
+       STO TERM                                                   101770SAP10177
+       CLS EQVR                                                   101780SAP10178
+       TXL SCAN7                                                  101790SAP10179
+ MPY   TSX EQ1,4                                                  101800SAP10180
+       LDQ TERM                                                   101810SAP10181
+       MPY EQV                                                    101820SAP10182
+       STQ TERM                                                   101830SAP10183
+       CLA EQVR                                                   101840SAP10184
+ OP1   TXL SCAN7                                                  101850SAP10185
+ DIV   TSX EQ1,4                                                  101860SAP10186
+       CLA TERM                                                   101870SAP10187
+       LRS 35                                                     101880SAP10188
+       DVP EQV                                                    101890SAP10189
+       STQ TERM                                                   101900SAP10190
+       CLA EQVR                                                   101910SAP10191
+ OP2   TXL SCAN7                                                  101920SAP10192
+ HED1  CLA SYMB                                                   101930SAP10193
+       STO THEAD                                                  101940SAP10194
+       TXL SCAN9                                                  101950SAP10195
+ EQ1   SXD OP2,4          NOTE NEXT OPERATION                     101960SAP10196
+ EQ    STQ MQ             SAVE MQ                                 101970SAP10197
+       CAL SYMB           TEST FOR INTEGER                        101980SAP10198
+       ANA MASK                                                   101990SAP10199
+       TZE EQ5                                                    102000SAP10200
+       LDQ SYMB                                                   102010SAP10201
+ EQ7   PXD -EQ6                                                   102020SAP10202
+       LGL 6                                                      102030SAP10203
+       TNZ EQ2            TEST FOR 6 CHARACTERS                   102040SAP10204
+       CAL THEAD          ATTACH HEADING                          102050SAP10205
+ EQ2   LGL 30                                                     102060SAP10206
+       SLW SYMB                                                   102070SAP10207
+       TSX SRCH,4                                                 102080SAP10208
+       STA EQV            AND PREPARE FOR                         102090SAP10209
+       ANA TAG                                                    102100SAP10210
+       ARS 15                                                     102110SAP10211
+ EQ6   STO EQVR                                                   102120SAP10212
+       LXD OP1,4          CURRENT OPERATION                       102130SAP10213
+       CAL OP2            SET NEXT OP                             102140SAP10214
+       STD OP1                                                    102150SAP10215
+       TRA 1,4            DO CURRENT OPERATION                    102160SAP10216
+ EQ5   LXA EQ7,4                                                  102170SAP10217
+ INT   SXD INT1,4         CONVERT DECIMAL INTEGER                 102180SAP10218
+       PXD                SYMBOL TO BINARY                        102190SAP10219
+       LXA Q6,4                                                   102200SAP10220
+       LDQ SYMB           INTEGER EQUIVALENT                      102210SAP10221
+ INT4  LGL 6                                                      102220SAP10222
+       TNZ INT3                                                   102230SAP10223
+       TIX INT4,4,1                                               102240SAP10224
+ INT1  TXL INT3                                                   102250SAP10225
+ INT2  PXD                                                        102260SAP10226
+       LGL 6                                                      102270SAP10227
+       SLW CHD                                                    102280SAP10228
+       CLA EQV                                                    102290SAP10229
+       ALS 2                                                      102300SAP10230
+       ADD EQV                                                    102310SAP10231
+       ALS 1                                                      102320SAP10232
+       ADD CHD                                                    102330SAP10233
+ INT3  STO EQV                                                    102340SAP10234
+       TIX INT2,4,1                                               102350SAP10235
+       LXD INT1,4                                                 102360SAP10236
+       TRA 1,4                                                    102370SAP10237
+ SRCH  CAL SIZE                                                   102380SAP10238
+       SXD SRCH1,4                                                102390SAP10239
+       ARS 18                                                     102400SAP10240
+       COM                                                        102410SAP10241
+       ANA ADDR                                                   102420SAP10242
+       ADD Q3                                                     102430SAP10243
+       PAX 0,4                                                    102440SAP10244
+       ADD SUMTB                                                  102450SAP10245
+       STA EQ3                                                    102460SAP10246
+       ADD Q1                                                     102470SAP10247
+       STA EQ4                                                    102480SAP10248
+       CLA SYMB                                                   102490SAP10249
+ EQ3   CAS 0,4            SEARCH TABLE FOR                        102500SAP10250
+       TIX EQ3,4,2        EQUIVALENCE                             102510SAP10251
+       TXH EQ4,4,2                                                102520SAP10252
+       TIX EQ3,4,2                                                102530SAP10253
+       PXD                                                        102540SAP10254
+ SRCH1 TXL ERR                                                    102550SAP10255
+ EQ4   CLA 0,4            STORE EQUIVALENCE                       102560SAP10256
+ ERR   LXD SRCH1,4                                                102570SAP10257
+       TRA 1,4                                                    102580SAP10258
+ START REW 5                                                      102590SAP10259
+       SWT 3                                                      102600SAP10260
+       TRA STRT4                                                  102610SAP10261
+ STRT1 RCD                                                        102620SAP10262
+       CPY 0                                                      102630SAP10263
+       CLA 0                                                      102640SAP10264
+       STA STRT2                                                  102650SAP10265
+       STA STRT3                                                  102660SAP10266
+       ARS 18                                                     102670SAP10267
+ STRT2 TZE *                                                      102680SAP10268
+       PAX 0,1                                                    102690SAP10269
+       ADM STRT3                                                  102700SAP10270
+       STA STRT3                                                  102710SAP10271
+       PXD 0,0                                                    102720SAP10272
+       CPY 1                                                      102730SAP10273
+ STRT3 CAD *,1                                                    102740SAP10274
+       TIX STRT3,1,1                                              102750SAP10275
+       ACL 0                                                      102760SAP10276
+       STO 0                                                      102770SAP10277
+       CLA 0                                                      102780SAP10278
+       SUB 1                                                      102790SAP10279
+       TZE STRT1                                                  102800SAP10280
+       HTR STRT1                                                  102810SAP10281
+ STRT4 SXD NOLB,2                                                 102820SAP10282
+       SXD KLB7,2                  NO OF LIB TABLE ENTRIES        102830SAP10283
+       SXD KLB32,2                                                102840SAP10284
+       TXI KSTA,2,STBL+2                                          102850SAP10285
+ KSTA  SXD SM10,2                                                 102860SAP10286
+       CAL BLANKS                           BLANKS NEEDED FOR     102870SAP10287
+       SLW BCD+12                             CARD                102880SAP10288
+       SLW BCD+13                             READ                102890SAP10289
+       TXL READ1                                                  102900SAP10290
+ WRMED WTD C                                                      102910SAP10291
+       LXD WRMD1,4                                                102920SAP10292
+ WTD   CPY BCD+14,4                                               102930SAP10293
+       TIX WTD,4,1                                                102940SAP10294
+ WRMD1 TXL CTRL,0,14                                              102950SAP10295
+ READ1 SWT 1                                                      102960SAP10296
+       TXL RTD                              TAPE INPUT            102970SAP10297
+       RCD                                  CARD INPUT            102980SAP10298
+ READ2 SWT 1                                                      102990SAP10299
+       TXL RTD                              TAPE INPUT            103000SAP10300
+ CRD   TSX RDBCD,4                          CARD INPUT            103010SAP10301
+       HTR BCD,0,12                                               103020SAP10302
+       TRA CREOF                                                  103030SAP10303
+       TRA WRMED+1                          WRITE CARD ON TAPE    103040SAP10304
+ RTD   SLN 1                                                      103050SAP10305
+       RTD BT                                                     103060SAP10306
+       LXA Q0,4                                                   103070SAP10307
+ RTD1  CPY BCD,4                                                  103080SAP10308
+       TXI RTD1,4,-1                                              103090SAP10309
+       TXL FMEND                                                  103100SAP10310
+       LXA B,1                                                    103110SAP10311
+ DELAY TIX DELAY,1,1                                              103120SAP10312
+       RTT                                                        103130SAP10313
+       TXL SLTST                                                  103140SAP10314
+       TXL RTD4,4,0                                               103150SAP10315
+       CAL BLANKS                                                 103160SAP10316
+       TRA RTD2                                                   103170SAP10317
+ RTD4  HPR                                                        103180SAP10318
+       CLA CMT7                                                   103190SAP10319
+       TSX CMMT,4                                                 103200SAP10320
+       TRA RTD1-2                                                 103210SAP10321
+ RTD2  TXL WRMED,4,-14                                            103220SAP10322
+       SLW BCD,4                                                  103230SAP10323
+       TXI RTD2,4,-1                                              103240SAP10324
+ CTRL  IOD                                                        103250SAP10325
+ CTRL1 LXD VRF,2          SET BEGINNING OF                        103260SAP10326
+       LXA VRF,1          VARIABLE FIELD                          103270SAP10327
+       LDQ BCD,2                                                  103280SAP10328
+       LGL 30                                                     103290SAP10329
+       STQ MQ                                                     103300SAP10330
+       CAL MQ                                                     103310SAP10331
+       ARS 30                                                     103320SAP10332
+       SLW CH                                                     103330SAP10333
+       CAL BCD+1                                                  103340SAP10334
+       ALS 7                                                      103350SAP10335
+       ARS 19                                                     103360SAP10336
+       LXD CTRL2,4                                                103370SAP10337
+ CTRL3 CAS BCDO+1,4                                               103380SAP10338
+ CTRL2 TXL INSTR,0,BCDO+1-TCD                                     103390SAP10339
+       TRA INSTR,4                                                103400SAP10340
+       TIX CTRL3,4,1                                              103410SAP10341
+       TXL INSTR                                                  103420SAP10342
+       TXL TCDOP                                                  103430SAP10343
+       TXL SYNOP                                                  103440SAP10344
+       TXL REPOP                                                  103450SAP10345
+       TXL REMOP                                                  103460SAP10346
+       TXL ORGOP                                                  103470SAP10347
+       TXL OCTOP                                                  103480SAP10348
+ LIBT  TXL LIBOP                                                  103490SAP10349
+       TXL HEDOP                                                  103500SAP10350
+       TXL EQUOP                                                  103510SAP10351
+ ENDT  TXL ENDOP                                                  103520SAP10352
+       TXL READ1                                                  103530SAP10353
+       TXL DECOP                                                  103540SAP10354
+       TXL BSSOP                                                  103550SAP10355
+       TXL BESOP                                                  103560SAP10356
+       TXL BCDOP                                                  103570SAP10357
+ INSTR CLA LOC1           ADVANCE LOCATION                        103580SAP10358
+       STO LOC2           COUNTERS                                103590SAP10359
+       ADD Q1                                                     103600SAP10360
+       STO LOC1                                                   103610SAP10361
+ SMR   SWT 1                                                      103620SAP10362
+       TXL SM8                                                    103630SAP10363
+       RCD                                  CARD READER SELECT    103640SAP10364
+ SM8   CLA BCD                              TEST FOR SYMBOL IN    103650SAP10365
+       SUB MASK           LOCATION FIELD                          103660SAP10366
+       TZE READ2                                                  103670SAP10367
+ SM7   PXD KLB4                                                   103680SAP10368
+       STO SYMB                                                   103690SAP10369
+       LXA Q6,4                                                   103700SAP10370
+       LDQ BCD                                                    103710SAP10371
+ SM3   PXD                BUILD UNIFORM                           103720SAP10372
+       LGL 6              SYMBOL                                  103730SAP10373
+       CAS BLANK                                                  103740SAP10374
+       TXL SM1                                                    103750SAP10375
+       TXL SM2                                                    103760SAP10376
+ SM1   STO CH                                                     103770SAP10377
+       CAL SYMB                                                   103780SAP10378
+       ALS 6                                                      103790SAP10379
+       ADD CH                                                     103800SAP10380
+       SLW SYMB                                                   103810SAP10381
+ SM2   TIX SM3,4,1                                                103820SAP10382
+       CAL SYMB                                                   103830SAP10383
+       ANA MASK                                                   103840SAP10384
+       TNZ SM4            TEST FOR INTEGER                        103850SAP10385
+       TSX INT,4          OBTAIN INTEGER                          103860SAP10386
+       STO LOC2           SET ABSOLUTE LOCATION                   103870SAP10387
+       ADD Q1             ADVANCE LOCATION                        103880SAP10388
+       STO LOC1           COUNTER AND                             103890SAP10389
+       TXL READ2          READ NEXT RECORD                        103900SAP10390
+ SM4   LDQ SYMB           MAKE ENTRY                              103910SAP10391
+ KLB3  PXD SM4                                                    103920SAP10392
+       LGL 6                                                      103930SAP10393
+       TNZ SM9                                                    103940SAP10394
+       CAL BHEAD          TO SYMBOL AND                           103950SAP10395
+ SM9   LGL 30             EQUIVALENCE TABLE                       103960SAP10396
+       LXD SIZE,4                                                 103970SAP10397
+       TXI SM10,4,-2                                              103980SAP10398
+ SM10  TXH SML,4,STBL+2                                           103990SAP10399
+       CLA CMT4                                                   104000SAP10400
+       TSX CMMT,4                                                 104010SAP10401
+       TXL SM5+1                                                  104020SAP10402
+ SML   SLW STBL-2,4                                               104030SAP10403
+       ACL LOC2                                                   104040SAP10404
+       ACL CKSUM                                                  104050SAP10405
+       SLW CKSUM                                                  104060SAP10406
+       CLA LOC2                                                   104070SAP10407
+       STO ETBL-2,4                                               104080SAP10408
+ SM5   SXD SIZE,4                                                 104090SAP10409
+       TXL READ2          AND READ NEXT CARD                      104100SAP10410
+ REMOP TXL READ1                                                  104110SAP10411
+ TCDOP SYN REMOP                                                  104120SAP10412
+ LIBOP CLA KLB12                   MODIFY TRANSFER CONTROLS       104130SAP10413
+       STA SM8+2                                                  104140SAP10414
+       CLA KLB11                                                  104150SAP10415
+       STA SM4-1                                                  104160SAP10416
+       STA SM2+3                                                  104170SAP10417
+       CAL SM2                                                    104180SAP10418
+       STP SM4-3                                                  104190SAP10419
+       TXL SM8                     MAKE SYMBOLIC TABLE ENTRY      104200SAP10420
+ KLB2  STO SYMB                    BLANK                          104210SAP10421
+ KLB1  CAL SM5+1                            RESTORE CONTROLS      104220SAP10422
+       STA SM8+2                                                  104230SAP10423
+       STA SM4-1                                                  104240SAP10424
+       CLA KLB3                                                   104250SAP10425
+       STA SM2+3                                                  104260SAP10426
+       CLM                                                        104270SAP10427
+       STP SM4-3                                                  104280SAP10428
+       CLA SYMB                                                   104290SAP10429
+       STO CALL                                                   104300SAP10430
+       CAL MQ                      TEST ADDRESS PART OF LIB OP    104310SAP10431
+       ARS 30                                                     104320SAP10432
+       SUB BLANK                                                  104330SAP10433
+       TNZ KLB30                                                  104340SAP10434
+       CLA SYMB                                                   104350SAP10435
+       TZE KLB20        NO SYMBOL NOR RECORD NO SPECIFIED         104360SAP10436
+       ANA MASK                                                   104370SAP10437
+       TZE KLB20                                                  104380SAP10438
+       CLA SYMB                                                   104390SAP10439
+       LXA Q2,4                                                   104400SAP10440
+ KLB6  CAS LTBL+1,4                                               104410SAP10441
+       TXI KLB7,4,2                                               104420SAP10442
+       TXL KLB8                                                   104430SAP10443
+       TXI KLB7,4,2                                               104440SAP10444
+ KLB7  TXL KLB6,4,*                                               104450SAP10445
+       TXL KLB20                   NO SYMBOL FOUND                104460SAP10446
+ KLB8  BST C                                                      104470SAP10447
+       WTD C                                                      104480SAP10448
+       CLA LTBL+2,4                                               104490SAP10449
+       ANA ADDR                                                   104500SAP10450
+       LRS 35                                                     104510SAP10451
+       LXA Q4,2                                                   104520SAP10452
+ KLB9  DVP Q10                                                    104530SAP10453
+       STQ MQ                                                     104540SAP10454
+       LDQ BCD+2                                                  104550SAP10455
+       LRS 6                                                      104560SAP10456
+       STQ BCD+2                                                  104570SAP10457
+       LDQ MQ                                                     104580SAP10458
+       TIX KLB9,2,1                                               104590SAP10459
+       LGL 30                                                     104600SAP10460
+       CAL BCD+1                                                  104610SAP10461
+       ARS 6                                                      104620SAP10462
+       LGL 6                                                      104630SAP10463
+       SLW BCD+1                                                  104640SAP10464
+       CLA BCD+2                                                  104650SAP10465
+       LDQ MASK                                                   104660SAP10466
+       ARS 11                                                     104670SAP10467
+       LGL 12                                                     104680SAP10468
+       SLW BCD+2                                                  104690SAP10469
+       LXD WRMD1,2                                                104700SAP10470
+ KLB10 CPY BCD+14,2                                               104710SAP10471
+       TIX KLB10,2,1                                              104720SAP10472
+       IOD                                                        104730SAP10473
+       CAL LTBL+2,4                                               104740SAP10474
+       STD KLB14                                                  104750SAP10475
+ KLB13 CLA LOC1                                                   104760SAP10476
+       STO LOC2                                                   104770SAP10477
+       CLA BCD                                                    104780SAP10478
+       SUB MASK                                                   104790SAP10479
+       TZE KLB5                                                   104800SAP10480
+       CAL CALL                                                   104810SAP10481
+       SLW SYMB                                                   104820SAP10482
+       ANA MASK                                                   104830SAP10483
+       TZE KLB5                                                   104840SAP10484
+       CLA SM7                                                    104850SAP10485
+       STA SM5+1                                                  104860SAP10486
+ KLB14 TXL SM4,0,*                                                104870SAP10487
+ KLB4  CLA SM4-1                                                  104880SAP10488
+       STA SM5+1                                                  104890SAP10489
+ KLB5  CAL KLB14                                                  104900SAP10490
+       ARS 18                                                     104910SAP10491
+       ACL LOC2                                                   104920SAP10492
+       STA LOC1                                                   104930SAP10493
+       TXL READ1                                                  104940SAP10494
+ KLB11 HTR KLB1                                                   104950SAP10495
+ KLB12 HTR KLB2                                                   104960SAP10496
+ KLB30 TSX SCAN,4                  OBTAIN RECORD NO               104970SAP10497
+       LXA Q2,4                                                   104980SAP10498
+ KLB31 CLA LTBL+2,4                                               104990SAP10499
+       ANA ADDR                                                   105000SAP10500
+       CAS TEQ                                                    105010SAP10501
+       TXI KLB32,4,2                                              105020SAP10502
+       TXL KLB13-2                 FOUND                          105030SAP10503
+       TXI KLB32,4,2                                              105040SAP10504
+ KLB32 TXL KLB31,4,*                                              105050SAP10505
+ KLB20 CLA CMT2                                                   105060SAP10506
+       TSX CMMT,4                                                 105070SAP10507
+       CAL KLB10+1                                                105080SAP10508
+       TXL KLB13-1                                                105090SAP10509
+ SLTST SLT 1                                                      105100SAP10510
+       TXL RDTC                                                   105110SAP10511
+       BST BT                                                     105120SAP10512
+       TXL RTD+1                                                  105130SAP10513
+ RDTC  CLA CMT3                                                   105140SAP10514
+       SXD RDTC1,4                                                105150SAP10515
+       TSX CMMT,4                                                 105160SAP10516
+       LXD RDTC1,4                                                105170SAP10517
+ RDTC1 TXL RTD4-2,0,0                                             105180SAP10518
+ CMMT  STA CMT1                    PRINT COMMENTS                 105190SAP10519
+       SXD CMT2,4                                                 105200SAP10520
+       LXA Q4,4                                                   105210SAP10521
+ CMT1  CAL *,4                                                    105220SAP10522
+       SLW OCTAL+4,4                                              105230SAP10523
+       TIX CMT1,4,1                                               105240SAP10524
+       CLA LMT1                                                   105250SAP10525
+       STO LMT                                                    105260SAP10526
+       TSX WOT,4                                                  105270SAP10527
+       LXD CMT2,4                                                 105280SAP10528
+       TRA 1,4                                                    105290SAP10529
+ FMEND CAL MASK         SIMULATE END CARD                         105300SAP10530
+       LXD WRMD1,4                                                105310SAP10531
+ FM1   SLW BCD+14,4                                               105320SAP10532
+       TIX FM1,4,1                                                105330SAP10533
+       CAL FMDT                                                   105340SAP10534
+       SLW BCD+1                                                  105350SAP10535
+       TXL WRMED                                                  105360SAP10536
+ CMMT1 BCD 4*NON-EXISTING LIB CALLED                              105370SAP10537
+ CMMT2 BCD 4*REDUNDANCY TAPE CHECK                                105380SAP10538
+ CMMT3 BCD 4*TOO MANY TABLE ENTRIES                               105390SAP10539
+ CMMT4 BCD 4*TABLE CHECK SUM ERROR                                105400SAP10540
+ CMMT5 BCD 4*IMPROPER PUNCH ON CARD                               105410SAP10541
+ CMMT6 BCD 4*FALSE EOR SKIP                                       105420SAP10542
+ CMT2  HTR CMMT1+4,0,*                                            105430SAP10543
+ CMT3  HTR CMMT2+4                                                105440SAP10544
+ CMT4  HTR CMMT3+4                                                105450SAP10545
+ CMT5  HTR CMMT4+4                                                105460SAP10546
+ CMT6  HTR CMMT5+4                                                105470SAP10547
+ CMT7  HTR CMMT6+4                                                105480SAP10548
+ FMDT  BCD 1 END                                                  105490SAP10549
+ SYNOP CLA RBIT                                                   105500SAP10550
+       SLW LOC2                                                   105510SAP10551
+ SYN1  TSX SCAN,4         ESTABLISH SYNONYM                       105520SAP10552
+       CLA TEQ                                                    105530SAP10553
+       STA LOC2           TABLE                                   105540SAP10554
+       TXL SMR                                                    105550SAP10555
+ EQUOP PXD                SET ABSOLUTE INDICATOR                  105560SAP10556
+       STO LOC2           AND TREAT AS SYNONYM                    105570SAP10557
+       TXL SYN1                                                   105580SAP10558
+ ORGOP TSX SCAN,4         ESTABLISH NEW                           105590SAP10559
+       CAL RBIT           ORIGIN                                  105600SAP10560
+ ORG1  ADD TEQ                                                    105610SAP10561
+       SLW LOC1                                                   105620SAP10562
+       SLW LOC2                                                   105630SAP10563
+       TXL SMR                                                    105640SAP10564
+ BSSOP TSX SCAN,4         INCREMENT LOCATION                      105650SAP10565
+       CLA LOC1           COUNTER AND                             105660SAP10566
+       STO LOC2           MAKE ENTRY IN                           105670SAP10567
+       ADD TEQ                                                    105680SAP10568
+       STO LOC1                                                   105690SAP10569
+       TXL SMR                                                    105700SAP10570
+ BESOP TSX SCAN,4         INCREMENT LOCATION                      105710SAP10571
+       CLA LOC1           COUNTER AND MAKE                        105720SAP10572
+       TXL ORG1                                                   105730SAP10573
+ HEDOP CLM                ESTABLISH BLOCK                         105740SAP10574
+       LDQ BCD            HEADING                                 105750SAP10575
+       LGL 6                                                      105760SAP10576
+       SLW BHEAD                                                  105770SAP10577
+       TXL READ1                                                  105780SAP10578
+ OCTOP LXA Q1,4                                                   105790SAP10579
+       TNX OCT6,1,1                                               105800SAP10580
+ OCT1  PXD                                                        105810SAP10581
+       LGL 6                                                      105820SAP10582
+       CAS Q8                                                     105830SAP10583
+       TXL OCT2                                                   105840SAP10584
+       TXL BADPH+2                                                105850SAP10585
+ OCT5  TIX OCT1,1,1                                               105860SAP10586
+ OCT6  TXI OCT4,2,-1                                              105870SAP10587
+ OCT4  LDQ BCD,2                                                  105880SAP10588
+       TXI OCT1,1,5                                               105890SAP10589
+ OCT2  CAS COMMA          COUNT NUMBER OF                         105900SAP10590
+       TXL BADPH                                                  105910SAP10591
+       TXI OCT5,4,1                                               105920SAP10592
+       CAS MINUS                                                  105930SAP10593
+       TXL BADPH                                                  105940SAP10594
+       TXL OCT5                                                   105950SAP10595
+       CAS PLUS                                                   105960SAP10596
+       TXL BADPH                                                  105970SAP10597
+       TXL OCT5                                                   105980SAP10598
+ BADPH SUB BLANK                                                  105990SAP10599
+       TZE OCT3                                                   106000SAP10600
+       CLA CMT6                                                   106010SAP10601
+       SXD SMIR,4                                                 106020SAP10602
+       TSX CMMT,4                                                 106030SAP10603
+       LXD SMIR,4                                                 106040SAP10604
+ OCT3  CLA LOC1           SET LOCATION                            106050SAP10605
+       STO LOC2           COUNTER 2                               106060SAP10606
+       PXD 0,4            ADVANCE LOCATION                        106070SAP10607
+       ARS 18             COUNTER AND                             106080SAP10608
+       ADD LOC1           MAKE ENTRY IN                           106090SAP10609
+       STO LOC1           SYMBOL TABLE IF                         106100SAP10610
+       TXL SMR            NECESSARY                               106110SAP10611
+ BCDOP CLA LOC1           STORE LOCATION                          106120SAP10612
+       STO LOC2           COUNTER                                 106130SAP10613
+       PXD                COLUMN OF VARIABLE                      106140SAP10614
+       LGL 6              FIELD                                   106150SAP10615
+       CAS Q10                                                    106160SAP10616
+       TXL BCD1                                                   106170SAP10617
+       TXH                                                        106180SAP10618
+ BCD2  ADD LOC1           ADVANCE LOCATION COUNTER                106190SAP10619
+       STO LOC1           AND ENTER SYMBOL                        106200SAP10620
+       TXL SMR            IN TABLE IF NECESSARY                   106210SAP10621
+ BCD1  CLA Q10            ASSUME WORD COUNT OF                    106220SAP10622
+       TXL BCD2           10 IF NONE GIVEN                        106230SAP10623
+ REPOP TSX SCAN,4         OBTAIN M                                106240SAP10624
+       CLA TEQ                                                    106250SAP10625
+       STO M                                                      106260SAP10626
+       TSX SCAN,4         OBTAIN N                                106270SAP10627
+       CLA TEQ                                                    106280SAP10628
+       STO N                                                      106290SAP10629
+       LDQ M                                                      106300SAP10630
+       MPY N              COMPUTE NUMBER OF                       106310SAP10631
+       STQ TEQ            LOCATIONS USED                          106320SAP10632
+       CLA LOC1           AND MODIFY                              106330SAP10633
+       STO LOC2           LOCATION COUNTER                        106340SAP10634
+       ADD TEQ                                                    106350SAP10635
+       STO LOC1                                                   106360SAP10636
+       TXL SMR            ENTER SYMBOL                            106370SAP10637
+ DECOP CLA LOC1           SAVE CURRENT LOCATION                   106380SAP10638
+       STO LOC2                                                   106390SAP10639
+       LDQ MQ                                                     106400SAP10640
+ DEC4  CLA LOC1           COMPUTE NEXT LOCATION                   106410SAP10641
+       ADD Q1                                                     106420SAP10642
+       STO LOC1                                                   106430SAP10643
+       TIX DEC1,1,1       TEST CHARACTER COUNT                    106440SAP10644
+       TXI DEC2,2,-1      OBTAIN NEXT GROUP                       106450SAP10645
+ DEC1  PXD                OBTAIN NEXT CHARACTER                   106460SAP10646
+       LGL 6                                                      106470SAP10647
+       CAS TEN            TEST FOR DIGIT                          106480SAP10648
+       TXL DEC3                                                   106490SAP10649
+       TXL BADPU+2                          MACHINE ERROR         106500SAP10650
+ DEC5  TIX DEC1,1,1       TEST CHARACTER COUNT                    106510SAP10651
+       TXI DEC2,2,-1      OBTAIN NEXT GROUP                       106520SAP10652
+ DEC2  LDQ BCD,2                                                  106530SAP10653
+       TXI DEC1,1,5                                               106540SAP10654
+ DEC3  CAS COMMA          TEST FOR ,                              106550SAP10655
+       TXL BADPU                                                  106560SAP10656
+       TXL DEC4                                                   106570SAP10657
+       CAS MINUS          TEST FOR -                              106580SAP10658
+       TXL BADPU                                                  106590SAP10659
+       TXL DEC5                                                   106600SAP10660
+       CAS POINT          TEST FOR .                              106610SAP10661
+       TXL BADPU                                                  106620SAP10662
+       TXL DEC5                                                   106630SAP10663
+       CAS E              TEST FOR E                              106640SAP10664
+       TXL BADPU                                                  106650SAP10665
+       TXL DEC5                                                   106660SAP10666
+       CAS B              TEST FOR B                              106670SAP10667
+       TXL BADPU                                                  106680SAP10668
+       TXL DEC5                                                   106690SAP10669
+       CAS PLUS           TEST FOR +                              106700SAP10670
+       TXL BADPU                                                  106710SAP10671
+       TXL DEC5                                                   106720SAP10672
+ BADPU SUB BLANK                                                  106730SAP10673
+       TZE SMR                                                    106740SAP10674
+       CLA CMT6                                                   106750SAP10675
+       SXD SMIR,4                                                 106760SAP10676
+       TSX CMMT,4                                                 106770SAP10677
+       LXD SMIR,4                                                 106780SAP10678
+       TXL SMR                                                    106790SAP10679
+ STPBT CLA Q1                                                     106800SAP10680
+       ALS 3,2                                                    106810SAP10681
+       ORS INDBT                                                  106820SAP10682
+       TXL ENDB3                                                  106830SAP10683
+ ENDBT BCD 300000O00000R00000D                                    106840SAP10684
+ ENDOP WEF C                       CARD LOAD                      106850SAP10685
+       REW C                                                      106860SAP10686
+       CLA LOC1                                                   106870SAP10687
+       STO LOC3                                                   106880SAP10688
+       LXA Q3,2                                                   106890SAP10689
+ ENDB1 LXA Q6,4                                                   106900SAP10690
+       LDQ BCD                                                    106910SAP10691
+ ENDB2 CLA Q0                                                     106920SAP10692
+       LGL 6                                                      106930SAP10693
+       SUB ENDBT+3,2                                              106940SAP10694
+       TZE STPBT                                                  106950SAP10695
+       TIX ENDB2,4,1                                              106960SAP10696
+ ENDB3 TIX ENDB1,2,1                                              106970SAP10697
+ END2  LXD SIZE,4                                                 106980SAP10698
+       PXD 0,4                                                    106990SAP10699
+       TZE LOAD                                                   107000SAP10700
+       COM                                                        107010SAP10701
+       PDX 0,4                                                    107020SAP10702
+       PXD 0,4                                                    107030SAP10703
+       ARS 9                                                      107040SAP10704
+       ORA PWR                                                    107050SAP10705
+       FAD PWR                                                    107060SAP10706
+       ARS 27                                                     107070SAP10707
+       ALS 1                                                      107080SAP10708
+       STA SIZE                                                   107090SAP10709
+ SORT  CLA SIZE           SETUP SORTING                           107100SAP10710
+       STD SORT3                                                  107110SAP10711
+       PDX 0,4                                                    107120SAP10712
+       TXH SORT7,4,-3                                             107130SAP10713
+       LXD SORT5,4                                                107140SAP10714
+       SXD SORT1,4                                                107150SAP10715
+ SORT8 LXD SORT1,4        SET FIRST ELEMENT                       107160SAP10716
+       SXD SORT2,4                                                107170SAP10717
+ SORT6 CLA STBL,4         FORWARD PASS                            107180SAP10718
+       LDQ STBL-2,4       COMPARISON                              107190SAP10719
+       TLQ SORT5                                                  107200SAP10720
+       STO STBL-2,4       INTERCHANGE SYMBOLS                     107210SAP10721
+       STQ STBL,4                                                 107220SAP10722
+       CLA ETBL,4         INTERCHANGE                             107230SAP10723
+       LDQ ETBL-2,4       EQUIVALENCES                            107240SAP10724
+       STO ETBL-2,4                                               107250SAP10725
+       STQ ETBL,4                                                 107260SAP10726
+       SXD SORT2,4        NOTE LOCATION                           107270SAP10727
+ SORT5 TXI SORT3,4,-2     INCREASE LOCATION                       107280SAP10728
+ SORT3 TXH SORT6,4                                                107290SAP10729
+       CLA SORT1          TEST FOR END                            107300SAP10730
+       CAS SORT2          OF SORT                                 107310SAP10731
+ SORT1 TXL SORT7                                                  107320SAP10732
+ SORT2 TXL SORT7                                                  107330SAP10733
+       SUB SORT0                                                  107340SAP10734
+       STD SORT4                                                  107350SAP10735
+       LXD SORT2,4                                                107360SAP10736
+       SXD SORT3,4        SET LAST ELEMENT                        107370SAP10737
+ SORT4 TXH SORT8,4                                                107380SAP10738
+       CLA STBL-2,4       REVERSE PASS                            107390SAP10739
+       LDQ STBL-4,4       COMPARISON                              107400SAP10740
+       TLQ SORT9                                                  107410SAP10741
+       STO STBL-4,4       INTERCHANGE                             107420SAP10742
+       STQ STBL-2,4       SYMBOLS                                 107430SAP10743
+       CLA ETBL-2,4       INTERCHANGE                             107440SAP10744
+       LDQ ETBL-4,4       EQUIVALENCES                            107450SAP10745
+       STO ETBL-4,4                                               107460SAP10746
+       STQ ETBL-2,4                                               107470SAP10747
+       SXD SORT1,4                                                107480SAP10748
+ SORT9 TXI SORT4,4,2      DECREASE LOCATION                       107490SAP10749
+ SORT7 LXD SIZE,4         COMPUTE LIMITS                          107500SAP10750
+       SXD SUMEX,4                                                107510SAP10751
+       SXD CCCC2+1,4                                              107520SAP10752
+       PXD                                                        107530SAP10753
+       PDX 0,2                                                    107540SAP10754
+ SUMTB ACL STBL,2                                                 107550SAP10755
+       ACL ETBL,2                                                 107560SAP10756
+       TXI SUMEX,2,-2                                             107570SAP10757
+ SUMEX TXH SUMTB,2                                                107580SAP10758
+       SLW EQV                                                    107590SAP10759
+ CCCC1 LXD Q1,2                                                   107600SAP10760
+       CLA CCCC4                                                  107610SAP10761
+       CAS STBL,2                                                 107620SAP10762
+       TRA CCCC2                                                  107630SAP10763
+       TRA CCCC3                                                  107640SAP10764
+ CCCC2 TXI CCCC2+1,2,-2                                           107650SAP10765
+       TXH CCCC1+2,2,*                                            107660SAP10766
+       TRA SMIR-2                                                 107670SAP10767
+ CCCC3 CLA ETBL,2                                                 107680SAP10768
+       ALS 18                                                     107690SAP10769
+       STD INDBT                                                  107700SAP10770
+       TRA SMIR-2                                                 107710SAP10771
+ CCCC4 BCD 1COMMON                                                107720SAP10772
+       CLA EQV                                                    107730SAP10773
+       CAS CKSUM                                                  107740SAP10774
+ SMIR  TXL SUMST,0,*                                              107750SAP10775
+       TXI TPCH1,4,-SIZE-2                                        107760SAP10776
+ SUMST CLA CMT5                                                   107770SAP10777
+       SXD SMIR,4                                                 107780SAP10778
+       TSX CMMT,4                                                 107790SAP10779
+       LXD SMIR,4                                                 107800SAP10780
+       TXI TPCH1,4,-SIZE-2                                        107810SAP10781
+ TPCH1 SWT 2                                                      107820SAP10782
+       TRA TPCHE                                                  107830SAP10783
+       LXD SIZE,4                                                 107840SAP10784
+       TXI TPCH2,4,-SIZE-3                                        107850SAP10785
+ TPCH2 PXD 0,4                                                    107860SAP10786
+       COM                                                        107870SAP10787
+       ANA DECR                                                   107880SAP10788
+       ARS 18                                                     107890SAP10789
+       STA TPCH5                                                  107900SAP10790
+       STA TPCHA                                                  107910SAP10791
+       SUB TPCHD                                                  107920SAP10792
+ TPCH3 PAX 1,1                                                    107930SAP10793
+       CLA TPCHD                                                  107940SAP10794
+ TPCH4 WPU                                                        107950SAP10795
+       STA TPVR                                                   107960SAP10796
+       CLM                                                        107970SAP10797
+       LXA TPCH3,2                                                107980SAP10798
+ TPCH5 ACL *,1                                                    107990SAP10799
+       TXH TPCH6,2,21                                             108000SAP10800
+       TNX TPCH6,1,1                                              108010SAP10801
+       TXI TPCH5,2,1                                              108020SAP10802
+ TPCH6 SXD TPCH7,2                                                108030SAP10803
+       SXD TPVR,2                                                 108040SAP10804
+       ACL TPVR                                                   108050SAP10805
+       SLW TPSUM                                                  108060SAP10806
+       CPY TPVR                                                   108070SAP10807
+       CPY TPSUM                                                  108080SAP10808
+ TPCH7 TXI TPCH9,1,*                                              108090SAP10809
+ TPCH9 TXI TPCHA,1,-1                                             108100SAP10810
+ TPCHA CPY *,1                                                    108110SAP10811
+       TIX TPCH9,2,1                                              108120SAP10812
+ TPCHB CLA TPVR                                                   108130SAP10813
+       ARS 18                                                     108140SAP10814
+       ADD TPVR                                                   108150SAP10815
+       TIX TPCH4,1,1                                              108160SAP10816
+       WPU                                                        108170SAP10817
+       CPY TPCHC                                                  108180SAP10818
+       WPU                                                        108190SAP10819
+       WPU                                                        108200SAP10820
+       TRA TPCHE                                                  108210SAP10821
+ TPCHC PZE STRT4                                                  108220SAP10822
+ TPCHD PZE SIZE                                                   108230SAP10823
+ TPVR  PZE *,0,*                                                  108240SAP10824
+ TPSUM PZE 0                                                      108250SAP10825
+ TPCHE CLA SIZE                                                   108260SAP10826
+       STD DUP1           SET TABLE LIMIT                         108270SAP10827
+       STD DUP2                                                   108280SAP10828
+       LXD DUP13,1                                                108290SAP10829
+ DUP1  TXL LOAD,1         TEST FOR END OF TABLE                   108300SAP10830
+       CLA STBL,1         LOOK FOR DUPLICATE                      108310SAP10831
+       CAS STBL-2,1       SYMBOLS                                 108320SAP10832
+       TXI DUP1,1,-2                                              108330SAP10833
+       TXL DUP3                                                   108340SAP10834
+ DUP13 TXI DUP1,1,-2                                              108350SAP10835
+ DUP3  LXA Q5,4                                                   108360SAP10836
+       LDQ STBL,1         OBTAIN SYMBOL                           108370SAP10837
+       PXD                AND SHIFT HEADING                       108380SAP10838
+       LGL 6              CHARACTER                               108390SAP10839
+ DUP5  LGL 6                                                      108400SAP10840
+       SLW OCTAL          STORE PARTIAL SYMBOL                    108410SAP10841
+       ANA DUPM                                                   108420SAP10842
+       TNZ DUP4                                                   108430SAP10843
+       CLA BLANK          REPLACE LEADING                         108440SAP10844
+       ORA OCTAL          ZERLES BY BLANKS                        108450SAP10845
+       TIX DUP5,4,1                                               108460SAP10846
+       TXL DUP6                                                   108470SAP10847
+ DUP4  TNX DUP6,4,1                                               108480SAP10848
+       CAL OCTAL                                                  108490SAP10849
+ DUP7  LGL 6              SYMBOL                                  108500SAP10850
+       TIX DUP7,4,1                                               108510SAP10851
+ DUP6  SLW OCTAL                                                  108520SAP10852
+       CLA LMT1                                                   108530SAP10853
+       STO LMT            AND PROVIDE BLANK                       108540SAP10854
+       LXD DUP14,2        BETWEEN SYMBOL AND                      108550SAP10855
+       CAL BLANK          FIRST EQUIVALENCE                       108560SAP10856
+ DUP12 LDQ ETBL-2,1                                               108570SAP10857
+       RQL 21                                                     108580SAP10858
+       LXA Q5,4           PUT EQUIVALENCE IN                      108590SAP10859
+ DUP8  ALS 3              6 BIT CODE                              108600SAP10860
+       LGL 3                                                      108610SAP10861
+       TIX DUP8,4,1                                               108620SAP10862
+ DUP11 SLW OCTAL+16,2                                             108630SAP10863
+ DUP2  TXL DUP9,1         TEST FOR END OF TABLE                   108640SAP10864
+       CLA STBL,1         SEARCH FOR FURTHER                      108650SAP10865
+       CAS STBL-2,1       DUPLICATION OF THIS                     108660SAP10866
+       TXI DUP9,2,-1                                              108670SAP10867
+       TXI DUP10,1,-2                                             108680SAP10868
+       TXI DUP9,2,-1                                              108690SAP10869
+ DUP9  PXD 0,2            PRINT DUPLICATIONS                      108700SAP10870
+       STO EQV            FOR THIS SYMBOL                         108710SAP10871
+       ARS 18                                                     108720SAP10872
+       ADD EQV                                                    108730SAP10873
+       SBM LMT                                                    108740SAP10874
+       STO LMT                                                    108750SAP10875
+       TSX WOT,4                                                  108760SAP10876
+       TXI DUP1,1,-2                                              108770SAP10877
+ DUP10 CAL COMMA          PROVIDE COMMA                           108780SAP10878
+       TIX DUP12,2,1      BETWEEN EQUIVALENCES                    108790SAP10879
+       TSX WOT,4          PRINTIF MORE THAN                       108800SAP10880
+ DUP14 TXL DUP6,0,15      15 EQUIVALENCES                         108810SAP10881
+ DUPM      63                                                     108820SAP10882
+ LOAD  RTB A                                                      108830SAP10883
+       CPY 0                                                      108840SAP10884
+       CPY 1                                                      108850SAP10885
+ SORT0 TXL 0,0,2                                                  108860SAP10886
+ RCD   RCD                RESTART AFTER ERROR                     108870SAP10887
+       LXD B2,1           X                                       108880SAP10888
+       LXD B3,2           X                                       108890SAP10889
+ RDBCD CPY L              COPY 9 LEFT ROW                         108900SAP10890
+       TXL B1             X                                       108910SAP10891
+       TRA 2,4            END OF FILE EXIT                        108920SAP10892
+ B1    STQ LS             SET LEFT SUM                            108930SAP10893
+       SXD B2,1           SAVE INDEX REGISTERS                    108940SAP10894
+       SXD B3,2           X                                       108950SAP10895
+       LXD B4,1           SET DIGIT ROW COUNT                     108960SAP10896
+       CPY R              COPY 9 RIGHT ROW AND                    108970SAP10897
+       STQ RS             SET RIGHT SUM                           108980SAP10898
+       TSX C1,2           ENTER CONVERSION LOOP                   108990SAP10899
+ B2    TXL B5             LEAVE CONVERSION LOOP                   109000SAP10900
+       ALS 1                                                      109010SAP10901
+ B3    TXL C2             INITIALIZE BCD RECORD                   109020SAP10902
+ B5    CPY 8L             COPY 8 ROW AND                          109030SAP10903
+       STQ LS             USE AS SUM                              109040SAP10904
+       CPY 8R             X                                       109050SAP10905
+       STQ RS             X                                       109060SAP10906
+       TSX C1,2           ENTER CONVERSION LOOP                   109070SAP10907
+ B4    TXL B6,0,8         LEAVE CONVERSION LOOP                   109080SAP10908
+       ALS 3              ADD 8 TIMES 8 ROW                       109090SAP10909
+       TXL C3             X                                       109100SAP10910
+ B6    CAL L              USE 9 ROW AS SUM                        109110SAP10911
+       SLW LS             X                                       109120SAP10912
+       CAL R              X                                       109130SAP10913
+       SLW RS             X                                       109140SAP10914
+ B13   TXL B7,1,1         TEST FOR ZERO ROW                       109150SAP10915
+ B14   CPY L              COPY LEFT ROW AND                       109160SAP10916
+       TXL B8             TEST FOR END OF RECORD                  109170SAP10917
+ B17   HTR RCD            ERROR                                   109180SAP10918
+       TXL B9             END OF RECORD                           109190SAP10919
+ B8    CAL L              TEST LEFT ROW FOR                       109200SAP10920
+       ANA LS             ILLEGAL DOUBLE PUNCH                    109210SAP10921
+       TNZ B17            X                                       109220SAP10922
+ B10   CAL L              FORM LOGICAL SUM                        109230SAP10923
+       ORS LS             OF LEFT ROWS                            109240SAP10924
+       CPY R              COPY RIGHT ROW AND                      109250SAP10925
+       CAL R              TEST FOR ILLEGAL                        109260SAP10926
+       ANA RS             DOUBLE PUNCH                            109270SAP10927
+       TNZ B17            X                                       109280SAP10928
+ B11   CAL R              FORM LOGICAL SUM OF                     109290SAP10929
+       ORS RS             RIGHT ROWS                              109300SAP10930
+       TNX B12,1,1        TEST FOR ZONE ROWS                      109310SAP10931
+       TSX C1,2           ENTER CONVERSION LOOP                   109320SAP10932
+       TXL B13            LEAVE CONVERSION LOOP                   109330SAP10933
+       TXL C3             ADD TO BCD RECORD                       109340SAP10934
+ B7    CAL 8L             ADD 8 LEFT ROW TO                       109350SAP10935
+       ORA LS             LEFT LOGICAL SUM                        109360SAP10936
+       SLW LDS            X                                       109370SAP10937
+       CPY LZ             COPY ZERO LEFT AND                      109380SAP10938
+       ANA LZ             FORM INDICATOR FOR                      109390SAP10939
+       SLW LS             BOTH DIGIT AND ZERO                     109400SAP10940
+       CAL 8R             ADD 8 RIGHT ROW TO                      109410SAP10941
+       ORA RS             RIGHT LOGICAL SUM                       109420SAP10942
+       SLW RDS            X                                       109430SAP10943
+       CPY RZ             COPY ZERO RIGHT AND                     109440SAP10944
+       ANA RZ             FORM INDICATOR FOR                      109450SAP10945
+       SLW RS             BOTH DIGIT AND ZERO                     109460SAP10946
+ B12   TSX C1,2           ENTER CONVERSION LOOP                   109470SAP10947
+       TXL B14            LEAVE CONVERSION LOOP                   109480SAP10948
+       ALS 4              SHIFT TO ZONE POSITION                  109490SAP10949
+       TXL C3             X                                       109500SAP10950
+ B9    CAL LS             SAVE LEFT ZONE SUM                      109510SAP10951
+       SLW L              X                                       109520SAP10952
+       CAL LDS            FORM INDICATOR FOR                      109530SAP10953
+       COM                ZERO AND X AND / OR Y                   109540SAP10954
+       ANA LZ             IN LEFT ROWS                            109550SAP10955
+       ANS LS             X                                       109560SAP10956
+       CAL RS             SAVE RIGHT ZONE SUM                     109570SAP10957
+       SLW R              X                                       109580SAP10958
+       CAL RDS            FORM INDICATOR FOR                      109590SAP10959
+       COM                ZERO AND X AND/OR Y                     109600SAP10960
+       ANA RZ             IN RIGHT ROWS                           109610SAP10961
+       ANS RS             X                                       109620SAP10962
+       TSX C1,2           ENTER CONVERSION LOOP                   109630SAP10963
+       TXL B15            LEAVE CONVERSION LOOP                   109640SAP10964
+       SLW T              MULTIPLY INDICATOR                      109650SAP10965
+       ALS 2              BITS BY TEN                             109660SAP10966
+       ACL T              X                                       109670SAP10967
+       ALS 1              X                                       109680SAP10968
+       TXL C3             X                                       109690SAP10969
+ B15   CAL LDS            FORM INDICATOR FOR                      109700SAP10970
+       WTD 5                                                      109710SAP10971
+       ORA LZ             BLANK COLUMNS IN                        109720SAP10972
+       ORA L              LEFT HALF OF CARD                       109730SAP10973
+       COM                X                                       109740SAP10974
+       SLW LS             X                                       109750SAP10975
+       CAL RDS            FORM INDICATOR FOR                      109760SAP10976
+       ORA RZ             BLANK COLUMNS IN                        109770SAP10977
+       ORA R              RIGHT HALF OF CARD                      109780SAP10978
+       COM                X                                       109790SAP10979
+       SLW RS             X                                       109800SAP10980
+       TSX C1,2           ENTER CONVERSION LOOP                   109810SAP10981
+       TXL B16            LEAVE CONVERSION LOOP                   109820SAP10982
+       SLW T              MULTIPLY INDICATOR                      109830SAP10983
+       ALS 1              BITS BY 3 AND                           109840SAP10984
+       ACL T              SHIFT TO ZONE POSITION                  109850SAP10985
+       ALS 4              X                                       109860SAP10986
+       TXL C3             X                                       109870SAP10987
+ B16   LXD B2,1           RESTORE INDEX REGISTERS                 109880SAP10988
+       LXD B3,2           AND RETURN TO MAIN                      109890SAP10989
+       TRA 3,4            PROGRAM                                 109900SAP10990
+ C1    SXD C4,1           SAVE ROW COUNT                          109910SAP10991
+       SLN 1              INDICATE LEFT ROW                       109920SAP10992
+       CAL 1,4            INITIALIZE ADDRESS                      109930SAP10993
+       ADD SIX                                                    109940SAP10994
+       LDQ LS             OBTAIN LEFT SUM                         109950SAP10995
+ C8    STA C2             SET BCD RECORD ADDRESS                  109960SAP10996
+       STA C3             X                                       109970SAP10997
+       TXH C5,1,1         SKIP TEST IF DIGIT ROW                  109980SAP10998
+       STQ T              TEST FOR NO SUM                         109990SAP10999
+       CAL T              X                                       110010SAP11000
+       TZE C6             X                                       110020SAP11001
+ C5    LXA SIX,1          SET WORD COUNT                          110030SAP11002
+ C7    PXD 12                                                     110040SAP11003
+       LGL 1              X                                       110050SAP11004
+       ALS 5              X                                       110060SAP11005
+       LGL 1              X                                       110070SAP11006
+       ALS 5              X                                       110080SAP11007
+       LGL 1              X                                       110090SAP11008
+       ALS 5              X                                       110100SAP11009
+       LGL 1              X                                       110110SAP11010
+       ALS 5              X                                       110120SAP11011
+       LGL 1              X                                       110130SAP11012
+       ALS 5              X                                       110140SAP11013
+       LGL 1              X                                       110150SAP11014
+       TRA 2,2            EXIT FOR ROW PROCEDURE                  110160SAP11015
+ C3    ACL 0,1            ADD TO BCD RECORD                       110170SAP11016
+ C2    SLW 0,1            STORE IN BCD RECORD                     110180SAP11017
+       TIX C7,1,1         COUNT WORDS                             110190SAP11018
+       LXD C4,1           RESTORE ROW COUNT                       110200SAP11019
+ C6    SLT 1              TEST FOR RIGHT ROW                      110210SAP11020
+       TRA 1,2            RETURN                                  110220SAP11021
+       LDQ RS             SETUP RIGHT ROW                         110230SAP11022
+       CAL 1,4            X                                       110240SAP11023
+       ADM C7                                                     110250SAP11024
+ C4    TXL C8             X                                       110260SAP11025
+ SIX       6              CONSTANT 6                              110270SAP11026
+ T                        TEMPORARY                               110280SAP11027
+ LS                       LEFT SUM                                110290SAP11028
+ RS                       RIGHT SUM                               110300SAP11029
+ LDS                      LEFT DIGIT SUM                          110310SAP11030
+ RDS                      RIGHT DIGIT SUM                         110320SAP11031
+ LZ                       LEFT ZERO ROW                           110330SAP11032
+ RZ                       RIGHT ZERO ROW                          110340SAP11033
+ L                        LEFT ROW                                110350SAP11034
+ R                        RIGHT ROW                               110360SAP11035
+ 8L    SYN LDS            8 LEFT ROW                              110370SAP11036
+ 8R    SYN RDS            8 RIGHT ROW                             110380SAP11037
+ CREOF REW A                                                      110390SAP11038
+       RTB A                                                      110400SAP11039
+       LXA CREF1,3                                                110410SAP11040
+ CREF1 CPY 24                      SUPPLY 12 DUMMY COPIES         110420SAP11041
+       TIX CREF1,1,2                                              110430SAP11042
+ CREF2 CPY 2,1                                                    110440SAP11043
+       TXI CREF2,1,-1                                             110450SAP11044
+       HTR CREOF                                                  110460SAP11045
+ CREF3 TIX CREF3,2,1                                              110470SAP11046
+       RTT                                                        110480SAP11047
+       HTR CREOF                                                  110490SAP11048
+       TXL 6                                                      110500SAP11049
+BLANKS SYN MASK                                                   110510SAP11050
+ TEN   SYN Q10                                                    110520SAP11051
+ LTBL  SYN -1                                                     110530SAP11052
+ A     EQU 1                       LIBRARY TAPE                   110540SAP11053
+ BT    EQU 4                       INPUT TAPE                     110550SAP11054
+ C     EQU 5                       MEDIARY TAPE                   110560SAP11055
+ D     EQU 6                       OUTPUT TAPE                    110570SAP11056
+       ORG 1925                                                   110580SAP11057
+ LOC3                                                             110590SAP11058
+ NOLB                                                             110600SAP11059
+ INDBT PZE                                                        110610SAP11060
+ SIZE      2                                                      110620SAP11061
+ CKSUM                                                            110630SAP11062
+ STBL                                                             110640SAP11063
+ ETBL                                                             110650SAP11064
+       END START                                                  110660SAP11065

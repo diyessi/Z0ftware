@@ -88,6 +88,8 @@ In instruction 11, the accumulator's address is set to the address from address 
 
 Next, ```LXD 14,4``` will set index 4 to the decrement from 14, i.e. ```PRE2-PRE1-1```, where ```PRE1``` begins a later segment of the assembler that ends in ```PRE2```.
 
-The ```CAD 0``` reads a word from the drum and adds it to the accumulator.
+The ```CAD 0``` reads a word from the drum and writes it to 0 as well as logically adding it to the accumulator. A logical add is a binary addition to the accumulator's low 36 bits.  The undocumented ```CAD``` instruction is useful for computing checksums.
+
+The ```TXI ,,PRE2-PRE1-1``` branches to 0. Even though there is a decrement, there is no index to decrement.
 
 
