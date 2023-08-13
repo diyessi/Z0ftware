@@ -1,8 +1,13 @@
+
 add_library(Z0ftware
     bcd.cpp
     card.cpp
     disasm.cpp
+    exprs.cpp
     op.cpp
     parity.cpp
+    parser.cpp
     utils.cpp
 )
+
+target_include_directories(Z0ftware PUBLIC "${cpp-peglib_SOURCE_DIR}")

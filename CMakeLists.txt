@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.26.3)
 
+set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
+
 project(Z0ftware VERSION 0.1.0)
 
 set(CXX_STANDARD_REQUIRED ON)
@@ -20,6 +22,17 @@ FetchContent_Declare(
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+# This is overkill for parsing expressions
+FetchContent_Declare(
+    cpp-peglib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-peglib.git
+    GIT_TAG 86208ed
+)
+
+option(cpp-peglib_BUILD_TESTS OFF)
+
+FetchContent_MakeAvailable(cpp-peglib)
 
 add_subdirectory(lib)
 add_subdirectory(tests)

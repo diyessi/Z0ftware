@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 // Size of field in bits
 using bit_field_size_t = std::uint_least8_t;
