@@ -24,8 +24,26 @@
 #define Z0FTWARE_UTILS_HPP
 
 #include <string>
+#include <sstream>
 
 std::string_view trim(std::string_view text);
 std::string_view rightTrim(std::string_view text);
+
+// Formats a string and calls a handler with the string upon destruction.
+class MessageGenerator {
+public:
+  using handler_type = std::function<void(std::string &&)>;
+  MessageGenerator(handler_type handler) : handler_(handler) {}
+  ~MessageGenerator() { handler_(os_.str()); }
+
+  template <typename Value> MessageGenerator &operator<<(Value value) {
+    os_ << value;
+    return *this;
+  }
+
+private:
+  std::ostringstream os_;
+  handler_type handler_;
+};
 
 #endif

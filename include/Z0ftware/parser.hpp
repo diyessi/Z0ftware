@@ -29,11 +29,13 @@ using Exp_t = std::optional<int16_t>;
 using BExp_t = std::optional<int8_t>;
 using ExpBExp_t = std::tuple<Exp_t, BExp_t>;
 
+// One or more comma-separated decimal numbers (fixed-point, floating)
 class PegDECParser : public peg::parser {
 public:
   PegDECParser();
 };
 
+// One or more comma-separated expressions
 class PegEXPParser : public peg::parser {
 public:
   PegEXPParser();

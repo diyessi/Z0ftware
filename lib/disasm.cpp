@@ -76,3 +76,14 @@ std::ostream &writeInstruction(std::ostream &os, uint16_t location,
      << BitField<0, 15>::ref(word);
   return os;
 }
+
+std::ostream &writeAddress(std::ostream &os, uint16_t address) {
+  return os << "                 " << std::setw(5) << std::setfill('0')
+            << std::oct << address;
+}
+
+std::ostream &writeWord(std::ostream &os, uint16_t location, uint64_t word) {
+  os << std::setw(5) << std::setfill('0') << std::oct << location << "    ";
+  os << std::setw(12) << std::setfill('0') << std::oct << word << "   ";
+  return os;
+}

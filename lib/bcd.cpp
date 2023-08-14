@@ -126,3 +126,24 @@ char charFromBCD(bcd_t bcd) {
   auto it = table.find(bcd);
   return it == table.end() ? 0x7f : it->second;
 }
+
+/// Convert first 6 ASCII chars to big-endian bcd chars
+/// If less than 6, pad right with spaces
+uint64_t bcd(std::string_view chars) {
+  std::uint64_t result = BCDFromChar(chars.empty() ? ' ' : chars[0]);
+  for (int i = 1; i < 6; ++i) {
+    result = (result << 6) | BCDFromChar(i < chars.size() ? chars[i] : ' ');
+  }
+  return result;
+}
+
+std::array<std::uint8_t, bcdSize> bcdEvenParity() {
+  std::array<std::uint8_t, bcdSize> table;
+  for (size_t i = 0; i < bcdSize; ++i) {
+    std::uint8_t val = (i ^ (i >> 4));
+    val ^= (val >> 2);
+    val ^= (val >> 1);
+    table[i] = (val & 0x01) << 6;
+  }
+  return table;
+}

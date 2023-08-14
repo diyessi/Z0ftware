@@ -5,6 +5,7 @@ add_library(Z0ftware
     disasm.cpp
     exprs.cpp
     op.cpp
+    operation.cpp
     parity.cpp
     parser.cpp
     utils.cpp

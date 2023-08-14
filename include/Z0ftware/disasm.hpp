@@ -32,4 +32,7 @@ void disassemble(std::ostream &output, std::uint16_t address,
 std::ostream &writeInstruction(std::ostream &os, uint16_t address,
                                uint64_t word);
 
+std::ostream &writeAddress(std::ostream &os, uint16_t address);
+std::ostream &writeWord(std::ostream &os, uint16_t location, uint64_t word);
+
 #endif

@@ -33,11 +33,18 @@
 #ifndef Z0FTWARE_BCD_HPP
 #define Z0FTWARE_BCD_HPP
 
+#include <array>
 #include <cstdint>
+#include <string>
 
 using bcd_t = std::uint8_t;
 
+constexpr size_t bcdBits = 6;
+constexpr size_t bcdSize = 1 << bcdBits;
+
 char charFromBCD(bcd_t bcd);
 bcd_t BCDFromChar(char ascii);
+std::array<std::uint8_t, bcdSize> bcdEvenParity();
+uint64_t bcd(std::string_view chars);
 
 #endif
