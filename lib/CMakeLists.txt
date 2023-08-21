@@ -1,5 +1,6 @@
 
 add_library(Z0ftware
+    asm.cpp
     bcd.cpp
     card.cpp
     disasm.cpp

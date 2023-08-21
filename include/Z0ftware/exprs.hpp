@@ -38,7 +38,8 @@ public:
   // The current location, corresponding to '*'
   virtual int getLocation() const = 0;
   // The value of an already defined location
-  virtual int get(const std::string &string) const = 0;
+  // Cannot be const since symbols can be defined on first use
+  virtual int get(const std::string &string) = 0;
 };
 
 class Expr {

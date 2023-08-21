@@ -3,6 +3,7 @@ include(GoogleTest)
 add_executable(Z0ftware_tests
     exprs.cpp
     field.cpp
+    sap.cpp
     word.cpp
 )
 

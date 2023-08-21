@@ -32,7 +32,7 @@
 class TestEnvironment : public Environment {
 public:
   int getLocation() const override { return location_; }
-  int get(const std::string &string) const override { return map_.at(string); }
+  int get(const std::string &string) override { return map_.at(string); }
 
   void setLocation(int location) { location_ = location; }
   void set(const std::string &name, int value) { map_[name] = value; }
@@ -100,3 +100,4 @@ TEST(expr, values) {
   ASSERT_TRUE(parser.parse("X,Y+1,A*A,V", exprs));
   ASSERT_EQ(exprs.size(), 4);
 }
+

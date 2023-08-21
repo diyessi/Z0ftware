@@ -46,7 +46,7 @@ public:
   void define(const std::string_view &symbol, FixPoint value) {
     symbolValues_.emplace(std::string{symbol.begin(), symbol.end()}, value);
   }
-  [[nodiscard]] int get(const std::string &symbol) const override;
+  [[nodiscard]] int get(const std::string &symbol) override;
   [[nodiscard]] int getLocation() const override { return location_; }
   void setLocation(std::uint16_t location) { location_ = location & 077777; }
   std::uint16_t addLocation(int16_t offset = 1) {
