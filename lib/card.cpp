@@ -23,8 +23,8 @@
 #include "Z0ftware/card.hpp"
 #include "Z0ftware/parity.hpp"
 
+#include <cassert>
 #include <iostream>
-
 
 SAPDeck::SAPDeck(std::istream &stream) {
   char cardText[81];
@@ -51,7 +51,7 @@ void InputBinaryColumnCard::readCBN(std::istream &input) {
   std::array<char, 160> buffer;
   input.read(buffer.data(), buffer.size());
   auto count = input.gcount();
-  if (count == 0){
+  if (count == 0) {
     return;
   }
   if (count < 160) {
@@ -82,10 +82,10 @@ void InputBinaryRowCard::fill(const InputBinaryColumnCard &card) {
     std::array<uint16_t, 36> columns;
     std::copy(card.data_.begin() + 36 * i, card.data_.begin() + 36 * i + 36,
               columns.begin());
-    for (int row = 0; row <12 ; row++) {
+    for (int row = 0; row < 12; row++) {
       for (int column = 0; column < 36; column++) {
         data_[i + 2 * row] =
-            (data_[i +  2 * row] << 1) | (columns[column] & 0x001);
+            (data_[i + 2 * row] << 1) | (columns[column] & 0x001);
         columns[column] = columns[column] >> 1;
       }
     }

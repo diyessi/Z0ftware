@@ -54,7 +54,7 @@ struct FieldTraitsImp {
 };
 
 // Define the int type to use for each field size
-// int8_t types are avoided because of character overloadings
+// int8_t types are not used because of character overloadings
 #define FIELDTRAITS(SIZE, TYPE)                                                \
   template <> struct FieldTraits<SIZE> : public FieldTraitsImp<SIZE, TYPE> {}
 

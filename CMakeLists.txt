@@ -10,6 +10,27 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_STANDARD 20)
 
+if((NOT ${LLVM_DIR}) AND ${APPLE})
+    message(STATUS "Using homebrew llvm")
+    EXECUTE_PROCESS(
+        COMMAND brew --prefix llvm
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        OUTPUT_VARIABLE LLVM_DIR
+    )
+    set(ENV{LLVM_DIR} ${LLVM_DIR})
+    message(STATUS "Using homebrew LLVM_DIR: ${LLVM_DIR}")
+endif()
+
+# From https://llvm.org/docs/CMake.html#embedding-llvm-in-your-project
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+
 include_directories(include)
 
 include(FetchContent)
