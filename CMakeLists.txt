@@ -4,6 +4,9 @@ set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 
 project(Z0ftware VERSION 0.1.0)
 
+configure_file(include/Z0ftware/config.h.in include/Z0ftware/config.h)
+include_directories(${PROJECT_BINARY_DIR}/include)
+
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -58,3 +61,5 @@ FetchContent_MakeAvailable(cpp-peglib)
 add_subdirectory(lib)
 add_subdirectory(tests)
 enable_testing()
+
+add_subdirectory(sap23)
