@@ -54,8 +54,8 @@ public:
     return location_;
   }
 
-  void addInstruction(std::shared_ptr<Operation> &&operation);
-  const std::vector<std::shared_ptr<Operation>> &getInstructions() const {
+  void addInstruction(std::unique_ptr<Operation> &&operation);
+  const std::vector<std::unique_ptr<Operation>> &getInstructions() const {
     return operations_;
   }
 
@@ -92,7 +92,7 @@ public:
                                           const std::string_view &variable);
 
 private:
-  std::vector<std::shared_ptr<Operation>> operations_;
+  std::vector<std::unique_ptr<Operation>> operations_;
   std::map<std::string, FixPoint> symbolValues_;
   std::uint16_t location_{0};
   std::unordered_map<const Operation *, InstructionAssembly>

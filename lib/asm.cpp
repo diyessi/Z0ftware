@@ -49,8 +49,8 @@ std::vector<Expr::ptr> Assembler::parseEXP(Operation &operation,
   return values;
 }
 
-void Assembler::addInstruction(std::shared_ptr<Operation> &&operation) {
-  operations_.emplace_back(operation);
+void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
+  operations_.emplace_back(std::move(operation));
   operations_.back()->validate(*this);
   if (!operations_.back()->hasErrors()) {
     operations_.back()->allocate(*this);

@@ -147,7 +147,6 @@ void End::validate(Assembler &assembler) {
     addWarning() << "Incorrect number of expressions for "
                  << getOperationSymbol();
   }
-  requireLocation(assembler);
 }
 
 void End::allocate(Assembler &assembler) const {

@@ -30,13 +30,46 @@
 #include "llvm/Support/CommandLine.h"
 
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <string>
+
+namespace {
+llvm::cl::opt<std::string>
+    outputFileName("o", llvm::cl::desc("Specify output filename"),
+                   llvm::cl::value_desc("filename"));
+
+llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
+                                           llvm::cl::desc("<Input files>"),
+                                           llvm::cl::OneOrMore);
+} // namespace
 
 int main(int argc, const char **argv) {
   llvm::cl::SetVersionPrinter([](llvm::raw_ostream &os) {
     os << "Version " << Z0ftware_VERSION_MAJOR << "." << Z0ftware_VERSION_MINOR
        << "." << Z0ftware_VERSION_PATCH << "\n";
   });
-  llvm::cl::ParseCommandLineOptions(argc, argv);
+  llvm::cl::ParseCommandLineOptions(
+      argc, argv,
+      "SAP23 assembler for IBM 704\n\n"
+      "  This program assembles a subset of what UASAP can assemble, but\n"
+      "  does so considerably faster.\n");
+
+  SAPAssembler sapAssembler;
+  std::vector<SAPDeck> decks;
+  for (auto &inputFileName : inputFileNames) {
+    std::ifstream is(inputFileName);
+    auto &sapDeck = decks.emplace_back(SAPDeck(is));
+    for (auto &card : sapDeck.getCards()) {
+      auto operation = sapAssembler.parseCard(card);
+      sapAssembler.addInstruction(std::move(operation));
+    }
+  }
+  for(auto &instruction : sapAssembler.getInstructions()){
+    instruction->assemble(sapAssembler);
+    instruction->print(std::cout, sapAssembler);
+    std::cout << instruction->getCard().getASCII() << "\n";
+  }
+
   return EXIT_SUCCESS;
 }
