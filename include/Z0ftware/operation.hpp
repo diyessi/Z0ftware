@@ -1,4 +1,4 @@
-// MIT License 
+// MIT License
 //
 // Copyright (c) 2023 Scott Cyphers
 //
@@ -30,7 +30,6 @@
 #include <string>
 
 class Assembler;
-class InputColumnCard;
 class OpSpec;
 
 class Operation {
@@ -75,10 +74,12 @@ public:
   void setOperationSymbol(const std::string_view &operation) {
     operationSymbol_ = rightTrim(operation);
   }
-  [[nodiscard]] const std::string &getOperationSymbol() const { return operationSymbol_; }
+  [[nodiscard]] const std::string &getOperationSymbol() const {
+    return operationSymbol_;
+  }
 
-  void setCard(const InputColumnCard &card) { card_ = &card; }
-  const InputColumnCard &getCard() const { return *card_; }
+  void setLine(const std::string_view &line) { line_ = line; }
+  const std::string &getLine() const { return line_; }
 
   void setComment(const std::string_view &comment) {
     comment_ = rightTrim(comment);
@@ -123,7 +124,7 @@ public:
   bool hasErrors() const { return !getErrors().empty(); }
 
 protected:
-  const InputColumnCard *card_{nullptr};
+  std::string line_;
   std::string locationSymbol_;
   std::string operationSymbol_;
   std::string comment_;
@@ -201,8 +202,8 @@ private:
   std::vector<FixPoint> values_;
 };
 
-// Undefined symbols after DEF card are allocated addresses started at
-// Exprs[0]. DEF cards after the first DEF card are ignored.
+// Undefined symbols after DEF line are allocated addresses started at
+// Exprs[0]. DEF lines after the first DEF line are ignored.
 class Def : public OperationImpl<Def> {
 public:
   void allocate(Assembler &assembler) const override;
@@ -211,7 +212,7 @@ public:
 
 // Ends the source.
 //
-// A binary correction/transfer card is punched with Exprs[0] as the transfer
+// A binary correction/transfer line is punched with Exprs[0] as the transfer
 // address
 class End : public OperationImpl<End> {
 public:
@@ -293,7 +294,7 @@ public:
 
 private:
   std::string_view op_;
-  std::optional<const OpSpec*> opSpec_;
+  std::optional<const OpSpec *> opSpec_;
 };
 
 // Location = Exprs[0]

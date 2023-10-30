@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include "Z0ftware/asm.hpp"
-#include "Z0ftware/card.hpp"
 #include "Z0ftware/parser.hpp"
 
 #include <iostream>
@@ -55,7 +54,7 @@ void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
   if (!operations_.back()->hasErrors()) {
     operations_.back()->allocate(*this);
   } else {
-    std::cout << operations_.back()->getCard().getASCII() << "\n";
+    std::cout << operations_.back()->getLine() << "\n";
     for (auto error : operations_.back()->getErrors()) {
       std::cout << error.getMessage() << "\n";
     }
@@ -64,8 +63,7 @@ void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
 
 void Assembler::allocate(const Operation *operation, size_t size,
                          bool setStartLocation, bool setEndLocation) {
-  operationAssemblies_[operation] = {location_,
-                                         std::vector<uint64_t>(size)};
+  operationAssemblies_[operation] = {location_, std::vector<uint64_t>(size)};
   auto symbol = operation->getLocationSymbol();
   if (setStartLocation & !symbol.empty()) {
     define(symbol, location_);
@@ -95,13 +93,13 @@ void Assembler::write(InstructionAssembly &assembly) {
 }
 
 std::unique_ptr<Operation>
-Assembler::parseFields(const InputColumnCard &card,
+Assembler::parseFields(const std::string_view &line,
                        const std::string_view &locationSymbol,
                        const std::string_view &operationSymbol,
                        const std::string_view &variableAndComment) {
 
   auto operation = getOperationParser(operationSymbol)();
-  operation->setCard(card);
+  operation->setLine(line);
   operation->setLocationSymbol(locationSymbol);
   operation->setOperationSymbol(operationSymbol);
   auto [variable, comment] =
@@ -129,7 +127,7 @@ Assembler::getOperationParser(const std::string_view &operation) {
 }
 
 std::unique_ptr<Operation>
-SAPAssembler::parseCard(const InputColumnCard &card) {
-  return parseFields(card, trim(fieldLocationSymbol(card)),
-                     fieldOperation(card), fieldVariableAndComment(card));
+SAPAssembler::parseLine(const std::string_view &line) {
+  return parseFields(line, trim(fieldLocationSymbol(line)),
+                     fieldOperation(line), fieldVariableAndComment(line));
 }

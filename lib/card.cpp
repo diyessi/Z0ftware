@@ -28,26 +28,24 @@
 
 SAPDeck::SAPDeck(std::istream &stream) {
   char cardText[81];
-  std::vector<SAPCard> cards;
   while (stream.good()) {
     stream.getline(cardText, sizeof(cardText));
     auto count = stream.gcount();
     if (count == 0) {
       continue;
     }
-    cards_.emplace_back(
-        InputTextCard{std::string_view(cardText, cardText + count - 1)});
+    cards_.emplace_back(std::string_view(cardText, cardText + count - 1));
   }
 }
 
 std::ostream &SAPDeck::operator<<(std::ostream &os) const {
   for (const auto &card : cards_) {
-    os << card.getASCII() << "\n";
+    os << card << "\n";
   }
   return os;
 }
 
-void InputBinaryColumnCard::readCBN(std::istream &input) {
+void BinaryColumnCard::readCBN(std::istream &input) {
   std::array<char, 160> buffer;
   input.read(buffer.data(), buffer.size());
   auto count = input.gcount();
@@ -71,21 +69,26 @@ void InputBinaryColumnCard::readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
     b1 &= 0x3f;
-    data_[j++] = uint16_t(b0) << 6 | uint16_t(b1);
+    columns_[j++] = uint16_t(b0) << 6 | uint16_t(b1);
   }
 }
 
-void InputBinaryRowCard::fill(const InputBinaryColumnCard &card) {
-  std::fill(data_.begin(), data_.end(), 0);
+void BinaryColumnCard::fill(const BinaryRowCard &card) {
+  std::fill(columns_.begin(), columns_.end(), 0);
+  const auto &rows = card.getRows();
+}
+
+void BinaryRowCard::fill(const BinaryColumnCard &card) {
+  std::fill(rows_.begin(), rows_.end(), 0);
   // Left/right side of card
   for (int i = 0; i < 2; ++i) {
     std::array<uint16_t, 36> columns;
-    std::copy(card.data_.begin() + 36 * i, card.data_.begin() + 36 * i + 36,
-              columns.begin());
+    std::copy(card.getColumns().begin() + 36 * i,
+              card.getColumns().begin() + 36 * i + 36, columns.begin());
     for (int row = 0; row < 12; row++) {
       for (int column = 0; column < 36; column++) {
-        data_[i + 2 * row] =
-            (data_[i + 2 * row] << 1) | (columns[column] & 0x001);
+        rows_[i + 2 * row] =
+            (rows_[i + 2 * row] << 1) | (columns[column] & 0x001);
         columns[column] = columns[column] >> 1;
       }
     }

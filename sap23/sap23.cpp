@@ -61,14 +61,14 @@ int main(int argc, const char **argv) {
     std::ifstream is(inputFileName);
     auto &sapDeck = decks.emplace_back(SAPDeck(is));
     for (auto &card : sapDeck.getCards()) {
-      auto operation = sapAssembler.parseCard(card);
+      auto operation = sapAssembler.parseLine(card);
       sapAssembler.addInstruction(std::move(operation));
     }
   }
-  for(auto &instruction : sapAssembler.getInstructions()){
+  for (auto &instruction : sapAssembler.getInstructions()) {
     instruction->assemble(sapAssembler);
     instruction->print(std::cout, sapAssembler);
-    std::cout << instruction->getCard().getASCII() << "\n";
+    std::cout << instruction->getLine() << "\n";
   }
 
   return EXIT_SUCCESS;

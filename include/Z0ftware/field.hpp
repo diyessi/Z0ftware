@@ -132,6 +132,12 @@ FIELDTRAITS(71, __uint128_t);
 FIELDTRAITS(72, __uint128_t);
 FIELDTRAITS(73, __uint128_t);
 FIELDTRAITS(74, __uint128_t);
+FIELDTRAITS(75, __uint128_t);
+FIELDTRAITS(76, __uint128_t);
+FIELDTRAITS(77, __uint128_t);
+FIELDTRAITS(78, __uint128_t);
+FIELDTRAITS(79, __uint128_t);
+FIELDTRAITS(80, __uint128_t);
 
 // Load byte
 template <bit_field_pos_t pos, bit_field_size_t size,
@@ -199,7 +205,9 @@ public:
     static constexpr bit_field_pos_t pos = FIELD::pos;
     static constexpr bit_field_size_t size = FIELD::size;
     Ref(word_type &word) : word_(word) {}
-    operator auto() const { return ldb<pos, size, word_type, field_type>(word_); }
+    operator auto() const {
+      return ldb<pos, size, word_type, field_type>(word_);
+    }
     auto operator=(typename FIELD::field_type field) {
       return dpb<pos, size>(field, word_);
     }
@@ -225,8 +233,7 @@ public:
   }
 };
 
-template<typename word_t=std::uint64_t>
-constexpr word_t bits() { return 0; }
+template <typename word_t = std::uint64_t> constexpr word_t bits() { return 0; }
 
 template <typename word_t, typename Bit, typename... MoreBits>
 constexpr word_t bits(Bit bit, MoreBits... moreBits) {
@@ -234,7 +241,7 @@ constexpr word_t bits(Bit bit, MoreBits... moreBits) {
 }
 
 // Contiguous
-class TextField {
+template <size_t text_begin_pos, size_t text_size> class TextField {
 public:
   constexpr TextField(std::string_view::size_type pos,
                       std::string_view::size_type size)
@@ -251,11 +258,10 @@ public:
     Ref &operator=(Ref &&) = default;
 
     operator V() const {
-      return text_.field(textField_.pos_, textField_.size_);
-    }
-
-    auto &operator=(const V &sv) {
-      return text_.setField(textField_.pos_, textField_.size_, sv);
+      auto limit = text_.end();
+      return {std::min(limit, text_.begin() + textField_.pos_ - text_begin_pos),
+              std::min(limit, text_.begin() + textField_.pos_ - text_begin_pos +
+                                  textField_.size_)};
     }
 
   private:
@@ -271,5 +277,7 @@ private:
   std::string_view::size_type pos_;
   std::string_view::size_type size_;
 };
+
+using CardTextField = TextField<1, 80>;
 
 #endif

@@ -57,4 +57,3 @@ TEST(BitFieldRef, ldb) {
   EXPECT_EQ((BitField<0, 28>::ref(value)), (BitField<0, 28>::ref(value1)));
   EXPECT_EQ(s31::ref(value), 0xC);
 }
-

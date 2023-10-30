@@ -80,10 +80,11 @@ public:
 
   virtual OperationParser getOperationParser(const std::string_view &operation);
 
-  virtual std::unique_ptr<Operation> parseCard(const InputColumnCard &card) = 0;
+  virtual std::unique_ptr<Operation>
+  parseLine(const std::string_view &line) = 0;
 
   virtual std::unique_ptr<Operation>
-  parseFields(const InputColumnCard &card,
+  parseFields(const std::string_view &line,
               const std::string_view &locationSymbol,
               const std::string_view &operation,
               const std::string_view &variableAndComment);
@@ -105,14 +106,14 @@ private:
 
 class SAPAssembler : public Assembler {
 public:
-  static constexpr TextField field80{1, 80};
-  static constexpr TextField field72{1, 72};
-  static constexpr TextField fieldLocationSymbol{1, 6};
-  static constexpr TextField fieldOperation{8, 3};
-  static constexpr TextField fieldVariableAndComment{12, 60};
+  static constexpr CardTextField field80{1, 80};
+  static constexpr CardTextField field72{1, 72};
+  static constexpr CardTextField fieldLocationSymbol{1, 6};
+  static constexpr CardTextField fieldOperation{8, 3};
+  static constexpr CardTextField fieldVariableAndComment{12, 60};
 
   virtual std::unique_ptr<Operation>
-  parseCard(const InputColumnCard &card) override;
+  parseLine(const std::string_view &line) override;
 };
 
 #endif
