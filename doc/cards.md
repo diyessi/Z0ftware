@@ -20,10 +20,25 @@ Lines that start with the *~* character are special-cased. A line with just a *~
 
 ## .cbn format
 
+Here, bit positions are little-endian starting at 0.
+
+
+|**Byte**| 7 | 6        |    5 |    4 |   3 |   2 |   1 | 0   |
+|:------:|:-:|:--------:|:----:|:----:|:---:|:---:|:---:|:---:|
+|**0**   |`1`|Odd Parity|**12**|**11**|**0**|**1**|**2**|**3**|
+|**1**   |`0`|Odd Parity|**4** |**5** |**6**|**7**|**8**|**9**|
+
 Each card is 160 bytes, 2 bytes per column. Bit 7 is set on the first byte of each card. Bits 5-0 of the first byte in a pair corresponds to rows 12-11-0-1-2-3 and bits 5-0 of the second byte correspond to rows 4-5-6-7-8-9. Bit 6 of each byte provides odd parity for the byte.
 
 # APIs (rough)
 
-Source programs have been converted into ASCII text format to make them easy to read. For this reason, programs that analyze sources work with 80 character ASCII lines, which is also more convenient than working with BCD text.
+A card image has 80 16-bit columns, with bit positions corresponding to rows as follows:
 
-Assembled/compiled programs are decks of binary cards possibly mixed with text cards containing OS commands. For example, the SAP assembler binary is a `.cbn` file that begins with a binary loader card. A dumper needs to start by converting the `.cbn` encoding to horizontal binary format to understand the loader, which determines the how the remaining cards are to be treated.
+|15 |14 |13 |12 |11    |10    |9    |8    |7    |6    |5    |4    |3    |2    |1    |0    |
+|:-:|:-:|:-:|:-:|:----:|:----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|`0`|`0`|`0`|`0`|**12**|**11**|**0**|**1**|**2**|**3**|**4**|**5**|**6**|**7**|**8**|**9**|
+
+This 16-bit format will be called Hollerith and can be set directly in the card image.
+CBN can be read/written as two bytes.
+
+Binary row data is treated as 24 36-bit values starting at row 9 column 1.

@@ -1,6 +1,7 @@
 include(GoogleTest)
 
 add_executable(Z0ftware_tests
+    cards.cpp
     exprs.cpp
     field.cpp
     sap.cpp

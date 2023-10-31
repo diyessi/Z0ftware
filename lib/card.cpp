@@ -94,3 +94,20 @@ void BinaryRowCard::fill(const BinaryColumnCard &card) {
     }
   }
 }
+
+CardImage::word_t CardImage::getWord(int position) const {
+  // 0-based row/startColumn
+  auto bitpos = position/2;
+  auto startColumn = (position % 2) * 36;
+  auto endColumn = startColumn + 36;
+  word_t result{0};
+  word_t mask = 1 << bitpos;
+  for(auto column=startColumn; column < endColumn; ++column) {
+    result = (result << 1) | ((data_[column] & mask) >> bitpos);
+  }
+  return result;
+}
+
+void CardImage::setWord(int position, CardImage::word_t value) {
+  
+}
