@@ -57,3 +57,13 @@ TEST(cards, readWords) {
   EXPECT_EQ(cardImage.getWord(22), 0x0001FFFE0);
   EXPECT_EQ(cardImage.getWord(23), 0x001FFFE00);
 }
+
+TEST(cards, writeWords) {
+  CardImage cardImage;
+  for (int position = 0; position < 24; position++) {
+    cardImage.setWord(position, position * position);
+  }
+  for (int position = 0; position < 24; position++) {
+    EXPECT_EQ(cardImage.getWord(position), position * position);
+  }
+}

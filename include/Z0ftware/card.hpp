@@ -40,7 +40,7 @@ public:
   column_t &operator[](int column) { return data_[column - 1]; }
   const column_t &operator[](int column) const { return data_[column - 1]; }
   data_t &getData() { return data_; }
-  const data_t & getData() const { return data_; }
+  const data_t &getData() const { return data_; }
 
   // The 704 reads/writes a card as 24 words:
   // Word  0 (9: 1-36)
@@ -50,10 +50,14 @@ public:
   //      23 (12:37-72)
   word_t getWord(int position) const;
   void setWord(int position, word_t value);
+  void clear() { data_.fill(0); }
 
 private:
   data_t data_;
 };
+
+CardImage readCBN(std::istream &input);
+void writeCBN(std::ostream &output, const CardImage &cardImage);
 
 class BinaryRowCard;
 class BinaryColumnCard {
