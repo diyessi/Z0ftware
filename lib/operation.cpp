@@ -77,12 +77,12 @@ void Bcd::parseVariable(Assembler &assembler,
 
 void Bcd::allocate(Assembler &assembler) const {
   auto size = values_.size();
-  assembler.allocate(this, size, true, false);
+  assembler.allocate(this, size, Assembler::AssignType::Begin);
 }
 
 void Bcd::assemble(Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.words.begin());
+  std::copy(values_.begin(), values_.end(), assembly.begin);
 }
 
 void Bes::validate(Assembler &assembler) {
@@ -94,11 +94,11 @@ void Bes::validate(Assembler &assembler) {
 
 void Bes::allocate(Assembler &assembler) const {
   auto size = getExprs()[0]->value(assembler);
-  assembler.allocate(this, size, false, true);
+  assembler.allocate(this, size, Assembler::AssignType::End);
 }
 void Bes::assemble(Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  std::fill(assembly.words.begin(), assembly.words.end(), 0);
+  std::fill(assembly.begin, assembly.end, 0);
 }
 
 void Bss::validate(Assembler &assembler) {
@@ -111,12 +111,12 @@ void Bss::validate(Assembler &assembler) {
 
 void Bss::allocate(Assembler &assembler) const {
   auto size = exprs_[0]->value(assembler);
-  assembler.allocate(this, size, true, false);
+  assembler.allocate(this, size, Assembler::AssignType::Begin);
 }
 
 void Bss::assemble(Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  std::fill(assembly.words.begin(), assembly.words.end(), 0);
+  std::fill(assembly.begin, assembly.end, 0);
 }
 
 void Dec::parseVariable(Assembler &assembler,
@@ -129,17 +129,17 @@ void Dec::parseVariable(Assembler &assembler,
 }
 
 void Dec::allocate(Assembler &assembler) const {
-  assembler.allocate(this, values_.size(), true, false);
+  assembler.allocate(this, values_.size(), Assembler::AssignType::Begin);
 }
 
 void Dec::assemble(Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.words.begin());
+  std::copy(values_.begin(), values_.end(), assembly.begin);
 }
 
 void Def::allocate(Assembler &assembler) const {
   assembler.setDefineLocation();
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
 void End::validate(Assembler &assembler) {
@@ -150,7 +150,7 @@ void End::validate(Assembler &assembler) {
 }
 
 void End::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
 void Equ::validate(Assembler &assembler) {
@@ -162,7 +162,7 @@ void Equ::validate(Assembler &assembler) {
 }
 
 void Equ::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
   assembler.define(getLocationSymbol(), exprs_[0]->evaluate(assembler));
 }
 
@@ -172,8 +172,10 @@ std::ostream &Equ::print(std::ostream &os, Assembler &assembler) const {
 }
 
 void Ful::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
+
+void Ful::assemble(Assembler &assembler) const { assembler.setFull(true); }
 
 void Hed::parseVariable(Assembler &assembler,
                         const std::string_view &variable) {
@@ -181,7 +183,7 @@ void Hed::parseVariable(Assembler &assembler,
 }
 
 void Hed::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
 void Lib::parseVariable(Assembler &assembler,
@@ -190,7 +192,7 @@ void Lib::parseVariable(Assembler &assembler,
 }
 
 void Lib::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
 void Oct::parseVariable(Assembler &assembler,
@@ -231,12 +233,12 @@ void Oct::parseVariable(Assembler &assembler,
 }
 
 void Oct::allocate(Assembler &assembler) const {
-  assembler.allocate(this, values_.size(), true, false);
+  assembler.allocate(this, values_.size(), Assembler::AssignType::Begin);
 }
 
 void Oct::assemble(Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.words.begin());
+  std::copy(values_.begin(), values_.end(), assembly.begin);
 }
 
 void Instruction::validate(Assembler &assembler) {
@@ -251,10 +253,10 @@ void Instruction::validate(Assembler &assembler) {
 }
 
 void Instruction::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 1, true, false);
+  assembler.allocate(this, 1, Assembler::AssignType::Begin);
 }
 void Instruction::assemble(Assembler &assembler) const {
-  auto &word = assembler.getAssembly(this).words[0];
+  auto &word = *assembler.getAssembly(this).begin;
   word = opSpec_ ? opSpec_.value()->getWord() : 0;
 
   OpSpec::Address::ref(word) =
@@ -267,7 +269,7 @@ void Instruction::assemble(Assembler &assembler) const {
 
 std::ostream &Instruction::print(std::ostream &os, Assembler &assembler) const {
   auto &assembly = assembler.getAssembly(this);
-  return writeInstruction(os, assembly.address, assembly.words[0]);
+  return writeInstruction(os, assembly.address, *assembly.begin);
 }
 
 void Org::validate(Assembler &assembler) {
@@ -279,7 +281,11 @@ void Org::validate(Assembler &assembler) {
 
 void Org::allocate(Assembler &assembler) const {
   assembler.setLocation(exprs_[0]->evaluate(assembler));
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
+}
+
+void Org::assemble(Assembler &assembler) const {
+  assembler.setBaseLocation(exprs_[0]->evaluate(assembler));
 }
 
 std::ostream &Org::print(std::ostream &os, Assembler &assembler) const {
@@ -288,7 +294,7 @@ std::ostream &Org::print(std::ostream &os, Assembler &assembler) const {
 }
 
 void Rem::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
 void Rep::validate(Assembler &assembler) {
@@ -300,7 +306,7 @@ void Rep::validate(Assembler &assembler) {
 
 void Rep::allocate(Assembler &assembler) const {
   auto size = m_->evaluate(assembler) * n_->evaluate(assembler);
-  assembler.allocate(this, size, false, false);
+  assembler.allocate(this, size, Assembler::AssignType::None);
 }
 
 void Syn::validate(Assembler &assembler) {
@@ -312,6 +318,6 @@ void Syn::validate(Assembler &assembler) {
 }
 
 void Syn::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, false, false);
+  assembler.allocate(this, 0, Assembler::AssignType::None);
   assembler.define(getLocationSymbol(), exprs_[0]->evaluate(assembler));
 }

@@ -26,11 +26,14 @@
 #include "Z0ftware/exprs.hpp"
 #include "Z0ftware/operation.hpp"
 
+#include <functional>
 #include <map>
+#include <utility>
 
 struct InstructionAssembly {
   uint16_t address;
-  std::vector<uint64_t> words;
+  std::array<uint64_t, 32768>::iterator begin;
+  std::array<uint64_t, 32768>::iterator end;
 };
 
 class Assembler : public Environment {
@@ -43,8 +46,11 @@ public:
   auto operator[](const std::string_view &symbol) {
     return symbolValues_[{symbol.begin(), symbol.end()}];
   }
+  // If symbol is not empty, associate it with value
   void define(const std::string_view &symbol, FixPoint value) {
-    symbolValues_.emplace(std::string{symbol.begin(), symbol.end()}, value);
+    if (!symbol.empty()) {
+      symbolValues_.emplace(std::string{symbol.begin(), symbol.end()}, value);
+    }
   }
   [[nodiscard]] int get(const std::string &symbol) override;
   [[nodiscard]] int getLocation() const override { return location_; }
@@ -54,13 +60,23 @@ public:
     return location_;
   }
 
+  // Binary should use absolute addresses
+  bool getAbsoluteAddress() const { return absolute_address_; }
+  void setAbsoluteAddress(bool value) { absolute_address_ = value; }
+
+  // Use full card for output (no loader)
+  bool getFull() const { return full_; }
+  void setFull(bool value) { full_ = value; }
+
   void addInstruction(std::unique_ptr<Operation> &&operation);
   const std::vector<std::unique_ptr<Operation>> &getInstructions() const {
     return operations_;
   }
 
-  void allocate(const Operation *operation, size_t size, bool setStartLocation,
-                bool setEndLocation);
+  // Allocate memory for operations.
+  enum class AssignType { None, Begin, End };
+  void allocate(const Operation *operation, uint16_t size,
+                AssignType assignType);
   [[nodiscard]] const InstructionAssembly &
   getAssembly(const Operation *operation) const {
     return operationAssemblies_.find(operation)->second;
@@ -70,10 +86,27 @@ public:
   }
 
   void setDefineLocation() { defineLocation_ = location_; }
+
+  // Start address of current assembly segment
+  uint16_t getBaseLocation() const { return baseLocation_; }
+  void setBaseLocation(uint16_t baseLocation);
+
+  // A function that can write a segment of memory
+  using segment_writer_t =
+      std::function<void(Assembler &, std::pair<std::uint16_t, std::uint16_t>)>;
+  void setSegmentWriter(segment_writer_t segmentWriter) {
+    segmentWriter_ = segmentWriter;
+  }
+  segment_writer_t getSegmentWriter() const { return segmentWriter_; };
+
+  // If non-empty, write the current segment (from base_location_ to location_)
+  // and set base_location_ to location_+1;
+  void writeSegment();
+
   const std::map<std::string, FixPoint> &getSymbolValues() const {
     return symbolValues_;
   }
-  void write(InstructionAssembly &assembly);
+  auto &getCore() { return core_; }
 
   using OperationParser = std::function<std::unique_ptr<Operation>()>;
   using OperationParsers = std::map<std::string_view, OperationParser>;
@@ -96,11 +129,16 @@ private:
   std::vector<std::unique_ptr<Operation>> operations_;
   std::map<std::string, FixPoint> symbolValues_;
   std::uint16_t location_{0};
+  std::uint16_t baseLocation_{0};
   std::unordered_map<const Operation *, InstructionAssembly>
       operationAssemblies_;
   std::optional<std::uint16_t> defineLocation_;
   std::array<uint64_t, 32768> core_;
   size_t lineNumber_{0};
+  bool absolute_address_{true};
+  bool full_{false};
+  segment_writer_t segmentWriter_;
+
   static OperationParsers operationParsers_;
 };
 

@@ -235,7 +235,7 @@ class Ful : public OperationImpl<Ful> {
 public:
   void validate(Assembler &assembler) override{};
   void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void assemble(Assembler &assembler) const override;
 };
 
 // Prefix every symbol following (until another HED) with character 1 (H)
@@ -302,7 +302,7 @@ class Org : public OperationImpl<Org> {
 public:
   void validate(Assembler &assembler) override;
   void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void assemble(Assembler &assembler) const override;
 
   std::ostream &print(std::ostream &os, Assembler &assembler) const override;
 };

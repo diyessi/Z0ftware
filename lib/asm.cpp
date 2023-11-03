@@ -61,23 +61,23 @@ void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
   }
 }
 
-void Assembler::allocate(const Operation *operation, size_t size,
-                         bool setStartLocation, bool setEndLocation) {
-  operationAssemblies_[operation] = {location_, std::vector<uint64_t>(size)};
+void Assembler::allocate(const Operation *operation, uint16_t size,
+                         AssignType assignType) {
+  operationAssemblies_[operation] = {location_, core_.begin() + location_,
+                                     core_.begin() + location_ + size};
   auto symbol = operation->getLocationSymbol();
-  if (setStartLocation & !symbol.empty()) {
-    define(symbol, location_);
-  }
+  auto startLocation = location_;
   addLocation(size);
-  if (setEndLocation & !symbol.empty()) {
+  switch (assignType) {
+  case AssignType::Begin:
+    define(symbol, startLocation);
+    break;
+  case AssignType::End:
     define(symbol, location_ - 1);
+    break;
+  case AssignType::None:
+    break;
   }
-}
-
-void Assembler::write(InstructionAssembly &assembly) {
-  auto start = assembly.address;
-  std::copy(assembly.words.begin(), assembly.words.end(),
-            core_.begin() + start);
 }
 
 [[nodiscard]] int Assembler::get(const std::string &symbol) {
@@ -125,6 +125,13 @@ Assembler::getOperationParser(const std::string_view &operation) {
   }
   return &Instruction::unique;
 }
+
+void Assembler::setBaseLocation(uint16_t base_location) {
+  writeSegment();
+  baseLocation_ = base_location;
+}
+
+void Assembler::writeSegment() {}
 
 std::unique_ptr<Operation>
 SAPAssembler::parseLine(const std::string_view &line) {
