@@ -81,8 +81,8 @@ void Bcd::allocate(Assembler &assembler) const {
 }
 
 void Bcd::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.begin);
+  auto &assembly = assembler.getOperationSegment(this);
+  std::copy(values_.begin(), values_.end(), assembly.first);
 }
 
 void Bes::validate(Assembler &assembler) {
@@ -97,8 +97,8 @@ void Bes::allocate(Assembler &assembler) const {
   assembler.allocate(this, size, Assembler::AssignType::End);
 }
 void Bes::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  std::fill(assembly.begin, assembly.end, 0);
+  auto &assembly = assembler.getOperationSegment(this);
+  std::fill(assembly.first, assembly.last, 0);
 }
 
 void Bss::validate(Assembler &assembler) {
@@ -115,8 +115,8 @@ void Bss::allocate(Assembler &assembler) const {
 }
 
 void Bss::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  std::fill(assembly.begin, assembly.end, 0);
+  auto &assembly = assembler.getOperationSegment(this);
+  std::fill(assembly.first, assembly.last, 0);
 }
 
 void Dec::parseVariable(Assembler &assembler,
@@ -133,8 +133,8 @@ void Dec::allocate(Assembler &assembler) const {
 }
 
 void Dec::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.begin);
+  auto &assembly = assembler.getOperationSegment(this);
+  std::copy(values_.begin(), values_.end(), assembly.first);
 }
 
 void Def::allocate(Assembler &assembler) const {
@@ -153,6 +153,10 @@ void End::allocate(Assembler &assembler) const {
   assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
+void End::assemble(Assembler &assembler) const {
+  assembler.writeBinarySegment(this);
+}
+
 void Equ::validate(Assembler &assembler) {
   if (exprs_.size() != 1) {
     addWarning() << "Incorrect number of expressions for "
@@ -167,7 +171,7 @@ void Equ::allocate(Assembler &assembler) const {
 }
 
 std::ostream &Equ::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
+  auto &assembly = assembler.getOperationSegment(this);
   return writeAddress(os, exprs_[0]->evaluate(assembler));
 }
 
@@ -175,7 +179,9 @@ void Ful::allocate(Assembler &assembler) const {
   assembler.allocate(this, 0, Assembler::AssignType::None);
 }
 
-void Ful::assemble(Assembler &assembler) const { assembler.setFull(true); }
+void Ful::assemble(Assembler &assembler) const {
+  assembler.setBinaryFormat(Assembler::BinaryFormat::Full);
+}
 
 void Hed::parseVariable(Assembler &assembler,
                         const std::string_view &variable) {
@@ -237,8 +243,8 @@ void Oct::allocate(Assembler &assembler) const {
 }
 
 void Oct::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  std::copy(values_.begin(), values_.end(), assembly.begin);
+  auto &assembly = assembler.getOperationSegment(this);
+  std::copy(values_.begin(), values_.end(), assembly.first);
 }
 
 void Instruction::validate(Assembler &assembler) {
@@ -256,7 +262,7 @@ void Instruction::allocate(Assembler &assembler) const {
   assembler.allocate(this, 1, Assembler::AssignType::Begin);
 }
 void Instruction::assemble(Assembler &assembler) const {
-  auto &word = *assembler.getAssembly(this).begin;
+  auto &word = *assembler.getOperationSegment(this).first;
   word = opSpec_ ? opSpec_.value()->getWord() : 0;
 
   OpSpec::Address::ref(word) =
@@ -268,8 +274,8 @@ void Instruction::assemble(Assembler &assembler) const {
 }
 
 std::ostream &Instruction::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
-  return writeInstruction(os, assembly.address, *assembly.begin);
+  auto &assembly = assembler.getOperationSegment(this);
+  return writeInstruction(os, assembly.address, *assembly.first);
 }
 
 void Org::validate(Assembler &assembler) {
@@ -285,11 +291,11 @@ void Org::allocate(Assembler &assembler) const {
 }
 
 void Org::assemble(Assembler &assembler) const {
-  assembler.setBaseLocation(exprs_[0]->evaluate(assembler));
+  assembler.startBinarySegment(this);
 }
 
 std::ostream &Org::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getAssembly(this);
+  auto &assembly = assembler.getOperationSegment(this);
   return writeAddress(os, exprs_[0]->evaluate(assembler));
 }
 

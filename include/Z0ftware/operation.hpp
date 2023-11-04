@@ -218,7 +218,7 @@ class End : public OperationImpl<End> {
 public:
   void validate(Assembler &assembler) override;
   void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void assemble(Assembler &assembler) const override;
 };
 
 // locationSymbol = Exprs[0] for non-addresses

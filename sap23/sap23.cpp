@@ -23,6 +23,7 @@
 #include "Z0ftware/asm.hpp"
 #include "Z0ftware/card.hpp"
 #include "Z0ftware/config.h"
+#include "Z0ftware/disasm.hpp"
 #include "Z0ftware/operation.hpp"
 #include "Z0ftware/parser.hpp"
 #include "Z0ftware/signature.hpp"
@@ -56,6 +57,16 @@ int main(int argc, const char **argv) {
       "  does so considerably faster.\n");
 
   SAPAssembler sapAssembler;
+  segment_writer_t segmentWriter = [](Segment segment) {
+    std::cout << "===================\n";
+    auto address = segment.address;
+    for (auto it = segment.first; it < segment.last; ++it) {
+      writeWord(std::cout, address++, *it);
+      std::cout << "\n";
+    }
+    std::cout << "===================\n";
+  };
+  sapAssembler.setSegmentWriter(segmentWriter);
   std::vector<SAPDeck> decks;
   for (auto &inputFileName : inputFileNames) {
     std::ifstream is(inputFileName);

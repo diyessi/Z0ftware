@@ -30,11 +30,16 @@
 #include <map>
 #include <utility>
 
-struct InstructionAssembly {
+using core_t = std::array<uint64_t, 32768>;
+
+struct Segment {
   uint16_t address;
-  std::array<uint64_t, 32768>::iterator begin;
-  std::array<uint64_t, 32768>::iterator end;
+  core_t::iterator first;
+  core_t::iterator last;
 };
+
+// A function that can write a segment of memory
+using segment_writer_t = std::function<void(Segment)>;
 
 class Assembler : public Environment {
 public:
@@ -60,13 +65,10 @@ public:
     return location_;
   }
 
-  // Binary should use absolute addresses
-  bool getAbsoluteAddress() const { return absolute_address_; }
-  void setAbsoluteAddress(bool value) { absolute_address_ = value; }
-
-  // Use full card for output (no loader)
-  bool getFull() const { return full_; }
-  void setFull(bool value) { full_ = value; }
+  // Format for binary output
+  enum class BinaryFormat { Absolute, Relative, Full };
+  BinaryFormat getBinaryFormat() const { return binaryFormat_; }
+  void setBinaryFormat(BinaryFormat value) { binaryFormat_ = value; }
 
   void addInstruction(std::unique_ptr<Operation> &&operation);
   const std::vector<std::unique_ptr<Operation>> &getInstructions() const {
@@ -77,23 +79,20 @@ public:
   enum class AssignType { None, Begin, End };
   void allocate(const Operation *operation, uint16_t size,
                 AssignType assignType);
-  [[nodiscard]] const InstructionAssembly &
-  getAssembly(const Operation *operation) const {
-    return operationAssemblies_.find(operation)->second;
+  [[nodiscard]] const Segment &
+  getOperationSegment(const Operation *operation) const {
+    return operationSegments_.find(operation)->second;
   }
-  [[nodiscard]] InstructionAssembly &getAssembly(const Operation *operation) {
-    return operationAssemblies_.find(operation)->second;
+  [[nodiscard]] Segment &getOperationSegment(const Operation *operation) {
+    return operationSegments_.find(operation)->second;
   }
 
   void setDefineLocation() { defineLocation_ = location_; }
 
-  // Start address of current assembly segment
-  uint16_t getBaseLocation() const { return baseLocation_; }
-  void setBaseLocation(uint16_t baseLocation);
+  // Current binary segment for writing
+  const Segment &getBinarySegment() const { return binarySegment_; }
+  void startBinarySegment(const Operation *operation);
 
-  // A function that can write a segment of memory
-  using segment_writer_t =
-      std::function<void(Assembler &, std::pair<std::uint16_t, std::uint16_t>)>;
   void setSegmentWriter(segment_writer_t segmentWriter) {
     segmentWriter_ = segmentWriter;
   }
@@ -101,7 +100,7 @@ public:
 
   // If non-empty, write the current segment (from base_location_ to location_)
   // and set base_location_ to location_+1;
-  void writeSegment();
+  void writeBinarySegment(const Operation *operation);
 
   const std::map<std::string, FixPoint> &getSymbolValues() const {
     return symbolValues_;
@@ -129,14 +128,12 @@ private:
   std::vector<std::unique_ptr<Operation>> operations_;
   std::map<std::string, FixPoint> symbolValues_;
   std::uint16_t location_{0};
-  std::uint16_t baseLocation_{0};
-  std::unordered_map<const Operation *, InstructionAssembly>
-      operationAssemblies_;
+  std::unordered_map<const Operation *, Segment> operationSegments_;
   std::optional<std::uint16_t> defineLocation_;
-  std::array<uint64_t, 32768> core_;
+  core_t core_;
   size_t lineNumber_{0};
-  bool absolute_address_{true};
-  bool full_{false};
+  BinaryFormat binaryFormat_{BinaryFormat::Absolute};
+  Segment binarySegment_{0, core_.begin(), core_.begin()};
   segment_writer_t segmentWriter_;
 
   static OperationParsers operationParsers_;

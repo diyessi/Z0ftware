@@ -63,8 +63,8 @@ void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
 
 void Assembler::allocate(const Operation *operation, uint16_t size,
                          AssignType assignType) {
-  operationAssemblies_[operation] = {location_, core_.begin() + location_,
-                                     core_.begin() + location_ + size};
+  operationSegments_[operation] = {location_, core_.begin() + location_,
+                                   core_.begin() + location_ + size};
   auto symbol = operation->getLocationSymbol();
   auto startLocation = location_;
   addLocation(size);
@@ -126,12 +126,17 @@ Assembler::getOperationParser(const std::string_view &operation) {
   return &Instruction::unique;
 }
 
-void Assembler::setBaseLocation(uint16_t base_location) {
-  writeSegment();
-  baseLocation_ = base_location;
+void Assembler::startBinarySegment(const Operation *operation) {
+  writeBinarySegment(operation);
+  binarySegment_ = getOperationSegment(operation);
 }
 
-void Assembler::writeSegment() {}
+void Assembler::writeBinarySegment(const Operation *operation) {
+  binarySegment_.last = getOperationSegment(operation).last;
+  if (segmentWriter_) {
+    segmentWriter_(binarySegment_);
+  }
+}
 
 std::unique_ptr<Operation>
 SAPAssembler::parseLine(const std::string_view &line) {
