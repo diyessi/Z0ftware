@@ -51,5 +51,5 @@ int ZeroExpr::evaluate(Environment &environment) const { return 0; }
 int IntegerExpr::evaluate(Environment &environment) const { return value_; }
 
 int SymbolExpr::evaluate(Environment &environment) const {
-  return environment.get(name_);
+  return environment.getSymbolValue(name_);
 }

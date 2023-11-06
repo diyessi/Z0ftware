@@ -167,7 +167,7 @@ void Equ::validate(Assembler &assembler) {
 
 void Equ::allocate(Assembler &assembler) const {
   assembler.allocate(this, 0, Assembler::AssignType::None);
-  assembler.define(getLocationSymbol(), exprs_[0]->evaluate(assembler));
+  assembler.defineSymbol(getLocationSymbol(), exprs_[0]->evaluate(assembler));
 }
 
 std::ostream &Equ::print(std::ostream &os, Assembler &assembler) const {
@@ -180,7 +180,7 @@ void Ful::allocate(Assembler &assembler) const {
 }
 
 void Ful::assemble(Assembler &assembler) const {
-  assembler.setBinaryFormat(Assembler::BinaryFormat::Full);
+  assembler.setBinaryFormat(BinaryFormat::Full);
 }
 
 void Hed::parseVariable(Assembler &assembler,
@@ -325,5 +325,5 @@ void Syn::validate(Assembler &assembler) {
 
 void Syn::allocate(Assembler &assembler) const {
   assembler.allocate(this, 0, Assembler::AssignType::None);
-  assembler.define(getLocationSymbol(), exprs_[0]->evaluate(assembler));
+  assembler.defineSymbol(getLocationSymbol(), exprs_[0]->evaluate(assembler));
 }

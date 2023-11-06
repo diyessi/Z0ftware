@@ -48,7 +48,7 @@ std::vector<Expr::ptr> Assembler::parseEXP(Operation &operation,
   return values;
 }
 
-void Assembler::addInstruction(std::unique_ptr<Operation> &&operation) {
+void Assembler::appendOperation(std::unique_ptr<Operation> &&operation) {
   operations_.emplace_back(std::move(operation));
   operations_.back()->validate(*this);
   if (!operations_.back()->hasErrors()) {
@@ -67,20 +67,20 @@ void Assembler::allocate(const Operation *operation, uint16_t size,
                                    core_.begin() + location_ + size};
   auto symbol = operation->getLocationSymbol();
   auto startLocation = location_;
-  addLocation(size);
+  location_ = (location_ + size) & 077777;
   switch (assignType) {
   case AssignType::Begin:
-    define(symbol, startLocation);
+    defineSymbol(symbol, startLocation);
     break;
   case AssignType::End:
-    define(symbol, location_ - 1);
+    defineSymbol(symbol, location_ - 1);
     break;
   case AssignType::None:
     break;
   }
 }
 
-[[nodiscard]] int Assembler::get(const std::string &symbol) {
+[[nodiscard]] int Assembler::getSymbolValue(const std::string &symbol) {
   auto it = symbolValues_.find(symbol);
   if (it != symbolValues_.end()) {
     return it->second;
@@ -133,8 +133,8 @@ void Assembler::startBinarySegment(const Operation *operation) {
 
 void Assembler::writeBinarySegment(const Operation *operation) {
   binarySegment_.last = getOperationSegment(operation).last;
-  if (segmentWriter_) {
-    segmentWriter_(binarySegment_);
+  if (segmentWriter_ && binarySegment_.first < binarySegment_.last) {
+    segmentWriter_(binaryFormat_, binarySegment_);
   }
 }
 

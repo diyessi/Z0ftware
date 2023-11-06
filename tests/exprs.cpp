@@ -32,7 +32,7 @@
 class TestEnvironment : public Environment {
 public:
   int getLocation() const override { return location_; }
-  int get(const std::string &string) override { return map_.at(string); }
+  int getSymbolValue(const std::string &string) override { return map_.at(string); }
 
   void setLocation(int location) { location_ = location; }
   void set(const std::string &name, int value) { map_[name] = value; }

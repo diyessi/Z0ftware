@@ -151,12 +151,17 @@ CardImage readCBN(std::istream &input) {
 
 void writeCBN(std::ostream &output, const CardImage &cardImage) {
   std::array<char, 160> buffer;
+  buffer.fill(0);
   auto bufferp = &buffer[0];
   for (int column = 1; column <= 80; column++) {
     auto column_value = cardImage[column];
     // First byte has bit 7 set
-    auto high =
-        evenParity(sixbit_t(ldb<6, 6>(column_value))) | sevenbit_t(0x80);
+    auto high = sixbit_t(ldb<6, 6>(column_value));
+    if (column == 1) {
+      high = evenParity(high) | sevenbit_t(0x80);
+    } else {
+      high = oddParity(high);
+    }
     *bufferp++ = char(high);
     auto low = oddParity(sixbit_t(ldb<0, 6>(column_value)));
     *bufferp++ = char(low);

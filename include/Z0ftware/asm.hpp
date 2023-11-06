@@ -38,8 +38,11 @@ struct Segment {
   core_t::iterator last;
 };
 
+// Format for binary output
+enum class BinaryFormat { Absolute, Relative, Full };
+
 // A function that can write a segment of memory
-using segment_writer_t = std::function<void(Segment)>;
+using segment_writer_t = std::function<void(BinaryFormat, Segment)>;
 
 class Assembler : public Environment {
 public:
@@ -52,25 +55,19 @@ public:
     return symbolValues_[{symbol.begin(), symbol.end()}];
   }
   // If symbol is not empty, associate it with value
-  void define(const std::string_view &symbol, FixPoint value) {
+  void defineSymbol(const std::string_view &symbol, FixPoint value) {
     if (!symbol.empty()) {
       symbolValues_.emplace(std::string{symbol.begin(), symbol.end()}, value);
     }
   }
-  [[nodiscard]] int get(const std::string &symbol) override;
+  [[nodiscard]] int getSymbolValue(const std::string &symbol) override;
   [[nodiscard]] int getLocation() const override { return location_; }
   void setLocation(std::uint16_t location) { location_ = location & 077777; }
-  std::uint16_t addLocation(int16_t offset = 1) {
-    location_ = (location_ + offset) & 077777;
-    return location_;
-  }
 
-  // Format for binary output
-  enum class BinaryFormat { Absolute, Relative, Full };
   BinaryFormat getBinaryFormat() const { return binaryFormat_; }
   void setBinaryFormat(BinaryFormat value) { binaryFormat_ = value; }
 
-  void addInstruction(std::unique_ptr<Operation> &&operation);
+  void appendOperation(std::unique_ptr<Operation> &&operation);
   const std::vector<std::unique_ptr<Operation>> &getInstructions() const {
     return operations_;
   }
@@ -84,7 +81,9 @@ public:
     return operationSegments_.find(operation)->second;
   }
   [[nodiscard]] Segment &getOperationSegment(const Operation *operation) {
-    return operationSegments_.find(operation)->second;
+    auto &segment = operationSegments_.find(operation)->second;
+    location_ = segment.address;
+    return segment;
   }
 
   void setDefineLocation() { defineLocation_ = location_; }

@@ -39,7 +39,7 @@ public:
   virtual int getLocation() const = 0;
   // The value of an already defined location
   // Cannot be const since symbols can be defined on first use
-  virtual int get(const std::string &string) = 0;
+  virtual int getSymbolValue(const std::string &string) = 0;
 };
 
 class Expr {

@@ -57,23 +57,37 @@ int main(int argc, const char **argv) {
       "  does so considerably faster.\n");
 
   SAPAssembler sapAssembler;
-  segment_writer_t segmentWriter = [](Segment segment) {
-    std::cout << "===================\n";
-    auto address = segment.address;
-    for (auto it = segment.first; it < segment.last; ++it) {
-      writeWord(std::cout, address++, *it);
-      std::cout << "\n";
-    }
-    std::cout << "===================\n";
-  };
-  sapAssembler.setSegmentWriter(segmentWriter);
+  std::ofstream os(outputFileName, std::ofstream::binary | std::ofstream::out |
+                                       std::ofstream::trunc);
+  if (!outputFileName.empty()) {
+    segment_writer_t segmentWriter = [&os](BinaryFormat, Segment segment) {
+      CardImage cardImage;
+      int pos = 0;
+      for (auto it = segment.first; it < segment.last && pos < 24; ++it) {
+        cardImage.setWord(pos++, *it);
+      }
+      writeCBN(os, cardImage);
+    };
+    sapAssembler.setSegmentWriter(segmentWriter);
+  } else {
+    segment_writer_t segmentWriter = [](BinaryFormat, Segment segment) {
+      std::cout << "===================\n";
+      auto address = segment.address;
+      for (auto it = segment.first; it < segment.last; ++it) {
+        writeWord(std::cout, address++, *it);
+        std::cout << "\n";
+      }
+      std::cout << "===================\n";
+    };
+    sapAssembler.setSegmentWriter(segmentWriter);
+  }
   std::vector<SAPDeck> decks;
   for (auto &inputFileName : inputFileNames) {
     std::ifstream is(inputFileName);
     auto &sapDeck = decks.emplace_back(SAPDeck(is));
     for (auto &card : sapDeck.getCards()) {
       auto operation = sapAssembler.parseLine(card);
-      sapAssembler.addInstruction(std::move(operation));
+      sapAssembler.appendOperation(std::move(operation));
     }
   }
   for (auto &instruction : sapAssembler.getInstructions()) {
@@ -81,6 +95,7 @@ int main(int argc, const char **argv) {
     instruction->print(std::cout, sapAssembler);
     std::cout << instruction->getLine() << "\n";
   }
+  os.close();
 
   return EXIT_SUCCESS;
 }
