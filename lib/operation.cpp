@@ -205,7 +205,7 @@ void Oct::parseVariable(Assembler &assembler,
                         const std::string_view &variable) {
   auto it = variable.begin();
   std::optional<bool> negative;
-  std::uint64_t magnitude{0};
+  word_t magnitude{0};
   bool partial{false};
   while (it != variable.end()) {
     auto c = *it++;

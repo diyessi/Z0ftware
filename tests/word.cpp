@@ -39,7 +39,7 @@ TEST(Word, ac_sub) {
   auto sum = ac - val;
   EXPECT_FALSE(sum.isNegative());
   EXPECT_EQ(sum.getMagnitude(), 1);
-  EXPECT_EQ(std::uint64_t(sum), 1);
+  EXPECT_EQ(word_t(sum), 1);
 }
 
 TEST(Word, acmq_mul) {

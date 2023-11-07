@@ -70,7 +70,7 @@ void BinaryColumnCard::readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
     b1 &= 0x3f;
-    columns_[j++] = uint16_t(b0) << 6 | uint16_t(b1);
+    columns_[j++] = column_t(b0) << 6 | column_t(b1);
   }
 }
 
@@ -83,7 +83,7 @@ void BinaryRowCard::fill(const BinaryColumnCard &card) {
   std::fill(rows_.begin(), rows_.end(), 0);
   // Left/right side of card
   for (int i = 0; i < 2; ++i) {
-    std::array<uint16_t, 36> columns;
+    std::array<column_t, 36> columns;
     std::copy(card.getColumns().begin() + 36 * i,
               card.getColumns().begin() + 36 * i + 36, columns.begin());
     for (int row = 0; row < 12; row++) {
@@ -96,7 +96,7 @@ void BinaryRowCard::fill(const BinaryColumnCard &card) {
   }
 }
 
-CardImage::word_t CardImage::getWord(int position) const {
+word_t CardImage::getWord(int position) const {
   // 0-based row/startColumn
   auto bitpos = position / 2;
   auto startColumn = (position % 2) * 36;
@@ -109,7 +109,7 @@ CardImage::word_t CardImage::getWord(int position) const {
   return result;
 }
 
-void CardImage::setWord(int position, CardImage::word_t value) {
+void CardImage::setWord(int position, word_t value) {
   // 0-based row/startColumn
   auto bitpos = position / 2;
   auto startColumn = (position % 2) * 36;
@@ -144,7 +144,7 @@ CardImage readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
     b1 &= 0x3f;
-    cardImage[j++] = uint16_t(b0) << 6 | uint16_t(b1);
+    cardImage[j++] = column_t(b0) << 6 | column_t(b1);
   }
   return cardImage;
 }

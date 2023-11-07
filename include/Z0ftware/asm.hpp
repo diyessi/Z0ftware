@@ -23,6 +23,7 @@
 #ifndef Z0FTWARE_ASM_HPP
 #define Z0FTWARE_ASM_HPP
 
+#include "Z0ftware/card.hpp"
 #include "Z0ftware/exprs.hpp"
 #include "Z0ftware/operation.hpp"
 
@@ -30,10 +31,10 @@
 #include <map>
 #include <utility>
 
-using core_t = std::array<uint64_t, 32768>;
+using core_t = std::array<word_t, addr_size>;
 
 struct Segment {
-  uint16_t address;
+  addr_t address;
   core_t::iterator first;
   core_t::iterator last;
 };
@@ -62,7 +63,7 @@ public:
   }
   [[nodiscard]] int getSymbolValue(const std::string &symbol) override;
   [[nodiscard]] int getLocation() const override { return location_; }
-  void setLocation(std::uint16_t location) { location_ = location & 077777; }
+  void setLocation(addr_t location) { location_ = location & 077777; }
 
   BinaryFormat getBinaryFormat() const { return binaryFormat_; }
   void setBinaryFormat(BinaryFormat value) { binaryFormat_ = value; }
@@ -74,8 +75,7 @@ public:
 
   // Allocate memory for operations.
   enum class AssignType { None, Begin, End };
-  void allocate(const Operation *operation, uint16_t size,
-                AssignType assignType);
+  void allocate(const Operation *operation, addr_t size, AssignType assignType);
   [[nodiscard]] const Segment &
   getOperationSegment(const Operation *operation) const {
     return operationSegments_.find(operation)->second;
@@ -126,9 +126,9 @@ public:
 private:
   std::vector<std::unique_ptr<Operation>> operations_;
   std::map<std::string, FixPoint> symbolValues_;
-  std::uint16_t location_{0};
+  addr_t location_{0};
   std::unordered_map<const Operation *, Segment> operationSegments_;
-  std::optional<std::uint16_t> defineLocation_;
+  std::optional<addr_t> defineLocation_;
   core_t core_;
   size_t lineNumber_{0};
   BinaryFormat binaryFormat_{BinaryFormat::Absolute};
@@ -140,7 +140,7 @@ private:
 
 class SAPAssembler : public Assembler {
 public:
-  static constexpr CardTextField field80{1, 80};
+  static constexpr CardTextField field80{cardColumnFirst, cardColumnLast};
   static constexpr CardTextField field72{1, 72};
   static constexpr CardTextField fieldLocationSymbol{1, 6};
   static constexpr CardTextField fieldOperation{8, 3};

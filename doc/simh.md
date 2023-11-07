@@ -236,7 +236,7 @@ sim> e 102
 
 ## Stopping execution
 
-Use `^E` to get back to the simh prompt.
+Use `^F` to get back to the simh prompt.
 
 ## Address and Decrement
 

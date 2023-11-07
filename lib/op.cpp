@@ -174,9 +174,8 @@ std::optional<const OpSpec *> OpSpec::getOpSpec(const std::string_view &name) {
   return std::optional<const OpSpec *>();
 }
 
-const OpSpec *OpSpec::getOpSpec(std::uint64_t word) {
-  using map_t =
-      std::map<std::uint64_t, const OpSpec *, std::greater<std::uint64_t>>;
+const OpSpec *OpSpec::getOpSpec(word_t word) {
+  using map_t = std::map<word_t, const OpSpec *, std::greater<word_t>>;
   auto initOps = []() -> map_t {
     map_t ops;
     for (const auto &opSpec : opSpecs704) {

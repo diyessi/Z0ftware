@@ -27,12 +27,16 @@
 
 #include "Z0ftware/field.hpp"
 
+using addr_t = unsigned_t<15>;
+using word_t = unsigned_t<36>;
+
+constexpr addr_t addr_size = 32768;
+
 template <typename int_t, typename word_t> class Int {
 public:
   using F_EXP = BitField<27, 8>;
   using F_MANTISSA = BitField<0, 27>;
   using F_ADDRESS = BitField<0, 15>;
-  using word_type = word_t;
   using base_type = Int<int_t, word_t>;
 
   Int(bool negative, int64_t magnitude) {
@@ -88,6 +92,7 @@ private:
   word_t word_{0};
 };
 
+
 class AC : public Int<AC, std::uint64_t> {
 public:
   using F_SIGN = BitField<37, 1>;
@@ -109,11 +114,10 @@ public:
   using F_SIGN = BitField<35, 1, bool>;
   using F_MAGNITUDE = BitField<0, 35>;
 
-  Word(bool negative, uint64_t magnitude)
-      : base_type(negative, magnitude) {}
+  Word(bool negative, uint64_t magnitude) : base_type(negative, magnitude) {}
   Word(bool negative, int64_t exponent, uint64_t mantissa)
       : base_type(negative, exponent, mantissa) {}
-  Word(word_type raw) : base_type(raw) {}
+  Word(word_t raw) : base_type(raw) {}
 };
 
 class FixPoint : public Word {
@@ -127,7 +131,7 @@ public:
   FixPoint(std::uint64_t raw) : Word(raw) {}
   FixPoint(const FixPoint &fixPoint) = default;
   FixPoint(FixPoint &&fixPoint) = default;
-  std::uint16_t asAddress() {
+  addr_t asAddress() {
     int64_t value = isNegative() ? -getMagnitude() : getMagnitude();
     return F_ADDRESS::ref(value);
   }

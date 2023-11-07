@@ -25,10 +25,21 @@
 
 #include "Z0ftware/field.hpp"
 #include "Z0ftware/utils.hpp"
+#include "Z0ftware/word.hpp"
 
 #include <algorithm>
 #include <string>
 #include <string_view>
+
+constexpr unsigned numCardColumns = 80;
+constexpr unsigned numCardRows = 12;
+constexpr unsigned cardColumnFirst = 1;
+constexpr unsigned cardColumnLast = 80;
+
+using column_t = unsigned_t<numCardRows>;
+using row_t = unsigned_t<numCardColumns>;
+
+using CardTextField = TextField<cardColumnFirst, cardColumnLast>;
 
 class CardImage {
 public:
@@ -36,9 +47,7 @@ public:
 
   // Row: 12 11  0  1  2  3  4  5  6  7  8  9
   // Bit: 11 10  9  8  7  6  5  4  3  2  1  0
-  using column_t = FieldTraits<12>::field_type;
-  using word_t = FieldTraits<36>::field_type;
-  using data_t = std::array<column_t, 80>;
+  using data_t = std::array<column_t, numCardColumns>;
   column_t &operator[](int column) { return data_[column - 1]; }
   const column_t &operator[](int column) const { return data_[column - 1]; }
   data_t &getData() { return data_; }
@@ -82,7 +91,7 @@ private:
   // Initialize from card
   void fill(const BinaryRowCard &card);
 
-  std::array<uint16_t, 80> columns_;
+  std::array<column_t, numCardColumns> columns_;
 };
 
 class BinaryRowCard {
@@ -103,8 +112,7 @@ private:
   // Initialize from card
   void fill(const BinaryColumnCard &card);
 
-  // Should this be 64x24, 64x36, or 128x10?
-  std::array<uint64_t, 24> rows_;
+  std::array<word_t, 24> rows_;
 };
 
 class SAPDeck {

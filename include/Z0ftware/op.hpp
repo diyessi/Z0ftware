@@ -1,4 +1,4 @@
-// MIT License 
+// MIT License
 //
 // Copyright (c) 2023 Scott Cyphers
 //
@@ -24,6 +24,7 @@
 #define Z0FTWARE_OP_HPP
 
 #include "Z0ftware/field.hpp"
+#include "Z0ftware/word.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -38,7 +39,7 @@ public:
   using Tag = BitField<35 - 20, 3>;
   using Address = BitField<35 - 35, 15>;
 
-  OpSpec(std::string &&operation, int16_t opCode, uint16_t address,
+  OpSpec(std::string &&operation, int16_t opCode, addr_t address,
          std::string &&description, bool isConstant = false)
       : operation_(std::move(operation)), description_(std::move(description)),
         isConstant_(isConstant) {
@@ -57,7 +58,7 @@ public:
 
   const std::string &getOperation() const { return operation_; }
   const std::string &getDescription() const { return description_; }
-  std::uint64_t getWord() const { return word_; }
+  word_t getWord() const { return word_; }
   bool isConstant() const { return isConstant_; }
 
   auto getPrefix() const { return Prefix::ref(word_); }
@@ -67,10 +68,10 @@ public:
   auto getAddress() const { return Address::ref(word_); }
 
   static std::optional<const OpSpec *> getOpSpec(const std::string_view &name);
-  static const OpSpec *getOpSpec(std::uint64_t word);
+  static const OpSpec *getOpSpec(word_t word);
 
 private:
-  std::uint64_t word_{0};
+  word_t word_{0};
   std::string operation_;
   std::string description_;
   bool isConstant_{false};

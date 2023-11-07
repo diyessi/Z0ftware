@@ -52,7 +52,6 @@ TEST(BitFieldRef, ldb) {
   using s31 = BitField<28, 4>;
   EXPECT_EQ(s31::ref(value), 0x7);
   s31::ref(value) = 0xC;
-  // Ref<s31>::ref(value) = 0xC;
   EXPECT_EQ((BitField<32, 32>::ref(value)), (BitField<32, 32>::ref(value1)));
   EXPECT_EQ((BitField<0, 28>::ref(value)), (BitField<0, 28>::ref(value1)));
   EXPECT_EQ(s31::ref(value), 0xC);

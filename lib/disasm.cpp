@@ -27,13 +27,12 @@
 #include <iomanip>
 #include <iostream>
 
-void disassemble(std::ostream &output, std::uint16_t location,
-                 std::uint64_t word) {
+void disassemble(std::ostream &output, addr_t location, word_t word) {
   uint16_t prefix = OpSpec::Prefix::ref(word);
   uint16_t opCode = OpSpec::OpCode::ref(word);
   uint16_t tag = OpSpec::Tag::ref(word);
-  uint16_t address = OpSpec::Address::ref(word);
-  uint16_t decrement{0};
+  addr_t address = OpSpec::Address::ref(word);
+  addr_t decrement{0};
   if ((prefix & 03) != 0) {
     // Type A
     opCode = opCode & 07000;
@@ -41,7 +40,7 @@ void disassemble(std::ostream &output, std::uint16_t location,
   } else {
     // Type B
   }
-  uint64_t baseWord{0};
+  word_t baseWord{0};
   OpSpec::OpCode::ref(baseWord) = opCode;
   OpSpec::Address::ref(baseWord) = address;
   const auto *opSpec = OpSpec::getOpSpec(baseWord);
@@ -62,8 +61,7 @@ void disassemble(std::ostream &output, std::uint16_t location,
 }
 
 // TODO: Define these fields somewhere
-std::ostream &writeInstruction(std::ostream &os, uint16_t location,
-                               uint64_t word) {
+std::ostream &writeInstruction(std::ostream &os, addr_t location, word_t word) {
   os << std::setw(5) << std::setfill('0') << std::oct << location << ' ';
   os << (BitField<35, 1, uint16_t>::ref(word) == 0 ? ' ' : '-');
   os << std::setw(1) << std::setfill('0') << std::oct
@@ -77,12 +75,12 @@ std::ostream &writeInstruction(std::ostream &os, uint16_t location,
   return os;
 }
 
-std::ostream &writeAddress(std::ostream &os, uint16_t address) {
+std::ostream &writeAddress(std::ostream &os, addr_t address) {
   return os << "                 " << std::setw(5) << std::setfill('0')
             << std::oct << address;
 }
 
-std::ostream &writeWord(std::ostream &os, uint16_t location, uint64_t word) {
+std::ostream &writeWord(std::ostream &os, addr_t location, word_t word) {
   os << std::setw(5) << std::setfill('0') << std::oct << location << "    ";
   os << std::setw(12) << std::setfill('0') << std::oct << word << "   ";
   return os;

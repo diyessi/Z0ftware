@@ -61,7 +61,7 @@ void Assembler::appendOperation(std::unique_ptr<Operation> &&operation) {
   }
 }
 
-void Assembler::allocate(const Operation *operation, uint16_t size,
+void Assembler::allocate(const Operation *operation, addr_t size,
                          AssignType assignType) {
   operationSegments_[operation] = {location_, core_.begin() + location_,
                                    core_.begin() + location_ + size};
