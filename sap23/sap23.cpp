@@ -63,10 +63,17 @@ int main(int argc, const char **argv) {
     segment_writer_t segmentWriter = [&os](BinaryFormat, Segment segment) {
       CardImage cardImage;
       int pos = 0;
-      for (auto it = segment.first; it < segment.last && pos < 24; ++it) {
+      for (auto it = segment.first; it < segment.last; ++it) {
         cardImage.setWord(pos++, *it);
+        if (24 == pos) {
+          writeCBN(os, cardImage);
+          cardImage.clear();
+          pos = 0;
+        }
       }
-      writeCBN(os, cardImage);
+      if (pos != 0) {
+        writeCBN(os, cardImage);
+      }
     };
     sapAssembler.setSegmentWriter(segmentWriter);
   } else {
@@ -90,11 +97,7 @@ int main(int argc, const char **argv) {
       sapAssembler.appendOperation(std::move(operation));
     }
   }
-  for (auto &instruction : sapAssembler.getInstructions()) {
-    instruction->assemble(sapAssembler);
-    instruction->print(std::cout, sapAssembler);
-    std::cout << instruction->getLine() << "\n";
-  }
+  sapAssembler.assemble();
   os.close();
 
   return EXIT_SUCCESS;

@@ -63,7 +63,7 @@ public:
   }
   [[nodiscard]] int getSymbolValue(const std::string &symbol) override;
   [[nodiscard]] int getLocation() const override { return location_; }
-  void setLocation(addr_t location) { location_ = location & 077777; }
+  void setLocation(addr_t location) { location_ = location & 077777;  }
 
   BinaryFormat getBinaryFormat() const { return binaryFormat_; }
   void setBinaryFormat(BinaryFormat value) { binaryFormat_ = value; }
@@ -76,6 +76,9 @@ public:
   // Allocate memory for operations.
   enum class AssignType { None, Begin, End };
   void allocate(const Operation *operation, addr_t size, AssignType assignType);
+
+  void assemble();
+
   [[nodiscard]] const Segment &
   getOperationSegment(const Operation *operation) const {
     return operationSegments_.find(operation)->second;

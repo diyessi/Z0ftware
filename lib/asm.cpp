@@ -80,6 +80,15 @@ void Assembler::allocate(const Operation *operation, addr_t size,
   }
 }
 
+void Assembler::assemble() {
+  for (auto &instruction : getInstructions()) {
+    instruction->assemble(*this);
+    binarySegment_.last = getOperationSegment(instruction.get()).last;
+    instruction->print(std::cout, *this);
+    std::cout << instruction->getLine() << "\n";
+  }
+}
+
 [[nodiscard]] int Assembler::getSymbolValue(const std::string &symbol) {
   auto it = symbolValues_.find(symbol);
   if (it != symbolValues_.end()) {
@@ -132,7 +141,6 @@ void Assembler::startBinarySegment(const Operation *operation) {
 }
 
 void Assembler::writeBinarySegment(const Operation *operation) {
-  binarySegment_.last = getOperationSegment(operation).last;
   if (segmentWriter_ && binarySegment_.first < binarySegment_.last) {
     segmentWriter_(binaryFormat_, binarySegment_);
   }
