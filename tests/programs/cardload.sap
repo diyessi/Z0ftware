@@ -1,0 +1,92 @@
+       FUL
+       ORG 0                                                            SAP30086
+       REM  This appears to not be self-loading, so 24 words will be 
+       REM  read. But the -68 seems to indicate 4 words may have
+       REM  already been read.
+       LXA *,4            BUILT IN BINARY LOADER                        SAP30087
+       CPY *+1,4                                                        SAP30088
+       TXI *-1,4,-1                                                     SAP30089
+       REM  The following should be the sum of 4 through 0110
+       OCT -131103003646                                                SAP30090
+       REM  Finished reading a card
+       LTM                                                              SAP30091
+       RCD                                                              SAP30092
+       REM  At end of card 1 -030- == -24 > -68
+       REM  At end of card 2 -060 == -48 > -68
+       REM  At end of card 3 -0110 == -72 <= -68, fall through
+       TXH *-5,4,-68                                                    SAP30093
+       REM  Suppose XR4=-68
+       LXA *+10,4   XR4=68                                              SAP30094
+       REM  @56 contains 'STQ **,4'
+       CAL 56                                                           SAP30095
+       REM  72-XR4 = 72-68 = 4, the LTM
+       REM  Here we add from the LTM to the final HTR
+       ACL 72,4                                                         SAP30096
+       TIX *-1,4,1                                                      SAP30097
+       REM  Now 0 gets this checksum
+       SLW 0                                                            SAP30098
+       CLA 3                                                            SAP30099
+       SUB 0                                                            SAP30100
+       REM  if matches, continue with PXD 68, else die.
+       REM  Would make more sense if this were TZE 1
+       TZE 17                                                           SAP30101
+       HTR *                                                            SAP30102
+       RCD                                                              SAP30103
+       PXD 68                                                           SAP30104
+       CPY 15                                                           SAP30105
+       RQL 1                                                            SAP30106
+       LGL 1                                                            SAP30107
+       TNZ 71                                                           SAP30108
+       STQ 14                                                           SAP30109
+       RQL 11                                                           SAP30110
+       REM  Start binary card 2
+       LGL 5                                                            SAP30111
+       CPY 13                                                           SAP30112
+       TZE *+32                                                         SAP30113
+       PAX ,4                                                           SAP30114
+       ADD 15                                                           SAP30115
+       STA *+3                                                          SAP30116
+       STA *+3                                                          SAP30117
+       CAL 15                                                           SAP30118
+       CPY **,4                                                         SAP30119
+       ACL **,4                                                         SAP30120
+       TIX *-2,4,1                                                      SAP30121
+       LDQ 14                                                           SAP30122
+       SLW 14                                                           SAP30123
+       CLA 13                                                           SAP30124
+       TZE 16                                                           SAP30125
+       SUB 14                                                           SAP30126
+       TQP *+2                                                          SAP30127
+       TRA 16                                                           SAP30128
+       TZE 16                                                           SAP30129
+       HTR 16                                                           SAP30130
+       RQL 19                                                           SAP30131
+       LLS 15                                                           SAP30132
+       TPL *+2                                                          SAP30133
+       TXI *+6,4,-1                                                     SAP30134
+       REM  Start binary card 3
+       STA *+8                                                          SAP30135
+       LXD 71,4                                                         SAP30136
+       TNZ *+3                                                          SAP30137
+       CAL 13                                                           SAP30138
+       TZE *+6                                                          SAP30139
+       LLS 3                                                            SAP30140
+       LDQ 13                                                           SAP30141
+       LBT                                                              SAP30142
+       STQ **,4                                                         SAP30143
+       PXD                                                              SAP30144
+       CPY 15                                                           SAP30145
+       CPY 13                                                           SAP30146
+       TRA *+8                                                          SAP30147
+       CLA 14                                                           SAP30148
+       ALS 19                                                           SAP30149
+       ARS 21                                                           SAP30150
+       TZE 16                                                           SAP30151
+       TMI 16                                                           SAP30152
+       STA *+1                                                          SAP30153
+       TRA **                                                           SAP30154
+       LDQ 15                                                           SAP30155
+       RQL 1                                                            SAP30156
+       TQP *-26                                                         SAP30157
+       HTR *                                                            SAP30158
+       END

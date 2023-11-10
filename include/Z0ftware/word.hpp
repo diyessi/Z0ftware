@@ -57,6 +57,10 @@ public:
   }
 
   operator word_t() const {
+    return word_;
+  }
+
+  int64_t asInt() const {
     return isNegative() ? -getMagnitude() : getMagnitude();
   }
 

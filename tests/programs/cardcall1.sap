@@ -10,7 +10,7 @@
        REM
        ORG 0
        FUL
-       LXA *,4
+       LXA *,4  
        CPY *+1,4
        TXI *-1,4,-1
        HTR *      No card
