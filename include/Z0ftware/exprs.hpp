@@ -35,11 +35,12 @@
 // Access to named locations
 class Environment {
 public:
+  virtual ~Environment() = default;
   // The current location, corresponding to '*'
-  virtual int getLocation() const = 0;
+  virtual addr_t getLocation() const = 0;
   // The value of an already defined location
   // Cannot be const since symbols can be defined on first use
-  virtual int getSymbolValue(const std::string &string) = 0;
+  virtual addr_t getSymbolValue(const std::string &string) = 0;
 };
 
 class Expr {
@@ -62,11 +63,11 @@ public:
     return false;
   }
 
-  int value(Environment &environment) {
-    return ldb<0,15>(evaluate(environment));
+  addr_t value(Environment &environment) const {
+    return ldb<0, 15>(evaluate(environment));
   }
 
-  // Evaluare the expression using the environment for definitions
+  // Evaluate the expression using the environment for definitions
   virtual int evaluate(Environment &environment) const = 0;
 };
 

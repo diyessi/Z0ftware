@@ -25,6 +25,14 @@
 
 #include <iostream>
 
+addr_t AssemblerEnvironment::getSymbolValue(const std::string &symbol) {
+  return assembler_.getSymbolValue(symbol);
+}
+
+addr_t AssemblerEnvironment::getLocation() const {
+  return chunk_.getBaseAddr();
+}
+
 std::pair<std::string_view, std::string_view>
 Assembler::splitVariableAndComment(
     const std::string_view &variableAndComment) const {
@@ -49,31 +57,30 @@ std::vector<Expr::ptr> Assembler::parseEXP(Operation &operation,
 }
 
 void Assembler::appendOperation(std::unique_ptr<Operation> &&operation) {
-  operations_.emplace_back(std::move(operation));
-  operations_.back()->validate(*this);
-  if (!operations_.back()->hasErrors()) {
-    operations_.back()->allocate(*this);
+  operation->validate(*this);
+  if (!operation->hasErrors()) {
+    auto &section = operation->getSection(*this);
+    auto &chunk = section.getChunks().emplace_back(std::move(operation),
+                                                   section.getNextAddr());
+    chunk.getOperation()->allocate(*this, chunk);
   } else {
-    std::cout << operations_.back()->getLine() << "\n";
-    for (auto error : operations_.back()->getErrors()) {
+    std::cout << operation->getLine() << "\n";
+    for (auto error : operation->getErrors()) {
       std::cout << error.getMessage() << "\n";
     }
   }
 }
 
-void Assembler::allocate(const Operation *operation, addr_t size,
-                         AssignType assignType) {
-  operationSegments_[operation] = {location_, core_.begin() + location_,
-                                   core_.begin() + location_ + size};
-  auto symbol = operation->getLocationSymbol();
-  auto startLocation = location_;
-  location_ = (location_ + size) & 077777;
+void Assembler::allocate(Chunk &chunk, addr_t size, AssignType assignType) {
+  chunk.setSize(size);
+  auto symbol = chunk.getOperation()->getLocationSymbol();
+  auto startLocation = chunk.getBaseAddr();
   switch (assignType) {
   case AssignType::Begin:
-    defineSymbol(symbol, startLocation);
+    defineSymbol(symbol, chunk.getBaseAddr());
     break;
   case AssignType::End:
-    defineSymbol(symbol, location_ - 1);
+    defineSymbol(symbol, chunk.getEndAddr() - 1);
     break;
   case AssignType::None:
     break;
@@ -81,15 +88,18 @@ void Assembler::allocate(const Operation *operation, addr_t size,
 }
 
 void Assembler::assemble() {
-  for (auto &instruction : getInstructions()) {
-    instruction->assemble(*this);
-    binarySegment_.last = getOperationSegment(instruction.get()).last;
-    instruction->print(std::cout, *this);
-    std::cout << instruction->getLine() << "\n";
+  for (auto &section : sections_) {
+    for (auto &chunk : section.getChunks()) {
+      auto operation = chunk.getOperation();
+      operation->assemble(*this, chunk);
+      operation->print(std::cout, *this, chunk);
+      std::cout << " " << operation->getLine() << "\n";
+    }
+    writeBinarySection(section);
   }
 }
 
-[[nodiscard]] int Assembler::getSymbolValue(const std::string &symbol) {
+[[nodiscard]] addr_t Assembler::getSymbolValue(const std::string &symbol) {
   auto it = symbolValues_.find(symbol);
   if (it != symbolValues_.end()) {
     return it->second;
@@ -99,6 +109,21 @@ void Assembler::assemble() {
     defineLocation_ = (address + 1) & 077777;
   }
   throw std::invalid_argument(symbol);
+}
+
+addr_t Assembler::evaluate(const Chunk &chunk, const Expr &expr) {
+  AssemblerEnvironment environment(*this, chunk);
+  return expr.value(environment);
+}
+
+addr_t Assembler::evaluate(const Expr &expr) {
+  addr_t location{0};
+  if (!sections_.empty()) {
+    auto &section = sections_.back();
+    location = section.getNextAddr();
+  }
+  Chunk chunk{nullptr, location};
+  return evaluate(chunk, expr);
 }
 
 std::unique_ptr<Operation>
@@ -135,14 +160,9 @@ Assembler::getOperationParser(const std::string_view &operation) {
   return &Instruction::unique;
 }
 
-void Assembler::startBinarySegment(const Operation *operation) {
-  writeBinarySegment(operation);
-  binarySegment_ = getOperationSegment(operation);
-}
-
-void Assembler::writeBinarySegment(const Operation *operation) {
-  if (segmentWriter_ && binarySegment_.first < binarySegment_.last) {
-    segmentWriter_(binaryFormat_, binarySegment_);
+void Assembler::writeBinarySection(const Section &section) {
+  if (sectionWriter_ && section.getAddrSize() > 0) {
+    sectionWriter_(section);
   }
 }
 

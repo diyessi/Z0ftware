@@ -31,15 +31,17 @@
 
 class TestEnvironment : public Environment {
 public:
-  int getLocation() const override { return location_; }
-  int getSymbolValue(const std::string &string) override { return map_.at(string); }
+  addr_t getLocation() const override { return location_; }
+  addr_t getSymbolValue(const std::string &string) override {
+    return map_.at(string);
+  }
 
-  void setLocation(int location) { location_ = location; }
-  void set(const std::string &name, int value) { map_[name] = value; }
+  void setLocation(addr_t location) { location_ = location; }
+  void set(const std::string &name, addr_t value) { map_[name] = value; }
 
 private:
-  int location_{0};
-  std::unordered_map<std::string, int> map_;
+  addr_t location_{0};
+  std::unordered_map<std::string, addr_t> map_;
 };
 
 TEST(expr, values) {
@@ -100,4 +102,3 @@ TEST(expr, values) {
   ASSERT_TRUE(parser.parse("X,Y+1,A*A,V", exprs));
   ASSERT_EQ(exprs.size(), 4);
 }
-

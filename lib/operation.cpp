@@ -45,6 +45,10 @@ Bcd::splitVariableAndComment(Assembler &assembler,
   return {variableAndComment, ""};
 }
 
+Section &Operation::getSection(Assembler &assembler) const {
+  return assembler.getSection();
+}
+
 void Bcd::parseVariable(Assembler &assembler,
                         const std::string_view &variable) {
   size_t count = 10;
@@ -75,14 +79,13 @@ void Bcd::parseVariable(Assembler &assembler,
   }
 }
 
-void Bcd::allocate(Assembler &assembler) const {
+void Bcd::allocate(Assembler &assembler, Chunk &chunk) const {
   auto size = values_.size();
-  assembler.allocate(this, size, Assembler::AssignType::Begin);
+  assembler.allocate(chunk, size, Assembler::AssignType::Begin);
 }
 
-void Bcd::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  std::copy(values_.begin(), values_.end(), assembly.first);
+void Bcd::assemble(Assembler &assembler, Chunk &chunk) const {
+  std::copy(values_.begin(), values_.end(), chunk.begin());
 }
 
 void Bes::validate(Assembler &assembler) {
@@ -92,13 +95,12 @@ void Bes::validate(Assembler &assembler) {
   requireLocation(assembler);
 }
 
-void Bes::allocate(Assembler &assembler) const {
-  auto size = getExprs()[0]->value(assembler);
-  assembler.allocate(this, size, Assembler::AssignType::End);
+void Bes::allocate(Assembler &assembler, Chunk &chunk) const {
+  auto size = assembler.evaluate(chunk, *getExprs()[0]);
+  assembler.allocate(chunk, size, Assembler::AssignType::End);
 }
-void Bes::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  std::fill(assembly.first, assembly.last, 0);
+void Bes::assemble(Assembler &assembler, Chunk &chunk) const {
+  std::fill(chunk.begin(), chunk.end(), 0);
 }
 
 void Bss::validate(Assembler &assembler) {
@@ -109,14 +111,13 @@ void Bss::validate(Assembler &assembler) {
   requireLocation(assembler);
 }
 
-void Bss::allocate(Assembler &assembler) const {
-  auto size = exprs_[0]->value(assembler);
-  assembler.allocate(this, size, Assembler::AssignType::Begin);
+void Bss::allocate(Assembler &assembler, Chunk &chunk) const {
+  auto size = assembler.evaluate(chunk, *exprs_[0]);
+  assembler.allocate(chunk, size, Assembler::AssignType::Begin);
 }
 
-void Bss::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  std::fill(assembly.first, assembly.last, 0);
+void Bss::assemble(Assembler &assembler, Chunk &chunk) const {
+  std::fill(chunk.begin(), chunk.end(), 0);
 }
 
 void Dec::parseVariable(Assembler &assembler,
@@ -128,18 +129,17 @@ void Dec::parseVariable(Assembler &assembler,
   }
 }
 
-void Dec::allocate(Assembler &assembler) const {
-  assembler.allocate(this, values_.size(), Assembler::AssignType::Begin);
+void Dec::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, values_.size(), Assembler::AssignType::Begin);
 }
 
-void Dec::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  std::copy(values_.begin(), values_.end(), assembly.first);
+void Dec::assemble(Assembler &assembler, Chunk &chunk) const {
+  std::copy(values_.begin(), values_.end(), chunk.begin());
 }
 
-void Def::allocate(Assembler &assembler) const {
-  assembler.setDefineLocation();
-  assembler.allocate(this, 0, Assembler::AssignType::None);
+void Def::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.setDefineLocation(chunk);
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void End::validate(Assembler &assembler) {
@@ -149,12 +149,8 @@ void End::validate(Assembler &assembler) {
   }
 }
 
-void End::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
-}
-
-void End::assemble(Assembler &assembler) const {
-  assembler.writeBinarySegment(this);
+void End::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void Equ::validate(Assembler &assembler) {
@@ -165,22 +161,20 @@ void Equ::validate(Assembler &assembler) {
   requireLocation(assembler);
 }
 
-void Equ::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
-  assembler.defineSymbol(getLocationSymbol(), exprs_[0]->evaluate(assembler));
+void Equ::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
+  assembler.defineSymbol(getLocationSymbol(),
+                         assembler.evaluate(chunk, *exprs_[0]));
 }
 
-std::ostream &Equ::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  return writeAddress(os, exprs_[0]->evaluate(assembler));
+std::ostream &Equ::print(std::ostream &os, Assembler &assembler,
+                         const Chunk &chunk) const {
+  return writeAddress(os, assembler.evaluate(chunk, *exprs_[0]));
 }
 
-void Ful::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
-}
-
-void Ful::assemble(Assembler &assembler) const {
+void Ful::allocate(Assembler &assembler, Chunk &chunk) const {
   assembler.setBinaryFormat(BinaryFormat::Full);
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void Hed::parseVariable(Assembler &assembler,
@@ -188,8 +182,8 @@ void Hed::parseVariable(Assembler &assembler,
   hed_ = variable;
 }
 
-void Hed::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
+void Hed::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void Lib::parseVariable(Assembler &assembler,
@@ -197,8 +191,8 @@ void Lib::parseVariable(Assembler &assembler,
   library_ = variable;
 }
 
-void Lib::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
+void Lib::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void Oct::parseVariable(Assembler &assembler,
@@ -238,13 +232,12 @@ void Oct::parseVariable(Assembler &assembler,
   }
 }
 
-void Oct::allocate(Assembler &assembler) const {
-  assembler.allocate(this, values_.size(), Assembler::AssignType::Begin);
+void Oct::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, values_.size(), Assembler::AssignType::Begin);
 }
 
-void Oct::assemble(Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  std::copy(values_.begin(), values_.end(), assembly.first);
+void Oct::assemble(Assembler &assembler, Chunk &chunk) const {
+  std::copy(values_.begin(), values_.end(), chunk.begin());
 }
 
 void Instruction::validate(Assembler &assembler) {
@@ -258,24 +251,24 @@ void Instruction::validate(Assembler &assembler) {
   opSpec_ = OpSpec::getOpSpec(operationSymbol_);
 }
 
-void Instruction::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 1, Assembler::AssignType::Begin);
+void Instruction::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 1, Assembler::AssignType::Begin);
 }
-void Instruction::assemble(Assembler &assembler) const {
-  auto &word = *assembler.getOperationSegment(this).first;
+void Instruction::assemble(Assembler &assembler, Chunk &chunk) const {
+  auto &word = *chunk.begin();
   word = opSpec_ ? opSpec_.value()->getWord() : 0;
 
   OpSpec::Address::ref(word) =
-      OpSpec::Address::ref(word) + exprs_[0]->evaluate(assembler);
+      OpSpec::Address::ref(word) + assembler.evaluate(chunk, *exprs_[0]);
   OpSpec::Tag::ref(word) =
-      OpSpec::Tag::ref(word) + exprs_[1]->evaluate(assembler);
+      OpSpec::Tag::ref(word) + assembler.evaluate(chunk, *exprs_[1]);
   OpSpec::Decrement::ref(word) =
-      OpSpec::Decrement::ref(word) + exprs_[2]->evaluate(assembler);
+      OpSpec::Decrement::ref(word) + assembler.evaluate(chunk, *exprs_[2]);
 }
 
-std::ostream &Instruction::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  return writeInstruction(os, assembly.address, *assembly.first);
+std::ostream &Instruction::print(std::ostream &os, Assembler &assembler,
+                                 const Chunk &chunk) const {
+  return writeInstruction(os, chunk.getBaseAddr(), *chunk.begin());
 }
 
 void Org::validate(Assembler &assembler) {
@@ -285,22 +278,21 @@ void Org::validate(Assembler &assembler) {
   }
 }
 
-void Org::allocate(Assembler &assembler) const {
-  assembler.setLocation(exprs_[0]->evaluate(assembler));
-  assembler.allocate(this, 0, Assembler::AssignType::None);
+Section &Org::getSection(Assembler &assembler) const {
+  return assembler.addSection(assembler.evaluate(*exprs_[0]));
 }
 
-void Org::assemble(Assembler &assembler) const {
-  assembler.startBinarySegment(this);
+void Org::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
-std::ostream &Org::print(std::ostream &os, Assembler &assembler) const {
-  auto &assembly = assembler.getOperationSegment(this);
-  return writeAddress(os, exprs_[0]->evaluate(assembler));
+std::ostream &Org::print(std::ostream &os, Assembler &assembler,
+                         const Chunk &chunk) const {
+  return writeAddress(os, assembler.evaluate(chunk, *exprs_[0]));
 }
 
-void Rem::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
+void Rem::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
 void Rep::validate(Assembler &assembler) {
@@ -310,9 +302,9 @@ void Rep::validate(Assembler &assembler) {
   }
 }
 
-void Rep::allocate(Assembler &assembler) const {
-  auto size = m_->evaluate(assembler) * n_->evaluate(assembler);
-  assembler.allocate(this, size, Assembler::AssignType::None);
+void Rep::allocate(Assembler &assembler, Chunk &chunk) const {
+  auto size = assembler.evaluate(chunk, *m_) * assembler.evaluate(chunk, *n_);
+  assembler.allocate(chunk, size, Assembler::AssignType::None);
 }
 
 void Syn::validate(Assembler &assembler) {
@@ -323,7 +315,8 @@ void Syn::validate(Assembler &assembler) {
   requireLocation(assembler);
 }
 
-void Syn::allocate(Assembler &assembler) const {
-  assembler.allocate(this, 0, Assembler::AssignType::None);
-  assembler.defineSymbol(getLocationSymbol(), exprs_[0]->evaluate(assembler));
+void Syn::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
+  assembler.defineSymbol(getLocationSymbol(),
+                         assembler.evaluate(chunk, *exprs_[0]));
 }

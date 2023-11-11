@@ -48,5 +48,5 @@ TEST(Word, acmq_mul) {
   auto prod = acmq * val;
   EXPECT_TRUE(prod.isNegative());
   EXPECT_EQ(prod.getMagnitude(), 12);
-  EXPECT_EQ(__uint128_t(prod), -12);
+  EXPECT_EQ(prod.asInt(), -12);
 }

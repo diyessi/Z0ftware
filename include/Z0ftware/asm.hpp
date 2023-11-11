@@ -31,21 +31,88 @@
 #include <map>
 #include <utility>
 
-using core_t = std::array<word_t, addr_size>;
+// Core corresponding to one operation
+class Chunk {
+public:
+  Chunk(std::unique_ptr<Operation> &&operation, addr_t base)
+      : operation_(std::move(operation)), base_(base) {}
+  Chunk(Chunk &&) = default;
+  Chunk &operator=(Chunk &&) = default;
 
-struct Segment {
-  addr_t address;
-  core_t::iterator first;
-  core_t::iterator last;
+  const Operation *getOperation() const { return operation_.get(); }
+  addr_t getBaseAddr() const { return base_; }
+  addr_t getSize() const { return addr_t(words_.size()); }
+  void setSize(addr_t size) { words_.resize(size); }
+  addr_t getEndAddr() const { return base_ + getSize(); }
+
+  auto begin() { return words_.begin(); }
+  auto begin() const { return words_.begin(); }
+  auto end() { return words_.end(); }
+  auto end() const { return words_.end(); }
+
+private:
+  addr_t base_;
+  std::unique_ptr<Operation> operation_;
+  std::vector<word_t> words_;
 };
 
 // Format for binary output
 enum class BinaryFormat { Absolute, Relative, Full };
 
-// A function that can write a segment of memory
-using segment_writer_t = std::function<void(BinaryFormat, Segment)>;
+// Contiguous memory covered by its Chunks
+class Section {
+public:
+  Section(addr_t base, BinaryFormat binaryFormat)
+      : base_(base), binaryFormat_(binaryFormat) {}
+  Section(const Section &) = default;
+  Section(Section &&) = default;
+  Section &operator=(const Section &) = default;
+  Section &operator=(Section &&) = default;
 
-class Assembler : public Environment {
+  BinaryFormat getBinaryFormat() const { return binaryFormat_; }
+  void setBinaryFormat(BinaryFormat binaryFormat) {
+    binaryFormat_ = binaryFormat;
+  }
+
+  addr_t getBase() const { return base_; }
+  void setBase(word_t base) { base_ = base; }
+  addr_t getNextAddr() const {
+    return chunks_.empty() ? base_ : chunks_.back().getEndAddr();
+  }
+
+  std::vector<Chunk> &getChunks() { return chunks_; }
+  const std::vector<Chunk> &getChunks() const { return chunks_; }
+
+  addr_t getAddrSize() const {
+    if (chunks_.empty()) {
+      return 0;
+    }
+    return chunks_.back().getEndAddr() - base_;
+  }
+
+private:
+  BinaryFormat binaryFormat_;
+  addr_t base_;
+  std::vector<Chunk> chunks_;
+};
+
+class AssemblerEnvironment : public Environment {
+public:
+  AssemblerEnvironment(Assembler &assembler, const Chunk &chunk)
+      : assembler_(assembler), chunk_(chunk) {}
+
+  addr_t getLocation() const override;
+  addr_t getSymbolValue(const std::string &string) override;
+
+private:
+  Assembler &assembler_;
+  const Chunk &chunk_;
+};
+
+// A function that can write a segment of memory
+using section_writer_t = std::function<void(const Section &)>;
+
+class Assembler {
 public:
   // Split variableAndComment into variable, comment on first space. If no
   // space, comment is empty.
@@ -61,53 +128,47 @@ public:
       symbolValues_.emplace(std::string{symbol.begin(), symbol.end()}, value);
     }
   }
-  [[nodiscard]] int getSymbolValue(const std::string &symbol) override;
-  [[nodiscard]] int getLocation() const override { return location_; }
-  void setLocation(addr_t location) { location_ = location & 077777;  }
+  [[nodiscard]] addr_t getSymbolValue(const std::string &symbol);
 
-  BinaryFormat getBinaryFormat() const { return binaryFormat_; }
-  void setBinaryFormat(BinaryFormat value) { binaryFormat_ = value; }
+  addr_t evaluate(const Chunk &chunk, const Expr &expr);
+  addr_t evaluate(const Expr &expr);
+
+  void setBinaryFormat(BinaryFormat value) {
+    getSection().setBinaryFormat(value);
+  }
 
   void appendOperation(std::unique_ptr<Operation> &&operation);
-  const std::vector<std::unique_ptr<Operation>> &getInstructions() const {
-    return operations_;
+  auto &getSections() { return sections_; }
+  const auto &getSections() const { return sections_; }
+  Section &addSection(addr_t base) {
+    return sections_.emplace_back(
+        base, sections_.empty() ? BinaryFormat::Absolute
+                                : sections_.back().getBinaryFormat());
+  }
+  Section &getSection() {
+    return sections_.empty() ? addSection(0) : sections_.back();
   }
 
   // Allocate memory for operations.
   enum class AssignType { None, Begin, End };
-  void allocate(const Operation *operation, addr_t size, AssignType assignType);
+  void allocate(Chunk &chunk, addr_t size, AssignType assignType);
 
   void assemble();
 
-  [[nodiscard]] const Segment &
-  getOperationSegment(const Operation *operation) const {
-    return operationSegments_.find(operation)->second;
-  }
-  [[nodiscard]] Segment &getOperationSegment(const Operation *operation) {
-    auto &segment = operationSegments_.find(operation)->second;
-    location_ = segment.address;
-    return segment;
+  void setDefineLocation(Chunk &chunk) {
+    defineLocation_ = chunk.getBaseAddr();
   }
 
-  void setDefineLocation() { defineLocation_ = location_; }
-
-  // Current binary segment for writing
-  const Segment &getBinarySegment() const { return binarySegment_; }
-  void startBinarySegment(const Operation *operation);
-
-  void setSegmentWriter(segment_writer_t segmentWriter) {
-    segmentWriter_ = segmentWriter;
+  void setSectionWriter(section_writer_t sectionWriter) {
+    sectionWriter_ = sectionWriter;
   }
-  segment_writer_t getSegmentWriter() const { return segmentWriter_; };
+  section_writer_t getSectionWriter() const { return sectionWriter_; };
 
-  // If non-empty, write the current segment (from base_location_ to location_)
-  // and set base_location_ to location_+1;
-  void writeBinarySegment(const Operation *operation);
+  void writeBinarySection(const Section &section);
 
   const std::map<std::string, FixPoint> &getSymbolValues() const {
     return symbolValues_;
   }
-  auto &getCore() { return core_; }
 
   using OperationParser = std::function<std::unique_ptr<Operation>()>;
   using OperationParsers = std::map<std::string_view, OperationParser>;
@@ -127,16 +188,10 @@ public:
                                           const std::string_view &variable);
 
 private:
-  std::vector<std::unique_ptr<Operation>> operations_;
   std::map<std::string, FixPoint> symbolValues_;
-  addr_t location_{0};
-  std::unordered_map<const Operation *, Segment> operationSegments_;
+  std::vector<Section> sections_;
   std::optional<addr_t> defineLocation_;
-  core_t core_;
-  size_t lineNumber_{0};
-  BinaryFormat binaryFormat_{BinaryFormat::Absolute};
-  Segment binarySegment_{0, core_.begin(), core_.begin()};
-  segment_writer_t segmentWriter_;
+  section_writer_t sectionWriter_;
 
   static OperationParsers operationParsers_;
 };

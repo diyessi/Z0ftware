@@ -30,7 +30,9 @@
 #include <string>
 
 class Assembler;
+class Chunk;
 class OpSpec;
+class Section;
 
 class Operation {
 public:
@@ -57,10 +59,15 @@ public:
                              const std::string_view &variable);
 
   virtual void validate(Assembler &assembler) {}
+  // Allocate a new section if needed
+  virtual Section &getSection(Assembler &assembler) const;
+  // Allocate memory for the operation
+  virtual void allocate(Assembler &assembler, Chunk &chunk) const {};
+
   // Allocate location in assembler
-  virtual void allocate(Assembler &assembler) const = 0;
-  virtual void assemble(Assembler &assembler) const = 0;
-  virtual std::ostream &print(std::ostream &os, Assembler &assembler) const {
+  virtual void assemble(Assembler &assembler, Chunk &chunk) const = 0;
+  virtual std::ostream &print(std::ostream &os, Assembler &assembler,
+                              const Chunk &chunk) const {
     return os << "                      ";
   };
   virtual bool isError() const { return false; }
@@ -155,8 +162,8 @@ public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
   void validate(Assembler &assembler) override {}
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 
 private:
   std::vector<FixPoint> values_;
@@ -169,8 +176,8 @@ private:
 class Bes : public OperationImpl<Bes> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 };
 
 // Block started by symbol:
@@ -180,8 +187,8 @@ public:
 class Bss : public OperationImpl<Bss> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 };
 
 // Comma-separated decimal data (integer/float)
@@ -195,8 +202,8 @@ public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 
 private:
   std::vector<FixPoint> values_;
@@ -206,8 +213,8 @@ private:
 // Exprs[0]. DEF lines after the first DEF line are ignored.
 class Def : public OperationImpl<Def> {
 public:
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 };
 
 // Ends the source.
@@ -217,25 +224,26 @@ public:
 class End : public OperationImpl<End> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 };
 
 // locationSymbol = Exprs[0] for non-addresses
 class Equ : public OperationImpl<Equ> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
-  std::ostream &print(std::ostream &os, Assembler &assembler) const override;
+  std::ostream &print(std::ostream &os, Assembler &assembler,
+                      const Chunk &chunk) const override;
 };
 
 class Ful : public OperationImpl<Ful> {
 public:
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override{};
 };
 
 // Prefix every symbol following (until another HED) with character 1 (H)
@@ -245,8 +253,8 @@ public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
 private:
   std::string_view hed_;
@@ -259,8 +267,8 @@ public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
 private:
   std::string_view library_;
@@ -277,8 +285,8 @@ public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 
 private:
   std::vector<FixPoint> values_;
@@ -287,10 +295,11 @@ private:
 class Instruction : public OperationImpl<Instruction> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override;
 
-  std::ostream &print(std::ostream &os, Assembler &assembler) const override;
+  std::ostream &print(std::ostream &os, Assembler &assembler,
+                      const Chunk &chunk) const override;
 
 private:
   std::string_view op_;
@@ -301,18 +310,20 @@ private:
 class Org : public OperationImpl<Org> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override;
+  Section &getSection(Assembler &assembler) const override;
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override{};
 
-  std::ostream &print(std::ostream &os, Assembler &assembler) const override;
+  std::ostream &print(std::ostream &os, Assembler &assembler,
+                      const Chunk &chunk) const override;
 };
 
 // Comment is entire variable/comment field
 class Rem : public OperationImpl<Rem> {
 public:
   void validate(Assembler &assembler) override{};
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
 private:
 };
@@ -325,8 +336,8 @@ private:
 class Rep : public OperationImpl<Rep> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
 private:
   Expr::ptr m_;
@@ -337,8 +348,8 @@ private:
 class Syn : public OperationImpl<Syn> {
 public:
   void validate(Assembler &assembler) override;
-  void allocate(Assembler &assembler) const override;
-  void assemble(Assembler &assembler) const override {}
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override {}
 };
 
 #endif

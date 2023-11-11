@@ -60,33 +60,37 @@ int main(int argc, const char **argv) {
   std::ofstream os(outputFileName, std::ofstream::binary | std::ofstream::out |
                                        std::ofstream::trunc);
   if (!outputFileName.empty()) {
-    segment_writer_t segmentWriter = [&os](BinaryFormat, Segment segment) {
+    section_writer_t sectionWriter = [&os](const Section &section) {
       CardImage cardImage;
       int pos = 0;
-      for (auto it = segment.first; it < segment.last; ++it) {
-        cardImage.setWord(pos++, *it);
-        if (24 == pos) {
-          writeCBN(os, cardImage);
-          cardImage.clear();
-          pos = 0;
+      for (auto &chunk : section.getChunks()) {
+        for (auto it = chunk.begin(); it < chunk.end(); ++it) {
+          cardImage.setWord(pos++, *it);
+          if (24 == pos) {
+            writeCBN(os, cardImage);
+            cardImage.clear();
+            pos = 0;
+          }
         }
       }
       if (pos != 0) {
         writeCBN(os, cardImage);
       }
     };
-    sapAssembler.setSegmentWriter(segmentWriter);
+    sapAssembler.setSectionWriter(sectionWriter);
   } else {
-    segment_writer_t segmentWriter = [](BinaryFormat, Segment segment) {
+    section_writer_t sectionWriter = [](const Section &section) {
       std::cout << "===================\n";
-      auto address = segment.address;
-      for (auto it = segment.first; it < segment.last; ++it) {
-        writeWord(std::cout, address++, *it);
-        std::cout << "\n";
+      auto address = section.getBase();
+      for (auto &chunk : section.getChunks()) {
+        for (auto it = chunk.begin(); it < chunk.end(); ++it) {
+          writeWord(std::cout, address++, *it);
+          std::cout << "\n";
+        }
       }
       std::cout << "===================\n";
     };
-    sapAssembler.setSegmentWriter(segmentWriter);
+    sapAssembler.setSectionWriter(sectionWriter);
   }
   std::vector<SAPDeck> decks;
   for (auto &inputFileName : inputFileNames) {
