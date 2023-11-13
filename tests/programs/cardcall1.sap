@@ -1,27 +1,27 @@
        REM  SELF_LOADING CARD TEST
-       REM  Loader card followed by programs
+       REM    Loader card followed by programs
        REM
        REM  To assemble:
-       REM  ./sap23/sap23 ../tests/programs/cardcall1.sap -o test.cbn
+       REM    ./sap23/sap23 ../tests/programs/cardcall1.sap -o test.cbn
        REM
        REM  To run:
-       REM  attach cdr0 -f cbn test.cbn
-       REM  boot cdr0
+       REM    attach cdr0 -f cbn test.cbn
+       REM    boot cdr0
        REM
        ORG 0
        FUL
        LXA *,4  
        CPY *+1,4
        TXI *-1,4,-1
-       HTR *      No card
-       REM  END OF FIRST CARD
+       HTR *                   No card
+       REM                     END OF FIRST CARD
        RCD
        LXA 0,4
        CPY START,4
        TXI *-1,4,-1
-       HTR *     No card
+       HTR *                   No card
        TRA START
-       ORG 100
+       ORG 100                 Second card
 START  CLA SEVEN
        ADD ONE
        HTR *

@@ -1,46 +1,37 @@
        FUL
        ORG 0                                                            SAP30086
-       REM  This appears to not be self-loading, so 24 words will be 
-       REM  read. But the -68 seems to indicate 4 words may have
-       REM  already been read.
+       REM                     With boot-loading the first two words
+       REM                     are copied to 0 and 1 and then execution
+       REM                     continues at 0.
        LXA *,4            BUILT IN BINARY LOADER                        SAP30087
        CPY *+1,4                                                        SAP30088
        TXI *-1,4,-1                                                     SAP30089
-       REM  The following should be the sum of 4 through 0110
-       OCT -131103003646                                                SAP30090
-       REM  Finished reading a card
-       LTM                                                              SAP30091
-       RCD                                                              SAP30092
-       REM  At end of card 1 -030- == -24 > -68
-       REM  At end of card 2 -060 == -48 > -68
-       REM  At end of card 3 -0110 == -72 <= -68, fall through
+       OCT -131103003646       Expected sum of 04 through 0110          SAP30090
+       LTM                     XR[4]=-22,-46,-70                        SAP30091
+       RCD                     Start next card                          SAP30092
        TXH *-5,4,-68                                                    SAP30093
-       REM  Suppose XR4=-68
-       LXA *+10,4   XR4=68                                              SAP30094
-       REM  @56 contains 'STQ **,4'
-       CAL 56                                                           SAP30095
-       REM  72-XR4 = 72-68 = 4, the LTM
-       REM  Here we add from the LTM to the final HTR
-       ACL 72,4                                                         SAP30096
+       LXA *+10,4              XR4=68 (from 'PXD 68')                   SAP30094
+       CAL 56                  56 contains 'STQ **,4'                   SAP30095
+       ACL 72,4                Starting at 'LTM' sum the three cards    SAP30096
        TIX *-1,4,1                                                      SAP30097
-       REM  Now 0 gets this checksum
-       SLW 0                                                            SAP30098
-       CLA 3                                                            SAP30099
-       SUB 0                                                            SAP30100
-       REM  if matches, continue with PXD 68, else die.
-       REM  Would make more sense if this were TZE 1
+       SLW 0                   Sum goes into 0                          SAP30098
+       CLA 3                   Expected sum                             SAP30099
+       SUB 0                   Compare sum and expected sum             SAP30100
        TZE 17                                                           SAP30101
-       HTR *                                                            SAP30102
+       HTR *                   Mismatch. If altering loader, can read   SAP30102
+       REM                     the new sum from 0 and update the
+       REM                     expected sum in 3
        RCD                                                              SAP30103
        PXD 68                                                           SAP30104
-       CPY 15                                                           SAP30105
-       RQL 1                                                            SAP30106
+       CPY 15                  Replace `HTR *`                          SAP30105
+       REM                     NOTE: RCD was executed above after
+       REM                     finishing card 3
+       RQL 1                   MQ contains last CPY                     SAP30106
        LGL 1                                                            SAP30107
        TNZ 71                                                           SAP30108
        STQ 14                                                           SAP30109
        RQL 11                                                           SAP30110
-       REM  Start binary card 2
-       LGL 5                                                            SAP30111
+       LGL 5                   Start of binary card 2                   SAP30111
        CPY 13                                                           SAP30112
        TZE *+32                                                         SAP30113
        PAX ,4                                                           SAP30114
@@ -64,8 +55,7 @@
        LLS 15                                                           SAP30132
        TPL *+2                                                          SAP30133
        TXI *+6,4,-1                                                     SAP30134
-       REM  Start binary card 3
-       STA *+8                                                          SAP30135
+       STA *+8                 Start binary card 3                      SAP30135
        LXD 71,4                                                         SAP30136
        TNZ *+3                                                          SAP30137
        CAL 13                                                           SAP30138
