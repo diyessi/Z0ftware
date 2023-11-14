@@ -18,6 +18,8 @@ Card bits are designated as {0-9,10-12}{L|R}{S,1-35|D}
 9L21-35: Initial location R
 9L2: Ignore checksum
 
+A transfer card has 9L.addr=0, 9L.dec= branch location (Coding for MIT-IBM 704 computer, XII-16)
+
 Absolute data:
 9L1: 0
 

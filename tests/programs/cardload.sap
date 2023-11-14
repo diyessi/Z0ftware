@@ -13,44 +13,53 @@
        LXA *+10,4              XR4=68 (from 'PXD 68')                   SAP30094
        CAL 56                  56 contains 'STQ **,4'                   SAP30095
        ACL 72,4                Starting at 'LTM' sum the three cards    SAP30096
-       TIX *-1,4,1                                                      SAP30097
+       TIX *-1,4,1             XR4=1 at the end                         SAP30097
        SLW 0                   Sum goes into 0                          SAP30098
        CLA 3                   Expected sum                             SAP30099
-       SUB 0                   Compare sum and expected sum             SAP30100
-       TZE 17                                                           SAP30101
-       HTR *                   Mismatch. If altering loader, can read   SAP30102
-       REM                     the new sum from 0 and update the
+       SUB 0                   13, Compare sum and expected sum         SAP30100
+       TZE 17                  14, will be used for control word        SAP30101
+       HTR *                   15, Mismatch. If altering loader, can    SAP30102
+       REM                     read the new sum from 0 and update the
        REM                     expected sum in 3
        RCD                                                              SAP30103
-       PXD 68                                                           SAP30104
+       PXD 68                  Clears AC and holds constant 68          SAP30104
        CPY 15                  Replace `HTR *`                          SAP30105
+       REM     15 = 9L, control word
        REM                     NOTE: RCD was executed above after
        REM                     finishing card 3
        RQL 1                   MQ contains last CPY                     SAP30106
-       LGL 1                                                            SAP30107
+       LGL 1                   AC = Bit 1 of CPY, ship checksum         SAP30107
        TNZ 71                                                           SAP30108
        STQ 14                                                           SAP30109
-       RQL 11                                                           SAP30110
-       LGL 5                   Start of binary card 2                   SAP30111
-       CPY 13                                                           SAP30112
-       TZE *+32                                                         SAP30113
-       PAX ,4                                                           SAP30114
-       ADD 15                                                           SAP30115
+       REM     14 = 9L rotated 1, shifted 1
+       RQL 11                  Total of 12                              SAP30110
+       REM                     Start of binary card 2
+       LGL 5                   9L13-17 AC=word count                    SAP30111
+       CPY 13                  Read 9R checksum                         SAP30112
+       REM     13 = 9R checksum
+       TZE *+32                To 58                                    SAP30113
+       PAX ,4                  XR4 = word count                         SAP30114
+       ADD 15                  Add control word                         SAP30115
+       REM                     AC addr will be initial address
+       REM                     plus count
        STA *+3                                                          SAP30116
        STA *+3                                                          SAP30117
-       CAL 15                                                           SAP30118
-       CPY **,4                                                         SAP30119
-       ACL **,4                                                         SAP30120
+       CAL 15                  AC = 9L                                  SAP30118
+       CPY **,4                next load word                           SAP30119
+       ACL **,4                next load word                           SAP30120
        TIX *-2,4,1                                                      SAP30121
-       LDQ 14                                                           SAP30122
-       SLW 14                                                           SAP30123
-       CLA 13                                                           SAP30124
-       TZE 16                                                           SAP30125
+       REM                     Card has finished
+       LDQ 14                  Stash 14 in MQ                           SAP30122
+       SLW 14                  14 gets sum                              SAP30123
+       CLA 13                  Check the sum                            SAP30124
+       TZE 16                  If cardsum is 0, skip checksum           SAP30125
+       REM                     and get next card
+       REM                     Compare checksum?
        SUB 14                                                           SAP30126
        TQP *+2                                                          SAP30127
        TRA 16                                                           SAP30128
        TZE 16                                                           SAP30129
-       HTR 16                                                           SAP30130
+       HTR 16                  Checksum error                           SAP30130
        RQL 19                                                           SAP30131
        LLS 15                                                           SAP30132
        TPL *+2                                                          SAP30133
@@ -65,7 +74,7 @@
        LBT                                                              SAP30142
        STQ **,4                                                         SAP30143
        PXD                                                              SAP30144
-       CPY 15                                                           SAP30145
+       CPY 15                  58 No words left to copy                 SAP30145
        CPY 13                                                           SAP30146
        TRA *+8                                                          SAP30147
        CLA 14                                                           SAP30148
@@ -78,5 +87,5 @@
        LDQ 15                                                           SAP30155
        RQL 1                                                            SAP30156
        TQP *-26                                                         SAP30157
-       HTR *                                                            SAP30158
+       HTR *                   71, destination of no checksum           SAP30158
        END
