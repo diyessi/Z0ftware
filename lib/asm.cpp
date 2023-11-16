@@ -145,11 +145,12 @@ Assembler::parseFields(const std::string_view &line,
 
 std::map<std::string_view, Assembler::OperationParser>
     Assembler::operationParsers_{
-        {"BCD", &Bcd::unique}, {"BES", &Bes::unique}, {"BSS", &Bss::unique},
-        {"DEC", &Dec::unique}, {"DEF", &Def::unique}, {"END", &End::unique},
-        {"EQU", &Equ::unique}, {"FUL", &Ful::unique}, {"HED", &Hed::unique},
-        {"LIB", &Lib::unique}, {"OCT", &Oct::unique}, {"ORG", &Org::unique},
-        {"REM", &Rem::unique}, {"REP", &Rep::unique}, {"SYN", &Syn::unique}};
+        {"ABS", &Abs::unique}, {"BCD", &Bcd::unique}, {"BES", &Bes::unique},
+        {"BSS", &Bss::unique}, {"DEC", &Dec::unique}, {"DEF", &Def::unique},
+        {"END", &End::unique}, {"EQU", &Equ::unique}, {"FUL", &Ful::unique},
+        {"HED", &Hed::unique}, {"LIB", &Lib::unique}, {"OCT", &Oct::unique},
+        {"ORG", &Org::unique}, {"REM", &Rem::unique}, {"REP", &Rep::unique},
+        {"SYN", &Syn::unique}};
 
 Assembler::OperationParser
 Assembler::getOperationParser(const std::string_view &operation) {

@@ -88,4 +88,8 @@
        RQL 1                                                            SAP30156
        TQP *-26                                                         SAP30157
        HTR *                   71, destination of no checksum           SAP30158
+       ORG 256
+       ABS
+       CLA SIX
+SIX    DEC 6
        END

@@ -39,6 +39,11 @@ void Operation::parseVariable(Assembler &assembler,
   exprs_ = assembler.parseEXP(*this, variable);
 }
 
+void Abs::allocate(Assembler &assembler, Chunk &chunk) const {
+  assembler.setBinaryFormat(BinaryFormat::Absolute);
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
+}
+
 std::pair<std::string_view, std::string_view>
 Bcd::splitVariableAndComment(Assembler &assembler,
                              const std::string_view &variableAndComment) {

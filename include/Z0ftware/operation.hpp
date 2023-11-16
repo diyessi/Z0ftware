@@ -145,6 +145,13 @@ public:
   static std::unique_ptr<T> unique() { return std::make_unique<T>(); }
 };
 
+class Abs : public OperationImpl<Abs> {
+public:
+  void validate(Assembler &assembler) override{};
+  void allocate(Assembler &assembler, Chunk &chunk) const override;
+  void assemble(Assembler &assembler, Chunk &chunk) const override{};
+};
+
 // Packed characters, big-endian. If variable starts with ' ' there are 10
 // packed character groups (six each). Otherwise, variable has a digit which
 // is how many groups of packed characters there are.
