@@ -57,7 +57,7 @@ private:
 };
 
 // Format for binary output
-enum class BinaryFormat { Absolute, Relative, Full };
+enum class BinaryFormat { Absolute, AbsoluteTransfer, Relative, Full };
 
 // Contiguous memory covered by its Chunks
 class Section {
@@ -140,9 +140,12 @@ public:
   void appendOperation(std::unique_ptr<Operation> &&operation);
   auto &getSections() { return sections_; }
   const auto &getSections() const { return sections_; }
+  Section &addSection(addr_t base, BinaryFormat binaryFormat) {
+    return sections_.emplace_back(base, binaryFormat);
+  }
   Section &addSection(addr_t base) {
-    return sections_.emplace_back(
-        base, sections_.empty() ? BinaryFormat::Absolute
+    return addSection(base, sections_.empty()
+                                ? BinaryFormat::Absolute
                                 : sections_.back().getBinaryFormat());
   }
   Section &getSection() {

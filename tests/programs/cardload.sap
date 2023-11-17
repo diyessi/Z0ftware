@@ -14,6 +14,7 @@
        CAL 56                  56 contains 'STQ **,4'                   SAP30095
        ACL 72,4                Starting at 'LTM' sum the three cards    SAP30096
        TIX *-1,4,1             XR4=1 at the end                         SAP30097
+       REM  ****************** Cards 1-3 read *************************
        SLW 0                   Sum goes into 0                          SAP30098
        CLA 3                   Expected sum                             SAP30099
        SUB 0                   13, Compare sum and expected sum         SAP30100
@@ -90,6 +91,11 @@
        HTR *                   71, destination of no checksum           SAP30158
        ORG 256
        ABS
-       CLA SIX
+START  CLA SIX
+       ADD SIX
+       TRA MORE
 SIX    DEC 6
-       END
+       ORG 270
+MORE   ADD SIX
+       HTR *
+       END START

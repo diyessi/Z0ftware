@@ -65,15 +65,22 @@ int main(int argc, const char **argv) {
       int pos = 0;
       addr_t cardBeginAddr = 0;
       addr_t cardEndAddr = cardBeginAddr;
-      auto finishCard = [&section, &cardBeginAddr, &cardEndAddr, &cardImage, &os,
-                         &pos]() {
+      auto finishCard = [&section, &cardBeginAddr, &cardEndAddr, &cardImage,
+                         &os, &pos]() {
         switch (section.getBinaryFormat()) {
         case BinaryFormat::Absolute: {
           word_t L = 0;
           dpb<33, 3>(0, L);
           dpb<18, 15>(cardEndAddr - cardBeginAddr, L);
           dpb<15, 3>(0, L);
-          dpb<0, 15>(cardEndAddr - cardBeginAddr, L);
+          dpb<0, 15>(cardBeginAddr, L);
+          cardImage.setWord(0, L);
+          cardImage.setWord(1, 0);
+          break;
+        }
+        case BinaryFormat::AbsoluteTransfer: {
+          word_t L = 0;
+          dpb<0, 15>(cardBeginAddr, L);
           cardImage.setWord(0, L);
           cardImage.setWord(1, 0);
           break;
@@ -97,6 +104,7 @@ int main(int argc, const char **argv) {
           if (pos == 0) {
             switch (section.getBinaryFormat()) {
             case BinaryFormat::Absolute:
+            case BinaryFormat::AbsoluteTransfer:
             case BinaryFormat::Relative: {
               cardBeginAddr = chunk.getBaseAddr() + (it - chunk.begin());
               cardEndAddr = cardBeginAddr;
@@ -115,7 +123,7 @@ int main(int argc, const char **argv) {
           }
         }
       }
-      if (pos != 0) {
+      if (pos > 0) {
         finishCard();
       }
     };
