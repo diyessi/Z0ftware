@@ -1,8 +1,52 @@
        FUL
        ORG 0                                                            SAP30086
-       REM                     With boot-loading the first two words
-       REM                     are copied to 0 and 1 and then execution
-       REM                     continues at 0.
+       REM                     Each card contains 24 words read from
+       REM                       bottom to top, left to right,
+       REM                       designated 9L, 9R, 8L, 8R, etc.
+       REM                       Bits are numbered as in the SHARE
+       REM                       reference manual, left to right,
+       REM                       S,1-35, so bit 9L:S is column 1 row 9.
+       REM                       Some other documents use column
+       REM                       positions.
+       REM
+       REM                       When booted from CDR0, the following
+       REM                       is executed:
+       REM                         RCD
+       REM                         CPY 0
+       REM                         CPY 1
+       REM                         TRA 0
+       REM
+       REM                     Deck contains:
+       REM                       Three self-loading cards that copy
+       REM                       to 00000-00107 while summing the
+       REM                       words starting at 00004.
+       REM                       After loading, the sum is compared
+       REM                       with 00003 and execution halts if
+       REM                       the two values differ. This provides
+       REM                       a way to determine the sum if
+       REM                       changing the loader.
+       REM                       
+       REM                       The loader then expects to read one
+       REM                       or more absolute data cards followed
+       REM                       by zero or more correction cards and
+       REM                       a transfer card.
+       REM
+       REM                       For each card, 9L contains a control
+       REM                       word, 9R contains a checksum word
+       REM                       CKS.
+       REM
+       REM                       9L:S = 0
+       REM                       9L:1 = 0 (ABS),
+       REM                              1 (REL, not supported)
+       REM                       9L:2 = 0 Use CKS if CKS != 0
+       REM                              1 Ignore CKS
+       REM                       9L3-17 = Word count V (DEC)
+       REM                       9L18-20 = 0 (TAG)
+       REM                       9L21-35 = R
+       REM                         If V > 0, V,V+R <- L8,...
+       REM                         If V = 0, corrections/transfer
+       REM                           Transfer if L8-R12=0
+       REM                           Corrections otherwise
        LXA *,4            BUILT IN BINARY LOADER                        SAP30087
        CPY *+1,4                                                        SAP30088
        TXI *-1,4,-1                                                     SAP30089
@@ -14,7 +58,7 @@
        CAL 56                  56 contains 'STQ **,4'                   SAP30095
        ACL 72,4                Starting at 'LTM' sum the three cards    SAP30096
        TIX *-1,4,1             XR4=1 at the end                         SAP30097
-       REM  ****************** Cards 1-3 read *************************
+       REM  ****************** FUL Cards 1-3 read *********************
        SLW 0                   Sum goes into 0                          SAP30098
        CLA 3                   Expected sum                             SAP30099
        SUB 0                   13, Compare sum and expected sum         SAP30100
@@ -22,73 +66,68 @@
        HTR *                   15, Mismatch. If altering loader, can    SAP30102
        REM                     read the new sum from 0 and update the
        REM                     expected sum in 3
-       RCD                                                              SAP30103
-       PXD 68                  Clears AC and holds constant 68          SAP30104
-       CPY 15                  Replace `HTR *`                          SAP30105
-       REM     15 = 9L, control word
-       REM                     NOTE: RCD was executed above after
-       REM                     finishing card 3
-       RQL 1                   MQ contains last CPY                     SAP30106
-       LGL 1                   AC = Bit 1 of CPY, ship checksum         SAP30107
-       TNZ 71                                                           SAP30108
-       STQ 14                                                           SAP30109
-       REM     14 = 9L rotated 1, shifted 1
-       RQL 11                  Total of 12                              SAP30110
-       REM                     Start of binary card 2
-       LGL 5                   9L13-17 AC=word count                    SAP30111
-       CPY 13                  Read 9R checksum                         SAP30112
-       REM     13 = 9R checksum
-       TZE *+32                To 58                                    SAP30113
-       PAX ,4                  XR4 = word count                         SAP30114
-       ADD 15                  Add control word                         SAP30115
-       REM                     AC addr will be initial address
-       REM                     plus count
+       RCD                     16: Next non-FUL card                    SAP30103
+       PXD 68                  AC = 0                                   SAP30104
+       CPY 15                  Replace `HTR *` with 9L control word     SAP30105
+       REM                     MQ also contains control word
+       RQL 1                   MQ = L9:1-35,S                           SAP30106
+       LGL 1                   AC = L9:1, MQ = L9:2-35,0,'0'            SAP30107
+       TNZ 71                  Transfer if 9L:1 = 1 (REL)               SAP30108
+       STQ 14                  14 = L9:2-35,0,'0'                       SAP30109
+       RQL 11                  MQ = L9:13-35,0,'0',2-12                 SAP30110
+       LGL 5                   AC = L9:13-17 (V = count)                SAP30111
+       CPY 13                  13,MQ = 9R, CKS                          SAP30112
+       TZE *+32                To 58 if count is 0 transfer/correction  SAP30113
+       PAX ,4                  XR4 = V                                  SAP30114
+       ADD 15                  AC.addr = dest + count                   SAP30115
        STA *+3                                                          SAP30116
        STA *+3                                                          SAP30117
-       CAL 15                  AC = 9L                                  SAP30118
-       CPY **,4                next load word                           SAP30119
+       CAL 15                  AC = 9L (checksum includes 9L)           SAP30118
+       CPY **,4                next load word to dest                   SAP30119
        ACL **,4                next load word                           SAP30120
        TIX *-2,4,1                                                      SAP30121
-       REM                     Card has finished
-       LDQ 14                  Stash 14 in MQ                           SAP30122
-       SLW 14                  14 gets sum                              SAP30123
-       CLA 13                  Check the sum                            SAP30124
-       TZE 16                  If cardsum is 0, skip checksum           SAP30125
-       REM                     and get next card
-       REM                     Compare checksum?
-       SUB 14                                                           SAP30126
-       TQP *+2                                                          SAP30127
-       TRA 16                                                           SAP30128
-       TZE 16                                                           SAP30129
-       HTR 16                  Checksum error                           SAP30130
-       RQL 19                                                           SAP30131
-       LLS 15                                                           SAP30132
-       TPL *+2                                                          SAP30133
-       TXI *+6,4,-1                                                     SAP30134
-       STA *+8                 Start binary card 3                      SAP30135
-       LXD 71,4                                                         SAP30136
-       TNZ *+3                                                          SAP30137
-       CAL 13                                                           SAP30138
-       TZE *+6                                                          SAP30139
-       LLS 3                                                            SAP30140
-       LDQ 13                                                           SAP30141
-       LBT                                                              SAP30142
-       STQ **,4                                                         SAP30143
+       REM                     Card has finished by count/EOR
+       LDQ 14                  MQ = 14 =  L9:2-35,0,'0'                 SAP30122
+       SLW 14                  14 = AC (SUM)                            SAP30123
+       CLA 13                  AC = CKS                                 SAP30124
+       TZE 16                  If CKS = 0, skip check, to next card     SAP30125
+       SUB 14                  AC = CKS - SUM                           SAP30126
+       TQP *+2                 If L9:2 = 0, do check                    SAP30127
+       TRA 16                  next card                                SAP30128
+       TZE 16                  if CKS = SUM next card                   SAP30129
+       HTR 16                  Checksum error, continue to next card    SAP30130
+       RQL 19                  Correction: MQ=L:20-35,S,1-19            SAP30131
+       LLS 15                  AC=L:20,'0...',L:21-35, MQ=LS,1-19,...   SAP30132
+       TPL *+2                 If L20=0, address is AC.addr (skip)      SAP30133
+       REM                       Else previous address + 1
+       TXI *+6,4,-1            XR4--, to 065                            SAP30134
+       REM                     Start of binary card 3
+       STA *+8                 070.addr = AC.addr                       SAP30135
+       LXD 71,4                XR4=0                                    SAP30136
+       TNZ *+3                 If AC.addr = 0 to 65                     SAP30137
+       CAL 13                  AC = correction                          SAP30138
+       TZE *+6                 If correction = 0 do next row            SAP30139
+       LLS 3                   065: AC=LS,...,L1-2                      SAP30140
+       LDQ 13                  MQ = Correction value                    SAP30141
+       LBT                     L2 means skip the correction             SAP30142
+       STQ **,4                070: Store correction                    SAP30143
        PXD                                                              SAP30144
-       CPY 15                  58 No words left to copy                 SAP30145
-       CPY 13                                                           SAP30146
-       TRA *+8                                                          SAP30147
-       CLA 14                                                           SAP30148
-       ALS 19                                                           SAP30149
-       ARS 21                                                           SAP30150
-       TZE 16                                                           SAP30151
-       TMI 16                                                           SAP30152
-       STA *+1                                                          SAP30153
-       TRA **                                                           SAP30154
-       LDQ 15                                                           SAP30155
-       RQL 1                                                            SAP30156
-       TQP *-26                                                         SAP30157
-       HTR *                   71, destination of no checksum           SAP30158
+       REM                     58 Transfer/Correction card
+       REM                     14 has L9:2-35,S,'0'
+       CPY 15                  58 15 = L                                SAP30145
+       CPY 13                  MQ, 13 = R                               SAP30146
+       TRA *+8                 To CheckRow                              SAP30147
+       CLA 14                  End of card, AC=L9:2-35,0,'0'            SAP30148
+       ALS 19                  AC=L9:2,21-35,0,'0...'                   SAP30149
+       ARS 21                  AC.addr = L9:21-35                       SAP30150
+       TZE 16                  Next card if 0                           SAP30151
+       TMI 16                  Next card if 9L:2                        SAP30152
+       STA *+1                 Update branch addr                       SAP30153
+       TRA **                  Transfer to start                        SAP30154
+       LDQ 15                  CheckRow: MQ = L:S,1-35                  SAP30155
+       RQL 1                   MQ = L:1-35,S                            SAP30156
+       TQP *-26                IF L:1 = 0, to Correction                SAP30157
+       HTR *                   71, REL not supported                    SAP30158
        ORG 256
        ABS
 START  CLA SIX

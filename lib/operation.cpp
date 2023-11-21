@@ -155,10 +155,12 @@ void End::validate(Assembler &assembler) {
 }
 
 Section &End::getSection(Assembler &assembler) const {
-  return assembler.addSection(assembler.evaluate(*exprs_[0]), BinaryFormat::AbsoluteTransfer);
+  return assembler.addSection(assembler.evaluate(*exprs_[0]),
+                              BinaryFormat::AbsoluteTransfer);
 }
 
 void End::allocate(Assembler &assembler, Chunk &chunk) const {
+  // Need one fake chunk so as to trigger transfer card
   assembler.allocate(chunk, 1, Assembler::AssignType::None);
 }
 

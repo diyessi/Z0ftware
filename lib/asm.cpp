@@ -162,9 +162,7 @@ Assembler::getOperationParser(const std::string_view &operation) {
 }
 
 void Assembler::writeBinarySection(const Section &section) {
-  if (sectionWriter_ &&
-      (section.getAddrSize() > 0 ||
-       section.getBinaryFormat() == BinaryFormat::AbsoluteTransfer)) {
+  if (sectionWriter_) {
     sectionWriter_(section);
   }
 }

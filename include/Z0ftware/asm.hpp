@@ -141,6 +141,9 @@ public:
   auto &getSections() { return sections_; }
   const auto &getSections() const { return sections_; }
   Section &addSection(addr_t base, BinaryFormat binaryFormat) {
+    if (!sections_.empty() && sections_.back().getAddrSize() == 0) {
+      sections_.pop_back();
+    }
     return sections_.emplace_back(base, binaryFormat);
   }
   Section &addSection(addr_t base) {
@@ -148,6 +151,8 @@ public:
                                 ? BinaryFormat::Absolute
                                 : sections_.back().getBinaryFormat());
   }
+
+  // Start a new section if the previous section was not empty
   Section &getSection() {
     return sections_.empty() ? addSection(0) : sections_.back();
   }
