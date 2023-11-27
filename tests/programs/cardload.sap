@@ -45,8 +45,7 @@
        REM                       9L21-35 = R
        REM                         If V > 0, V,V+R <- L8,...
        REM                         If V = 0, corrections/transfer
-       REM                           Transfer if L8-R12=0
-       REM                           Corrections otherwise
+       REM                           Transfer if L8-12=0
        LXA *,4            BUILT IN BINARY LOADER                        SAP30087
        CPY *+1,4                                                        SAP30088
        TXI *-1,4,-1                                                     SAP30089

@@ -1,0 +1,10 @@
+       ORG 256
+       ABS
+START  CLA SIX
+       ADD SIX
+       TRA MORE
+SIX    DEC 6
+       ORG 270
+MORE   ADD SIX
+       HTR *
+       END START

@@ -155,6 +155,7 @@ void End::validate(Assembler &assembler) {
 }
 
 Section &End::getSection(Assembler &assembler) const {
+  // If in FUL, do not do transfer
   return assembler.addSection(assembler.evaluate(*exprs_[0]),
                               BinaryFormat::AbsoluteTransfer);
 }

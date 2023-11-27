@@ -27,4 +27,4 @@ START  CLA SEVEN
        HTR *
 SEVEN  DEC 7
 ONE    DEC 1
-       END
+       END START
