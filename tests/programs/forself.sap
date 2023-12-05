@@ -1,0 +1,30 @@
+       REM 704 FORTRAN SELF LOADING RECORD 1 TO CS.
+       FUL
+       LXA 0,1
+       CPY 2,1
+       TXI 1,1,1
+       CPY 25,1
+       HTR 3
+       TZE 0
+       COM
+       ACL 2
+       COM
+       TRA 23
+       RTT
+       IOD
+       HTR 0
+       TXI 13,1,-1
+       CAD 0,1
+       CAL 15
+       STA 22
+       ARS 18
+       STA 13
+       CAL 15
+       CPY 15
+       CPY 2
+       RTB 1
+       LXD 23,1
+       CPY 3
+       LTM
+       BST 145
+       END

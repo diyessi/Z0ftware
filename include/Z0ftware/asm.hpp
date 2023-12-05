@@ -57,7 +57,7 @@ private:
 };
 
 // Format for binary output
-enum class BinaryFormat { Absolute, AbsoluteTransfer, Relative, Full };
+enum class BinaryFormat { Absolute, Relative, Full };
 
 // Contiguous memory covered by its Chunks
 class Section {
@@ -73,6 +73,8 @@ public:
   void setBinaryFormat(BinaryFormat binaryFormat) {
     binaryFormat_ = binaryFormat;
   }
+  bool isTransfer() const { return transfer_; }
+  void setIsTransfer(bool value) { transfer_ = value; }
 
   addr_t getBase() const { return base_; }
   void setBase(word_t base) { base_ = base; }
@@ -92,6 +94,7 @@ public:
 
 private:
   BinaryFormat binaryFormat_;
+  bool transfer_{false};
   addr_t base_;
   std::vector<Chunk> chunks_;
 };
@@ -133,23 +136,18 @@ public:
   addr_t evaluate(const Chunk &chunk, const Expr &expr);
   addr_t evaluate(const Expr &expr);
 
-  void setBinaryFormat(BinaryFormat value) {
-    getSection().setBinaryFormat(value);
-  }
-
   void appendOperation(std::unique_ptr<Operation> &&operation);
+  BinaryFormat getBinaryFormat() const { return binaryFormat_; }
+  void setBinaryFormat(BinaryFormat binaryFormat) {
+    binaryFormat_ = binaryFormat;
+  }
   auto &getSections() { return sections_; }
   const auto &getSections() const { return sections_; }
-  Section &addSection(addr_t base, BinaryFormat binaryFormat) {
+  Section &addSection(addr_t base) {
     if (!sections_.empty() && sections_.back().getAddrSize() == 0) {
       sections_.pop_back();
     }
-    return sections_.emplace_back(base, binaryFormat);
-  }
-  Section &addSection(addr_t base) {
-    return addSection(base, sections_.empty()
-                                ? BinaryFormat::Absolute
-                                : sections_.back().getBinaryFormat());
+    return sections_.emplace_back(base, binaryFormat_);
   }
 
   // Start a new section if the previous section was not empty
@@ -200,6 +198,7 @@ private:
   std::vector<Section> sections_;
   std::optional<addr_t> defineLocation_;
   section_writer_t sectionWriter_;
+  BinaryFormat binaryFormat_{BinaryFormat::Absolute};
 
   static OperationParsers operationParsers_;
 };

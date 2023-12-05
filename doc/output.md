@@ -2,43 +2,45 @@
 
 Modern computers start executing instructions about as soon as they have power and continue executing instructions for about as long as they have power. The first instructions are in some kind of non-volatile read-only memory and start the process of making the CPU and boot devices usable, eventually getting to the point where they can capture user input that indicates an application program is to be run, create a process for the program an let the process initialize memory based on information in the application program file and arguments from the user and then transfer control to the application program.
 
-When an IBM 704 is turned on, no instructions start executing. Core memory is non-volatile and will retain the contents it had when powered off, but it is ordinary read/write memory. An operator can use the front panel to put a value in the `MQ` register or specify an instruction (not an address for an instruction) to execute, or the operator can press one of the three `LOAD` keys, one for card unit 0, one for tape unit 0, and one for drum unit 0. This will execute the following four instructions:
+When an IBM 704 is turned on, no instructions start executing. Core memory is non-volatile and will retain the contents it had when powered off, but it is ordinary read/write memory. An operator can use the front panel to put a value in the `MQ` register or specify an instruction (not an address for an instruction) to execute, or the operator can press one of the three `LOAD` keys, one for card unit 0, one for tape unit 0, and one for drum unit 0. Pushing the `LOAD CARD` key will cause the computer to act is if execution were started at location 0 after initializing the first four words of memory to:
 
 ```
-       RDS dev
-       CPY 0
-       CPY 1
-       TRA 0
+00000  0 76200 0 00321        RCD     is RDS 209
+00001  0 70000 0 00000        CPY 0
+00002  0 70000 0 00001        CPY 1
+00003  0 02000 0 00000        TRA 0
 ```
+The first field is the memory location of the instruction. This is followed by the prefix, which is a `-` or space followed by the value of the low two bits,  `0`-`3`. This is followed by a 15 bit prefix, a three bit tag, and a fifteen bit address, all in octal. The equivalent assembler instructions follow.
 
-The value of `dev` depends on which `LOAD` key is pressed. The `RDS` begins the reading of a record from the device. The first two words of the record are copied into addresses 0 and 1 and then execution is transferred to address 0. It is not known if the four instructions are copied into the first four words of memory and then executed normally, or if they are instead executed directly. On simh the are executed directly and not copied into memory.
+The `RDS` Read select instruction selects and starts a device for reading one record. The device is specified in the address field of the instruction. `RCD` is a pseudo-op for `RDS 209` where `209` (octal `321`) selects the card reader. The `LOAD TAPE` and `LOAD DRUM` keys use the device for the first tape and drum respectively.
+
+After `RDS` words are read with `CPY`, which must execute before the device times out. If executed before a word is ready, `CPY` will block until a word is available. A `CPY` instruction in location `L` usually sets the `MQ` register to the word, stores it in the indicated address, and continues with the instruction at `L+1`. However, if there are no more words in the record, `MQ` and the indicated address are not modified and execution continues at `L+3`. A new `RDS` will be needed to continue reading. Finally, if there are no more records, execution continues at `L+2` without modifying `MQ` or the address.
+
+NOTE: The 704 might not actually implement the keys by setting memory; the simh emulator simply executes the instructions directly.
 
 ## A simple self-loading program
 
-A program that can be started this with the `LOAD` key is called a "self-loading program." A self-loading program must be able to complete its work with words 0 and 1 of the first record copied to addresses 0 and 1, the input device positioned at word 2 of the first record.
+A program that can be started this with a `LOAD` key is called a "self-loading program." A self-loading program must be able to complete its work with words 0 and 1 of the first record copied to addresses 0 and 1, the input device positioned at word 2 of the first record.
 
 A simple self-loading program uses the two-word program to load the rest of a program that can copy the real program into memory and then execute it. For example, a self-loading program that loads 7 into `AC` and halts would be:
 
 ```
                               ORG 0
                               FUL
-00000  0 53400 4 00000        LXA *,4
+00000  0 53400 4 00000        LXA 0,4
 00001  0 70000 4 00002        CPY *+1,4
 00002  1 77777 4 00001        TXI *-1,4,-1
 00003  0 00000 0 00003        HTR *
 00004  0 50000 0 00006 START  CLA SEVEN
 00005  0 00000 0 00005        HTR *
 00006  0 00000 0 00007 SEVEN  DEC 7
+                              END
 ```
-The format is the address (in octal) is in the left column. This is followed by the contents of the address, written in octal as prefix, decrement, tag, address. The prefix is written in a "sign magnitude" format, where the sign is `-` if the high bit is 1. Thus, a prefix whose binary is `101` would be written as `-1` rather than `5`.
+The `ORG 0` is a pseudo-op that tells the assembler to treat the next instruction as though it is in location 0 in memory. The `FUL` is a pseudo-op that tells the assembler to write its output for each section in 24 as many word records as are needed for the section. Each record will have exactly 24 wordsin the order they appear in the section, but the records will have no meta-information about memory locations or how many actual words there should be.
 
-The assembler source follows the instruction. In the source, there is a three character opcode followed by up to three comma-separated expressions for address, tag and decrement. For most instructions, the opcode extends into the decrement.
+The use of non-infix `*` in an expression substitutes the current location for the instruction for the `*`. For example, in `CPY *+1,4` the location is `00001` so `*+1` is `00002` as seen in the address part of the instruction.
 
-A non-infix `*` is a pseudo-symbol for the current address. Although not used here, `**` is a pseudo-symbol for `0` and is used to document parts of an instruction that will be modified during program execution. Negative address and decrement values are stored using twos complement.
-
-The `ORG 0` is an assembler psedo-op that starts a new section at address 0. The `FUL` is another pseudo-op that tells the assembler to produce output in in as many 24 word records as are needed. The first record will have the first 24 words of the section, the second record the next 24 words, etc.
-
-When the `LOAD` sequence begins, `RDS dev` is executed, which starts a read of the first drum record, or the next tape record or card, depending on the device. This means all `CPY` instructions will read from that record. There is no buffering, so `CPY` instructions must be executed before the device has moved on to the next word. However, a `CPY` instruction will block if the next word is not yet available on the input device.
+When the `LOAD CARD` sequence begins, `RCD` is executed, which starts a read of the first card. This means all `CPY` instructions will read from that record. There is no buffering, so `CPY` instructions must be executed before the device has moved on to the next word. However, a `CPY` instruction will block if the next word is not yet available on the input device.
 
 When the `LOAD` sequence executes `CPY 0` it transfers the first word of the record to address 0, so memory will contain
 ```
@@ -96,7 +98,7 @@ The `TXI` again adds -1 to `IR4` and branches back to the `CPY`:
  00003  0 00000 0 00003        HTR 3
 IR4 = 77776 (-2)
 ```
-This process will continue until 20 more words have been read. This makes 24 total words, two from the `LOAD` key plus the two iterations of the loop already performed.
+This process will continue until 20 more words have been read. This makes 24 total words, two from the `LOAD` key plus the two iterations of the loop already performed. In `FUL` binary format, the record beyond addresses where the source stops will be empty, i.e. contain zeros, so the entire range of `00000` through `00027` will be overwritten, even though only `00000` through `00006` contain the program.
 ```
  00000  0 53400 4 00000        LXA 0,4
 >00001  0 70000 4 00002        CPY 2,4
@@ -110,9 +112,7 @@ This process will continue until 20 more words have been read. This makes 24 tot
  00027  0 00000 0 00000
 IR4 = 77752 (-22)
 ```
-
-
-The loop continues copying the remaining words in the record to locations 4, 5, etc. On the 25th `CPY` the record has ended so `CPY` returns to the `CLA 6` in address 4, the beginning of the three word application program that begins at `START` and ends at `SEVEN`. The `END START` is a required pseudo-op for the assembler.
+This time the `CPY` will not read a word since the record was completed. Instead, it will continue execution with the instruction at address 4, which is the main program.
 
 ## A two card self-loading program
 
@@ -137,18 +137,132 @@ As a second example, we modify the previous self-loading program to move the app
 00146  0 00000 0 00146        HTR *
 00147  0 00000 0 00007 SEVEN  DEC 7
 00150  0 00000 0 00001 ONE    DEC 1
-                              END START
 ```
-
-In this self-loading program, adress 4 contains `RCD` which is a pseudo-op for an `RDS` for the card reader. When the first record (card) has finished being read, rather than going into the application program, we start reading the next record/card. The contents of this card will be copied to addresses starting with 100 (octal 144), but the copy loop is otherwise the same as the one for the initial loop. When the record has finished being read, control transfers to the application program.
+The `ORG 100` after address `00011` starts a new assembly section that will start in memory at address 100 decimal, or octal `00144`. The assembler will start a new record, continuing to use `FUL` format. The first record will still be 24 words and the first `CPY` loop will write into `00000` through `00027` as before.
+```
+ 00000  0 53400 4 00000        LXA 0,4  
+ 00001  0 70000 4 00002        CPY 2,4
+ 00002  1 77777 4 00001        TXI 1,4,77777
+ 00003  0 00000 0 00003        HTR 3
+>00004  0 76200 0 00321        RCD
+ 00005  0 53400 4 00000        LXA 0,4
+ 00006  0 70000 4 00144        CPY 144,4
+ 00007  1 77777 4 00006        TXI 6,4,77777
+ 00010  0 00000 0 00010        HTR 10
+ 00011  0 02000 0 00144        TRA 144
+ 00012  0 00000 0 00000
+ ...
+ 00027  0 00000 0 00000
+```
+This time when the first record has been read, control transfers to a `RCD` (read card device) which starts the process for reading the second record. This is similar to the read of the first record, except that the destination starts at `00144` instead of `00000` and the `CPY` will copy all 24 words of the record rather than just 22.
 
 # Loaders
 
-Arbitrary jobs can be run by forming a "deck" of a self-loading loader followed by the application program in a loader-specific format, followed by program input. Booting loads the self-loading loader, with the next record being the first record of the application program. The loader reads all the the application program records leaving the input device positioned at the beginning of the application input when control is transferred to the application.
+The first programs would have been written as self-loading programs, but it would not have been long before someone realized a standard self-loading loader program could be used if the assembler output records contained information about where in memory each record was to go and what address the program should start at. The loader card(s) could be placed before the program binary, which would be followed by program input. Alternatively, an already running program could contain a loader that loaded additional programs/data.
 
-Input devices were not always reliable so records would often include a checksum. If the record checksum did not match what was loaded, the loader would halt.
+The most basic loader needs to support two operations:
+ 1. Copy `count` words in a record to locations starting as `address`.
+ 2. Transfer control to `address`.
 
-Although a modern 704 assembler can compile a program more or less instantly, an assembler running on the 704 took noticeable time. Machine costs were high, so assembling or compiling was also expensive. The last record of a program is a "transfer card" which contains the address to transfer control. The transfer card also supports corrections, which are address/value pairs to be updated in memory after the original program is loaded. The transfer of control does not happen until after the corrections have been applied.
+In addition, storage of records on cards, tape and drum was not all that reliable, so a checksum was added, which was the unsigned sum of all the words on the card other than the checksum.
+
+The first word in the record (row 9, left side on a card, `9L`) holds `address` in its `address` field for copies and transfers. The `decrement` field holds the count for copies; if the count is 0, the record describes a transfer. The second word in the records (row 9, right side of the card, `9R`) holds the checksum.
+
+The basic format was extended to:
+ - Allow the checksum to be ignored,
+ - Corrections to be applied to loaded data. This let bugs be patched without needing to take the time to reassemble the program. Not a good practice when assembling is cheap, but necessary in the days when it was costly.
+ - Data to be loaded to load-time specified addresses with addresses swizzled by the loader to correspond to actual locations.
+
+## NYBL1
+
+An early example of a basic loader is `NYBL1`, here copied from a listing in [CODING for the MIT-IBM 704 COMPUTER, pages XII-15 to XII-16](https://bitsavers.org/pdf/mit/computer_center/Coding_for_the_MIT-IBM_704_Computer_Oct57.pdf) with annotations from the listing in the coding guide added as comments:
+```
+                 00000        ORG 0
+                              FUL
+00000  0 53400 4 00000        LXA 0,4         / These words are copied to 0 and 1 by
+00001  0 70000 4 00002 A      CPY 2,4         \ the load card sequence.
+00002  1 77777 4 00001 9R     TXI A,4,-1      / This copy loop brings the rest of the
+                              REM             | card to core-memory and terminates on
+                              REM             \ the end-of-record skip
+00003  0 00000 0 00000 9L     PZE               Used to store 9 left row.
+00004 -0 76000 0 00007        LTM             / We leave the trapping mode (just in case)
+                              REM             | and enter the loader proper. The TXI in
+                              REM             \ register 9R is right in any case.
+00005  0 76200 0 00321 RCD    RCD               Read binary card
+00006  0 70000 0 00003        CPY 9L            x and n to 9L and MQ
+00007  0 76300 0 00021        LLS 17            n from MQ to AC
+00010  0 73400 4 00000        PAX 0,4           n to IR4
+00011  0 40000 0 00003        ADD 9L          / 
+00012  0 62100 0 00015        STA TRA         | x + n to TRA, CPY and ACL
+00013  0 62100 0 00020        STA CPY         |
+00014  0 62100 0 00021        STA ACL         \
+00015 -3 00000 4 00000 TRA    TXL **,4          exit to x if transfer card
+00016  0 70000 0 00002        CPY 9R            Check sum to 9R
+00017 -0 50000 0 00003        CAL 9L          / 
+00020  0 70000 4 00000 CPY    CPY **,4        | Words to x, x+1, ..., x+n-1
+00021  0 36100 4 00000 ACL    ACL **,4        | Form a new check sum
+00022  2 00001 4 00020        TIX CPY,4,1     \
+00023  0 60200 0 00003        SLW 9L            New check sum to 9L
+00024  0 50000 0 00003        CLA 9L          /
+00025  0 40200 0 00002        SUB 9R          |
+00026  0 10000 0 00005        TZE RCD         | Stop if check sums disagree
+00027  0 00000 0 00005        HTR RCD         \
+```
+The loop in `00000` through `00002` is similar to the previous self-loaders examples and will leave the 24 words in the record in addresses `00000` through `00027`, matching the addresses above. On the next iteration through the loop, `CPY 2,4` will be at the end of the record and return to `00004`. 
+
+Location `00003` will never be reached since a `CPY` instruction has already suceeded after the `RCD` in `LOAD CARD` sequence so there is no chance of the card vanishing partly through the record. Location contains a `PZE` which is the psedo-op "plus zero" and is used to put a 0 in location `00003`. `HTR 0` would do the same, but `PZE` documents the intent to use the location as a variable, `9L`, rather than as an instruction. The notation `9L` names the left word in row 9 columns 1-36 on a card. The label for location `00002` is `9R`, which is the name of the word on the right side of row 9, columns 37-72. Why would an instruction have a label like a variable? Memory was scarce and once the card has been copied into memory that instruction will not be executed, so it can be used as a variable for later parts of the loader. This was common enough to be obvious; it wasn't noted in the annotations.
+
+After the end of record, the `CPY 2,4` will continue with locatoin `00004`, `LTM`, "leave trap mode".  Trap mode is used for debugging and causes branches to halt the computer. 
+
+In `00005` a read is started for the next card, the first one of the actual program. Recall that in `00006` `CPY` puts the read value in both the `MQ` register and the indicated address, `9L`.
+
+In `00007`, `LLS` is a "long left shift." Shifts and rotates on the 704 can be a little complicated. For `LLS`, the sign of `MQ` replaces the sign of `AC` and then the `AC` bits `Q,P,1-35` are joined to the `MQ` bits `1-35` and shifted left by the value in the low 8 bits of the address. Thus position `i` in `MQ` ends up in position `35-shift+i` in `AC` for `i<=shift`. In other words the decrement of `MQ` ends up in the address of `AC`. In `00010` this is stored in `IR4`. This will be the count of the number of words to be copied from the cars. The address field in the `PAX` instruction is not used, so it is sometimes used as a place to store an integer.
+
+In `00011`, `ADD 9L` adds the first word on the card to its decrement. The address field of `9L` contains the start address for the data to be copied from the card, so this produces the end address for the card. This is stored at locationss `TRA`,`CPY` and `ACL`. If the count is 0, this is a "transfer card" and control will be transferred to the address part of `9L`. Otherwise count words will be copied and checksummed against the word in `9R`.
+
+In `00015` the `TXL **,4` has has `**` replaced by the address plus the count of `9L`. `TXL` transfers if the index register is less than or equal to the decrement. The unspecified decrement will be `0`, so if the count is `0` execution transfers to what was the address part of `9L` moving from loading to program execution.
+
+In `00016` the next word of the card is read into `9R`. This is the checksum.
+
+Location `00017` is the entry for the loop copying data into memory. It sets `AC` to `9L` which is to be included in the checksum. The loop then copies each word in the record to the next address (end of data minus `IR4`), performs an unsigned add to the running checksum in `AC`, and loops back for the next word, decrementing `IR4` until `IR4` is 1.
+
+The unsigned computed checksum in `AC` is stored in `9L` and brought back as a signed word, from which the required checksum is subtracted. If the result is `0`, the process repeates with the next card, otherwise the computer halts.
+
+## The FORTRAN II Loader
+
+```
+                              REM 704 FORTRAN SELF LOADING RECORD 1 TO CS.
+                              FUL
+00000  0 53400 1 00000        LXA 0,1
+00001  0 70000 1 00002        CPY 2,1
+00002  1 00001 1 00001        TXI 1,1,1
+00003  0 70000 1 00031        CPY 25,1
+00004  0 00000 0 00003        HTR 3
+00005  0 10000 0 00000        TZE 0
+00006  0 76000 0 00006        COM
+00007  0 36100 0 00002        ACL 2
+00010  0 76000 0 00006        COM
+00011  0 02000 0 00027        TRA 23
+00012 -0 76000 0 00012        RTT
+00013  0 76600 0 00333        IOD
+00014  0 00000 0 00000        HTR 0
+00015  1 77777 1 00015        TXI 13,1,-1
+00016 -0 70000 1 00000        CAD 0,1
+00017 -0 50000 0 00017        CAL 15
+00020  0 62100 0 00026        STA 22
+00021  0 77100 0 00022        ARS 18
+00022  0 62100 0 00015        STA 13
+00023 -0 50000 0 00017        CAL 15
+00024  0 70000 0 00017        CPY 15
+00025  0 70000 0 00002        CPY 2
+00026  0 76200 0 00221        RTB 1
+00027 -0 53400 1 00027        LXD 23,1
+00030  0 70000 0 00003        CPY 3
+00031 -0 76000 0 00007        LTM
+00032  0 76400 0 00441        BST 145
+                              END
+```
+This loader is from the final IBM 704 version of FORTRAN II. It has no labels for a very good reason: Other than the first few locations, the self-loader loads itself in reverse order.
 
 ## Sections
 
@@ -197,6 +311,9 @@ Coupled with these formats are the tape/card formats used by the emulators.
 From [IBM Modle-704 Guidebook page II-2](https://escholarship.org/content/qt4cn1c702/qt4cn1c702.pdf)
 
 [SHARE REFERENCE MANUAL for the IBM 704, August 1956, pages 3.10 - 02 to 3.10 - 05](https://www.piercefuller.com/scan/share59.pdf)
+
+The `NY AP 1` assembler code samples shown in [704 electronic data-processing machine manual of operation, pages 73-79](https://bitsavers.org/pdf/ibm/704/24-6661-2_704_Manual_1955.pdf) do not indicate how they were loaded.
+
 
 # Full cards (boot)
 

@@ -1,4 +1,4 @@
-       REM  NYLB1 from CODING for the MIT-IBM 704 COMPUTER
+       REM  NYBL1 from CODING for the MIT-IBM 704 COMPUTER
        REM  1957
        REM  XII-15 to XII-16
        ORG 0
@@ -7,7 +7,7 @@
 A      CPY 2,4         \ the load card sequence.
 9R     TXI A,4,-1      / This copy loop brings the rest of the
        REM             | card to core-memory and terminates on
-       REM             \ the end-of-record skipl
+       REM             \ the end-of-record skip
 9L     PZE               Used to store 9 left row.
        LTM             / We leave the trapping mode (just in case)
        REM             | and enter the loader proper. The TXI in
@@ -31,4 +31,4 @@ ACL    ACL **,4        | Form a new check sum
        SUB 9R          |
        TZE RCD         | Stop if check sums disagree
        HTR RCD         \
-       REM  END  
+       END  

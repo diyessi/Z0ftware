@@ -155,15 +155,12 @@ void End::validate(Assembler &assembler) {
 }
 
 Section &End::getSection(Assembler &assembler) const {
-  // If in FUL, do not do transfer
-  return assembler.addSection(assembler.evaluate(*exprs_[0]),
-                              BinaryFormat::AbsoluteTransfer);
+  auto &section = assembler.addSection(assembler.evaluate(*exprs_[0]));
+  section.setIsTransfer(true);
+  return section;
 }
 
-void End::allocate(Assembler &assembler, Chunk &chunk) const {
-  // Need one fake chunk so as to trigger transfer card
-  assembler.allocate(chunk, 1, Assembler::AssignType::None);
-}
+void End::allocate(Assembler &assembler, Chunk &chunk) const {}
 
 void Equ::validate(Assembler &assembler) {
   if (exprs_.size() != 1) {

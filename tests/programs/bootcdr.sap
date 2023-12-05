@@ -1,0 +1,7 @@
+       ORG 0
+       FUL
+       RCD
+       CPY 0
+       CPY 1
+       TRA 0
+       END

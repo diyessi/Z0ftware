@@ -80,13 +80,6 @@ int main(int argc, const char **argv) {
           cardImage.setWord(1, checksum);
           break;
         }
-        case BinaryFormat::AbsoluteTransfer: {
-          word_t L = 0;
-          dpb<0, 15>(cardBeginAddr, L);
-          cardImage.setWord(0, L);
-          cardImage.setWord(1, 0);
-          break;
-        }
         case BinaryFormat::Relative: {
           std::cerr << "Relative not supported\n";
           cardImage.setWord(0, 0);
@@ -106,7 +99,6 @@ int main(int argc, const char **argv) {
           if (pos == 0) {
             switch (section.getBinaryFormat()) {
             case BinaryFormat::Absolute:
-            case BinaryFormat::AbsoluteTransfer:
             case BinaryFormat::Relative: {
               cardBeginAddr = chunk.getBaseAddr() + (it - chunk.begin());
               cardEndAddr = cardBeginAddr;
@@ -129,6 +121,26 @@ int main(int argc, const char **argv) {
       }
       if (pos > 0) {
         finishCard();
+      }
+      if (section.isTransfer()) {
+        cardImage.clear();
+        switch (section.getBinaryFormat()) {
+        case BinaryFormat::Absolute: {
+          word_t L = 0;
+          dpb<0, 15>(cardBeginAddr, L);
+          cardImage.setWord(0, L);
+          cardImage.setWord(1, 0);
+          break;
+        }
+        case BinaryFormat::Full:
+          break;
+        case BinaryFormat::Relative: {
+          std::cerr << "Relative not supported\n";
+          cardImage.setWord(0, 0);
+          cardImage.setWord(1, 0);
+          break;
+        }
+        }
       }
     };
     sapAssembler.setSectionWriter(sectionWriter);
