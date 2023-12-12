@@ -1,22 +1,30 @@
 # Running a job on the IBM 704
 
-Modern computers start executing instructions about as soon as they have power and continue executing instructions for about as long as they have power. The first instructions are in some kind of non-volatile read-only memory and start the process of making the CPU and boot devices usable, eventually getting to the point where they can capture user input that indicates an application program is to be run, create a process for the program an let the process initialize memory based on information in the application program file and arguments from the user and then transfer control to the application program.
+Modern computers start executing instructions about as soon as they have power and continue executing instructions for about as long as they have power. The first instructions are in some kind of non-volatile read-only memory and start the process of making the CPU and boot devices usable, eventually getting to the point where they can capture user input that indicates an application program is to be run, create a process for the program, initialize its memory based on a description of the application program file and arguments from the user, and then transfer control to the application program.
 
 When an IBM 704 is turned on, no instructions start executing. Core memory is non-volatile and will retain the contents it had when powered off, but it is ordinary read/write memory. An operator can use the front panel to put a value in the `MQ` register or specify an instruction (not an address for an instruction) to execute, or the operator can press one of the three `LOAD` keys, one for card unit 0, one for tape unit 0, and one for drum unit 0. Pushing the `LOAD CARD` key will cause the computer to act is if execution were started at location 0 after initializing the first four words of memory to:
 
 ```
-00000  0 76200 0 00321        RCD     is RDS 209
+00000  0 76200 0 00321        RCD     is RDS 209 (0321)
 00001  0 70000 0 00000        CPY 0
 00002  0 70000 0 00001        CPY 1
 00003  0 02000 0 00000        TRA 0
 ```
-The first field is the memory location of the instruction. This is followed by the prefix, which is a `-` or space followed by the value of the low two bits,  `0`-`3`. This is followed by a 15 bit prefix, a three bit tag, and a fifteen bit address, all in octal. The equivalent assembler instructions follow.
+[Listing format](listings.md)
 
-The `RDS` Read select instruction selects and starts a device for reading one record. The device is specified in the address field of the instruction. `RCD` is a pseudo-op for `RDS 209` where `209` (octal `321`) selects the card reader. The `LOAD TAPE` and `LOAD DRUM` keys use the device for the first tape and drum respectively.
+The `RCD` operation is an "extended operation" that is the same as the `Read Select` instruction `RDS 209` which selects and starts the card reader for reading one record (card). The device is specified in the address field of the instruction. The `LOAD TAPE` and `LOAD DRUM` keys use the device for the first tape and drum respectively.
 
-After `RDS` words are read with `CPY`, which must execute before the device times out. If executed before a word is ready, `CPY` will block until a word is available. A `CPY` instruction in location `L` usually sets the `MQ` register to the word, stores it in the indicated address, and continues with the instruction at `L+1`. However, if there are no more words in the record, `MQ` and the indicated address are not modified and execution continues at `L+3`. A new `RDS` will be needed to continue reading. Finally, if there are no more records, execution continues at `L+2` without modifying `MQ` or the address.
+After the `RDS` executes, words are read with `CPY`, (Copy and Skip) which must execute before the device times out. If executed before a word is ready, `CPY` will block until a word is available. The `CPY` instruction is somewhat complicated. When a device has been selected for read (`RDS`), a `CPY` at location `L` will:
+ - If too much time has elapsed, the computer halts.
+ - If there is a word to be read in the record, it is copied to the `MQ` reguster and then written to the indicated address. Execution continues with the next instruction, `L+1`.
+ - If there is no media in the device, execution continues at `L+2`. Once one `CPY` has been successful after an `RDS` there will be media in the device for the rest of the record.
+ - If there are no more words in the record, execution continues at `L+3`. For a card, this will occur on the 25th `CPY`. The first 24 executions of a `CPY` will always succeed in reading a word unless there is a timeout.
 
-NOTE: The 704 might not actually implement the keys by setting memory; the simh emulator simply executes the instructions directly.
+The boot sequence assumes there is a card in the card reader, copies the first two words of the card into locations `00000` and `00001` and transfers execution to `00000`.
+
+Cards are read row by row, starting at row `9` on the bottom and continuing through rows `8-0` and then `11-12`. The first word is from columns `1-36` (`L`) and the second from columns `37-72` (`R`). Columns `73-80` cannot not be read by the 704 without rewiring the plug panel. The words are labeled `9L`, `9R`, `8L`, `8R`, ..., `12R`.
+
+NOTE: The 704 might not actually implement the keys by setting memory. The simh emulator executes the instructions directly without changing memory.
 
 ## A simple self-loading program
 
@@ -230,6 +238,8 @@ The unsigned computed checksum in `AC` is stored in `9L` and brought back as a s
 
 ## The FORTRAN II Loader
 
+The boot loader for the final version of the FORTRAN II compiler is a tape-based loader. As with cards, the `RDS` read select operation is used to start reading a tape record. Tapes can be written in binary or decimal (character) format. The device number specified in the read select determines the format and tape unit. Unlike cards, tape records can have any number of words, so there is no need to indicate the record length in a control word. As described in [THE FORTRAN II AUTOMATIC CODING SYSTEM FOR RHW IBM 704, I.2.B](https://bitsavers.org/pdf/ibm/704/704_FORTRAN_II_OperMan.pdf), the loader expects a two word header in a record to be loaded. The first word is a checksum and the second is a control word whose address field is the address to start loading into, and whose decrement contains the transfer address.
+
 ```
                               REM 704 FORTRAN SELF LOADING RECORD 1 TO CS.
                               FUL
@@ -262,7 +272,87 @@ The unsigned computed checksum in `AC` is stored in `9L` and brought back as a s
 00032  0 76400 0 00441        BST 145
                               END
 ```
-This loader is from the final IBM 704 version of FORTRAN II. It has no labels for a very good reason: Other than the first few locations, the self-loader loads itself in reverse order.
+This loader contains 26 words, so it would not fit on a card. It contains no labels, and, if you skim it to try to understand what it is doing, it won't make any sense.
+
+The boot sequence selects the first tape unit for binary read, copies the first two words into locations `00000` and `00001`, and transfers to `00000`:
+```
+>00000  0 53400 1 00000        LXA 0,1
+ 00001  0 70000 1 00002        CPY 2,1
+```
+This time, index register 1 is used instead of index register 4, and it is initialized with `00000`. The next word is read into `00002`:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+ 00001  0 70000 1 00002        CPY 2,1
+>00002  1 00001 1 00001        TXI 1,1,1
+ IR1 = 00000
+```
+The previous loaders added `-1` to the index register, but `TXI 1,1,1` increments `IR1` and branches to `00001`:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+>00001  0 70000 1 00002        CPY 2,1
+ 00002  1 00001 1 00001        TXI 1,1,1
+ IR1 = 00001
+```
+Recall that the value in the index register is *subtracted* from the address field, so `CPY 2,1` will put the next word into location `00001`, not in `00003`, that is the instruction in `00003` in the listing replaces the instruction `00001` in memory:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+ 00001  0 70000 1 00031        CPY 25,1
+>00002  1 00001 1 00001        TXI 1,1,1
+ IR1 = 00001
+```
+`IR1` is again incremented, now to `00002`, and execution continues at the new `00001`:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+>00001  0 70000 1 00031        CPY 25,1
+ 00002  1 00001 1 00001        TXI 1,1,1
+ IR1 = 00002
+```
+The next word, `00004` in the listing, will be copied to `25-2`, i.e. location `00027`:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+ 00001  0 70000 1 00031        CPY 25,1
+>00002  1 00001 1 00001        TXI 1,1,1
+   .
+   .
+   .
+ 00027  0 00000 0 00003        HTR 3
+ IR1 = 00002
+```
+Copying will continue backwards until all 24 words on the card have been read:
+```
+ 00000  0 53400 1 00000        LXA 0,1
+>00001  0 70000 1 00031        CPY 25,1
+ 00002 -0 53400 1 00027        LTM
+ 00003  0 76400 0 00441        BST 145
+ 00004 -0 53400 1 00027        LXD 23,1
+ 00005  0 76200 0 00221        RTB 1
+ 00006  0 70000 0 00002        CPY 2
+ 00007  0 70000 0 00017        CPY 15
+ 00010 -0 50000 0 00017        CAL 15
+ 00011  0 62100 0 00015        STA 13
+ 00012  0 77100 0 00022        ARS 18
+ 00013  0 62100 0 00026        STA 22
+ 00014 -0 50000 0 00017        CAL 15
+ 00015 -0 70000 1 00000        CAD 0,1
+ 00016  1 77777 1 00015        TXI 13,1,-1
+ 00017  0 00000 0 00000        HTR 0
+ 00020  0 76600 0 00333        IOD
+ 00021 -0 76000 0 00012        RTT
+ 00022  0 02000 0 00027        TRA 23
+ 00023  0 76000 0 00006        COM
+ 00024  0 36100 0 00002        ACL 2 
+ 00025  0 76000 0 00006        COM
+ 00026  0 10000 0 00000        TZE 0
+ 00027  0 00000 0 00003        HTR 3
+ IR1 = 00027
+```
+The `CPY 25,1` in `00001` is now at the end of the record so execution transfers to `00004` with `LXD 23,1`. This sets `IR1` to the decrement of location `00027`, which is `00000`. The loader is now boot-loaded and ready to load.
+
+The `RTB 1` in `00005` is a read select for the first tape drive, to start reading the next record in binary mode. Two words are read; the first is stored in `00002` and the second in `00017`. The first word in the record, the checksum, is stored in `00002`. The second word, the control word, is stored in `00017`. In `00011` the address in `00015 CAD 0,1` is changed to the address from the control record. `CAD` is an undocumented instruction that combines a `CPY` and a `CAL` so that words can be read and checksummed at the same time. In `00012` the `ARS 18` puts the decrement, the transfer address, in the address position.
+
+Locations `00015-00016` are a tight loop copying words to memory and checksumming them. When the record ends, execution will continue at `00020`, `IOD`. This is an undocumented instrution that waits for pending IO operations since `MQ` is unstable until the IO completes. In `00021` the `RTT` redundanct tape test checks for tape problems and resets their indicators. The `RTT` can return to `00022` or `00023`. Since `00022` transfers to `00023`, the status from `RTT` is ignored.
+
+In `00023` the running checksum in `AC` is complemented by `COM` (not including the `S` bit, which will have been `0` all along) and added to the desired checksum. If the checksums were the same, this would result in all ones. The `COM` in `00025` will turn all the ones to all zeros. If `AC` is `0`, the `TZE` in `00026` will branch to the transfer address that was stored in `00026` by the the `STA` in `00013`. Otherwise there is a halt. Continuing the halt backspaces the tape one record.
 
 ## Sections
 
