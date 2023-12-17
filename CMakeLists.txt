@@ -12,8 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_STANDARD 20)
-
-if((NOT ${LLVM_DIR}) AND ${APPLE})
+if((NOT DEFINED ENV{LLVM_DIR}) AND ${APPLE})
     message(STATUS "Using homebrew llvm")
     EXECUTE_PROCESS(
         COMMAND brew --prefix llvm
