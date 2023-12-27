@@ -31,6 +31,7 @@ using sevenbit_t = std::byte;
 
 // Return with bit 6 set to give bits 0-6 even parity
 sevenbit_t evenParity(sixbit_t sixbit);
+bool isEvenParity(sevenbit_t sevenbit);
 const std::array<sevenbit_t, 1 << 6> &getEvenParityTable();
 // Return with bit 6 set to give bits 0-6 odd parity
 sevenbit_t oddParity(sixbit_t sixbit);

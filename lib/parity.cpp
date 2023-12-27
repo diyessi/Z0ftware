@@ -30,6 +30,10 @@ sevenbit_t evenParity(sixbit_t sixbit) {
   return sixbit | (result & sevenbit_t(0x40));
 }
 
+bool isEvenParity(sevenbit_t sevenbit) {
+  return sevenbit == evenParity(sevenbit);
+}
+
 const std::array<sevenbit_t, 1 << 6> &getEvenParityTable() {
   static auto init = []() {
     std::array<sevenbit_t, 1 << 6> table;
