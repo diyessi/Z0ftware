@@ -21,103 +21,199 @@
 // SOFTWARE.
 
 #include "Z0ftware/bcd.hpp"
+#include "Z0ftware/parity.hpp"
 
+#include <iostream>
+#include <set>
 #include <unordered_map>
+
+bcd_t tapeBCDfromBCD(bcd_t bcd) {
+  if (bcd == bcd_t(0)) {
+    return bcd_t(0b001010);
+  }
+  if (bcd_t(0) != (bcd & bcd_t(0b010000))) {
+    return bcd ^ bcd_t(0b100000);
+  }
+  return bcd;
+}
+
+bcd_t BCDFromColumn(column_t column) {
+  bcd_t bcd{0};
+  if (column == 0) {
+    return bcd_t(0b110000);
+  }
+  // Rows 9 to 1
+  for (int pos = 9; pos > 0; pos--) {
+    if (1 == (column & 0x1)) {
+      bcd |= bcd_t(pos);
+    }
+    column >>= 1;
+  }
+  bool hasZero = (1 == (column & 0x1));
+  column >>= 1;
+  if (column > 0) {
+    // Zone 11 or 12 is 1
+    if (hasZero) {
+      // Zero with a zone 11 or 12 is like a 10
+      bcd |= bcd_t(0b1010);
+    }
+    if (1 == (column & 0x1)) {
+      // Zone 11
+      bcd |= bcd_t(0b100000);
+    }
+    column >>= 1;
+    if (1 == (column & 0x1)) {
+      // Zone 12
+      bcd |= bcd_t(0b010000);
+    }
+  } else if (hasZero && bcd != bcd_t(0)) {
+    bcd |= bcd_t(0b110000);
+  }
+  return bcd;
+}
+
+bcd_t BCDfromPunches(const std::vector<uint8_t> &punches, bool forTape) {
+  if (punches.empty()) {
+    return bcd_t(forTape ? 0b010000 : 0b110000);
+  }
+
+  bcd_t bcd{0};
+  for (auto punch : punches) {
+    switch (punch) {
+    case 12: {
+      bcd |= bcd_t(forTape ? 0b110000 : 0b010000);
+      break;
+    }
+    case 11: {
+      bcd |= bcd_t(0b100000);
+      break;
+    }
+    case 0: {
+      // 0 is a zone if more than one punch
+      if (punches.size() == 1) {
+        bcd |= bcd_t(forTape ? 0b001010 : 0b000000);
+      } else if (*punches.begin() == 0) {
+        bcd |= bcd_t(forTape ? 0b010000 : 0b110000);
+      } else {
+        bcd |= bcd_t(0b001010);
+      }
+      break;
+    }
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9: {
+      bcd |= bcd_t(punch);
+      break;
+    }
+    }
+  }
+  return bcd;
+}
+
+bcd_t tapeBCDParity(const std::vector<uint8_t> &rows) {
+  return evenParity(BCDfromPunches(rows, true));
+}
 
 namespace {
 struct BCD_ASCII {
-  std::uint8_t bcd;
+  bcd_t bcd;
   char32_t ascii;
 };
 
 // clang-format off
-// From page 62, Philip M. Sherman, PROGRAMMING AND CODING THE IBM 709-7090-7094 COMPUTERS, 1963.
+// From page 209, Philip M. Sherman, PROGRAMMING AND CODING THE IBM 709-7090-7094 COMPUTERS, 1963.
+// https://bitsavers.org/pdf/ibm/7090/books/Sherman_Programming_and_Coding_the_IBM_709-7090-7094_Computers_1963.pdf
 BCD_ASCII bcd704[] = {
-    {000, '0'},
-    {001, '1'},
-    {002, '2'},
-    {003, '3'},
-    {004, '4'},
-    {005, '5'},
-    {006, '6'},
-    {007, '7'},
-    {010, '8'},
-    {011, '9'},
-    {012, '\\'},
-    {013, '='},
-    {014, '"'},
-    // 029 code
-    {015, '\''},
-    // 029 code
-    {016, '@'},
-    // Based on .bcd files
-    {017, '"'},
-    {020, '+'},
-    {021, 'A'},
-    {022, 'B'},
-    {023, 'C'},
-    {024, 'D'},
-    {025, 'E'},
-    {026, 'F'},
-    {027, 'G'},
-    {030, 'H'},
-    {031, 'I'},
-    // Based on .bcd files
-    {032, '?'},
-    {033, '.'},
-    {034, ')'},
-    // 029 code
-    {035, '('},
-    // 029 code
-    {036, '+'},
-    {037, '|'},
-    {040, '-'},
-    {041, 'J'},
-    {042, 'K'},
-    {043, 'L'},
-    {044, 'M'},
-    {045, 'N'},
-    {046, 'O'},
-    {047, 'P'},
-    {050, 'Q'},
-    {051, 'R'},
-    // Used on tape
-    {052, 'o'},
-    {053, '$'},
-    {054, '*'},
-    // 029 code
-    {055, ')'},
-    // 029 code
-    {056, ';'},
-    // 029 code ¬
-    {057, '~'},
-    {060, ' '},
-    {061, '/'},
-    {062, 'S'},
-    {063, 'T'},
-    {064, 'U'},
-    {065, 'V'},
-    {066, 'W'},
-    {067, 'X'},
-    {070, 'Y'},
-    {071, 'Z'},
-    // 029 ¢
-    {072, 'c'},
-    {073, ','},
-    {074, '('},
-    // 029 code
-    {075, '_'},
-    // 029 code
-    {076, '>'},
-    // 029 code
-    {077, '?'}
+    {bcd_t(000), '0'},
+    {bcd_t(001), '1'},
+    {bcd_t(002), '2'},
+    {bcd_t(003), '3'},
+    {bcd_t(004), '4'},
+    {bcd_t(005), '5'},
+    {bcd_t(006), '6'},
+    {bcd_t(007), '7'},
+    {bcd_t(010), '8'},
+    {bcd_t(011), '9'},
+    // '0' on tape
+    {bcd_t(012), '0'},
+    {bcd_t(013), '='},
+    {bcd_t(014), '"'},
+    {bcd_t(020), '+'},
+    {bcd_t(021), 'A'},
+    {bcd_t(022), 'B'},
+    {bcd_t(023), 'C'},
+    {bcd_t(024), 'D'},
+    {bcd_t(025), 'E'},
+    {bcd_t(026), 'F'},
+    {bcd_t(027), 'G'},
+    {bcd_t(030), 'H'},
+    {bcd_t(031), 'I'},
+    {bcd_t(033), '.'},
+    {bcd_t(034), ')'},
+    {bcd_t(040), '-'},
+    {bcd_t(041), 'J'},
+    {bcd_t(042), 'K'},
+    {bcd_t(043), 'L'},
+    {bcd_t(044), 'M'},
+    {bcd_t(045), 'N'},
+    {bcd_t(046), 'O'},
+    {bcd_t(047), 'P'},
+    {bcd_t(050), 'Q'},
+    {bcd_t(051), 'R'},
+    {bcd_t(053), '$'},
+    {bcd_t(054), '*'},
+    {bcd_t(060), ' '},
+    {bcd_t(061), '/'},
+    {bcd_t(062), 'S'},
+    {bcd_t(063), 'T'},
+    {bcd_t(064), 'U'},
+    {bcd_t(065), 'V'},
+    {bcd_t(066), 'W'},
+    {bcd_t(067), 'X'},
+    {bcd_t(070), 'Y'},
+    {bcd_t(071), 'Z'},
+    {bcd_t(073), ','},
+    {bcd_t(074), '('},
 };
+
+// MAP in is270-2 pr130-6 defines codes for "- 029" 029 key punch characters
+BCD_ASCII mapTape[] = {
+    // 029 codes
+    {bcd_t(015), '\''},
+    {bcd_t(016), '@'},
+    {bcd_t(035), '('},
+    {bcd_t(036), '+'},
+    {bcd_t(055), ')'},
+
+    // 029 card example
+    {bcd_t(037), '|'},
+    {bcd_t(056), ';'},
+    {bcd_t(057), '~'},
+    {bcd_t(072), 'c'},
+    {bcd_t(075), '_'},
+    {bcd_t(076), '>'},
+    {bcd_t(077), '?'},
+
+    // Used on tape
+    {bcd_t(052), 'o'},
+    // Based on .bcd files
+    {bcd_t(017), '"'},
+    // Based on .bcd files
+    {bcd_t(032), '?'},
+};
+
 // clang-format on
 } // namespace
 
 bcd_t BCDFromChar(char ascii) {
   static auto buildTable = []() {
-    std::unordered_map<char32_t, std::uint8_t> table;
+    std::unordered_map<char32_t, bcd_t> table;
     for (auto bcd : bcd704) {
       table[bcd.ascii] = bcd.bcd;
     }
@@ -125,12 +221,12 @@ bcd_t BCDFromChar(char ascii) {
   };
   static auto table = buildTable();
   auto it = table.find(ascii);
-  return it == table.end() ? 0x7f : it->second;
+  return it == table.end() ? bcd_t(0x7f) : it->second;
 }
 
 char charFromBCD(bcd_t bcd) {
   static auto buildTable = []() {
-    std::unordered_map<std::uint8_t, char32_t> table;
+    std::unordered_map<bcd_t, char32_t> table;
     for (auto bcd : bcd704) {
       table[bcd.bcd] = bcd.ascii;
     }
@@ -141,12 +237,35 @@ char charFromBCD(bcd_t bcd) {
   return it == table.end() ? 0x7f : it->second;
 }
 
+char ASCIIFromTapeBCD(bcd_t bcd) {
+  static auto table = []() {
+    std::array<char32_t, 128> table;
+    for (auto cu : getFORTRANIVEncoding()) {
+      auto tapeBCD = tapeBCDfromBCD(BCDFromColumn(cu.column));
+      table[unsigned(evenParity(tapeBCD))] = cu.unicode;
+    }
+    return table;
+  }();
+  static char fill{'a'};
+  auto i = unsigned(bcd & bcd_t(0x3F));
+  char c = table[i];
+  if (c == '\0') {
+    std::cout << "\n*** SUB " << std::hex << int(i) << " '" << fill
+              << "' ***\n";
+    c = fill++;
+    table[i] = c;
+  }
+  return c;
+}
+
 /// Convert first 6 ASCII chars to big-endian bcd chars
 /// If less than 6, pad right with spaces
 uint64_t bcd(std::string_view chars) {
-  std::uint64_t result = BCDFromChar(chars.empty() ? ' ' : chars[0]);
+  std::uint64_t result =
+      std::uint64_t(BCDFromChar(chars.empty() ? ' ' : chars[0]));
   for (int i = 1; i < 6; ++i) {
-    result = (result << 6) | BCDFromChar(i < chars.size() ? chars[i] : ' ');
+    result = (result << 6) |
+             std::uint64_t(BCDFromChar(i < chars.size() ? chars[i] : ' '));
   }
   return result;
 }

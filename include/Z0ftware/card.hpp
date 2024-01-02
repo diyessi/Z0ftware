@@ -28,6 +28,8 @@
 #include "Z0ftware/word.hpp"
 
 #include <algorithm>
+#include <map>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -38,6 +40,41 @@ constexpr unsigned cardColumnLast = 80;
 
 using column_t = unsigned_t<numCardRows>;
 using row_t = unsigned_t<numCardColumns>;
+
+// Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
+// Bit: 11 10    9 8 7 6 5 4 3 2 1 0
+inline constexpr unsigned positionFromRow(unsigned row) {
+  return row < 10 ? 9 - row : row - 1;
+}
+
+template <typename ROWS = std::vector<unsigned>>
+constexpr column_t columnFromRows(const ROWS &rows) {
+  column_t column{0};
+  for (auto &row : rows) {
+    column |= (1 << positionFromRow(row));
+  }
+  return column;
+}
+
+struct ColumnChar {
+  template <typename ROWS>
+  ColumnChar(const ROWS &rows, char32_t unicode)
+      : column(columnFromRows(rows)), unicode(unicode) {}
+  template <typename T>
+  ColumnChar(const std::initializer_list<T> &rows, char32_t unicode)
+      : column(columnFromRows(rows)), unicode(unicode) {}
+
+  ColumnChar(column_t column, char32_t unicode)
+      : column(column), unicode(unicode) {}
+  column_t column;
+  char32_t unicode;
+};
+
+const std::vector<ColumnChar> &get029Encoding();
+const std::vector<ColumnChar> &get026CommercialEncoding();
+const std::vector<ColumnChar> &getFAPEncoding();
+const std::vector<ColumnChar> &getFORTRAN704Encoding();
+const std::vector<ColumnChar> &getFORTRANIVEncoding();
 
 using CardTextField = TextField<cardColumnFirst, cardColumnLast>;
 

@@ -33,18 +33,33 @@
 #ifndef Z0FTWARE_BCD_HPP
 #define Z0FTWARE_BCD_HPP
 
+#include "Z0ftware/card.hpp"
+
 #include <array>
 #include <cstdint>
 #include <string>
 
-using bcd_t = std::uint8_t;
+using bcd_t = std::byte;
 
 constexpr size_t bcdBits = 6;
 constexpr size_t bcdSize = 1 << bcdBits;
 
+// Decode tape bcd with even parity
+char32_t char32Decoder(bcd_t tapeBCD);
+
 char charFromBCD(bcd_t bcd);
+char ASCIIFromTapeBCD(bcd_t bcd);
 bcd_t BCDFromChar(char ascii);
 std::array<std::uint8_t, bcdSize> bcdEvenParity();
 uint64_t bcd(std::string_view chars);
 
+// Given selected card rows, ordered top to bottom, return the BCD value for
+// tape
+bcd_t BCDfromPunches(const std::vector<uint8_t> &punches, bool forTape);
+bcd_t tapeBCDParity(const std::vector<uint8_t> &punches);
+
+bcd_t BCDFromColumn(column_t column);
+bcd_t tapeBCDfromBCD(bcd_t bcd);
+
+void compareASCII();
 #endif

@@ -27,6 +27,291 @@
 #include <cassert>
 #include <iostream>
 
+// Everything shares the original encoding
+// https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/024-026/A24-0520-3_24_26_Card_Punch_Reference_Manual_Oct1965.pdf
+// Page 6
+const std::vector<ColumnChar> &getBaseCardEncoding() {
+  static std::vector<ColumnChar> table = {
+      // Blank
+      {{}, ' '},
+      // Digits
+      {{0}, '0'},
+      {{1}, '1'},
+      {{2}, '2'},
+      {{3}, '3'},
+      {{4}, '4'},
+      {{5}, '5'},
+      {{6}, '6'},
+      {{7}, '7'},
+      {{8}, '8'},
+      {{9}, '9'},
+      // Alphabetis
+      {{12, 1}, 'A'},
+      {{12, 2}, 'B'},
+      {{12, 3}, 'C'},
+      {{12, 4}, 'D'},
+      {{12, 5}, 'E'},
+      {{12, 6}, 'F'},
+      {{12, 7}, 'G'},
+      {{12, 8}, 'H'},
+      {{12, 9}, 'I'},
+      {{11, 1}, 'J'},
+      {{11, 2}, 'K'},
+      {{11, 3}, 'L'},
+      {{11, 4}, 'M'},
+      {{11, 5}, 'N'},
+      {{11, 6}, 'O'},
+      {{11, 7}, 'P'},
+      {{11, 8}, 'Q'},
+      {{11, 9}, 'R'},
+      {{0, 2}, 'S'},
+      {{0, 3}, 'T'},
+      {{0, 4}, 'U'},
+      {{0, 5}, 'V'},
+      {{0, 6}, 'W'},
+      {{0, 7}, 'X'},
+      {{0, 8}, 'Y'},
+      {{0, 9}, 'Z'},
+  };
+  return table;
+}
+
+namespace {
+std::vector<ColumnChar> createBCDEncoding(std::vector<ColumnChar> &&symbols) {
+  auto table = getBaseCardEncoding();
+  table.reserve(table.size() + symbols.size());
+  std::move(symbols.begin(), symbols.end(), std::inserter(table, table.end()));
+  return table;
+}
+} // namespace
+
+// https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/024-026/A24-0520-3_24_26_Card_Punch_Reference_Manual_Oct1965.pdf
+// Page 6
+const std::vector<ColumnChar> &get026CommercialEncoding() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+      //
+      {{12}, '&'},
+      {{12, 3, 8}, '.'},
+      {{12, 4, 8}, u'¤'},
+      //
+      {{11}, '-'},
+      {{11, 3, 8}, '$'},
+      {{11, 4, 8}, '*'},
+      //
+      {{0, 1}, '/'},
+      {{0, 3, 8}, ','},
+      //
+      {{3, 8}, '#'},
+      {{4, 8}, '@'}
+      //
+  });
+  return table;
+}
+
+// From:
+// https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/029/A24-3332-3_29_Reference_Man.pdf
+// page 5
+const std::vector<ColumnChar> &get029Encoding() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+      //
+      {{12}, '&'},
+      {{12, 2, 8}, u'¢'},
+      {{12, 3, 8}, '.'},
+      {{12, 4, 8}, '<'},
+      {{12, 5, 8}, '('},
+      {{12, 6, 8}, '+'},
+      {{12, 7, 8}, '|'},
+      //
+      {{11}, '-'},
+      {{11, 2, 8}, '!'},
+      {{11, 3, 8}, '$'},
+      {{11, 4, 8}, '*'},
+      {{11, 5, 8}, ')'},
+      {{11, 6, 8}, ';'},
+      {{11, 7, 8}, u'¬'},
+      //
+      {{0, 1}, '/'},
+      {{0, 2, 8}, ' '},
+      {{0, 3, 8}, ','},
+      {{0, 4, 8}, '%'},
+      {{0, 5, 8}, '_'},
+      {{0, 6, 8}, '>'},
+      {{0, 7, 8}, '?'},
+      //
+      {{2, 8}, ':'},
+      {{3, 8}, '#'},
+      {{4, 8}, '@'},
+      {{5, 8}, '\''},
+      {{6, 8}, '='},
+      {{7, 8}, '"'}
+      //
+  });
+  return table;
+}
+
+// https://bitsavers.org/pdf/ibm/704/704_FortranProgRefMan_Oct56.pdf
+// Page 49
+const std::vector<ColumnChar> &getFOTRAN704Encoding() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+      {{8, 3}, '='},
+      // This - cannot be used as a - operation in FORTRAN
+      {{8, 4}, '-'},
+      {{12}, '+'},
+      {{12, 8, 3}, '.'},
+      {{12, 8, 4}, ')'},
+      {{11}, '-'},
+      {{11, 8, 3}, '$'},
+      {{11, 8, 4}, '*'},
+      {{0, 1}, '/'},
+      {{0, 8, 3}, ','},
+      {{0, 8, 4}, '('},
+  });
+  return table;
+}
+
+// http://www.bitsavers.org/pdf/ibm/7090/C28-6235-2_7090_FAP.pdf
+// Page 68
+// https://bitsavers.org/pdf/ibm/7090/C28-6054-4_7090_FORTRANII.pdf
+// Page 46
+// https://bitsavers.org/pdf/ibm/7090/C28-6311-4_MAP_Oct64.pdf
+// Page 56
+// https://bitsavers.org/pdf/ibm/7090/GC28-6392-4_MAP_Dec66.pdf
+// Page 58
+const std::vector<ColumnChar> &getFAPEncoding() {
+  static std::vector<ColumnChar> table = createBCDEncoding(
+      {{columnFromRows({}), ' '},
+       {{12}, '+'},
+       {{11}, '-'},
+       {{0, 1}, '/'},
+       {{8, 3}, '='},
+       // Was `-` in older versions, note not corrected on page
+       {{8, 4}, '\''},
+       {{12, 8, 3}, '.'},
+       {{12, 8, 4}, ')'},
+       {{11, 8, 3}, '$'},
+       {{11, 8, 4}, '*'},
+       {{0, 8, 3}, ','},
+       {{0, 8, 4}, '('}});
+  return table;
+}
+
+// https://bitsavers.org/pdf/ibm/7090/C28-6274-1_7090_FORTRANIV.pdf
+// Page 33
+const std::vector<ColumnChar> &getFORTRANIVEncoding() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+      //
+      {{8, 3}, '='},
+      {{8, 4}, '\''},
+      {{12}, '+'},
+      {{12, 8, 3}, '.'},
+      {{12, 8, 4}, ')'},
+      {{11}, '-'},
+      {{11, 8, 3}, '$'},
+      {{11, 8, 4}, '*'},
+      {{0, 1}, '/'},
+      {{0, 8, 3}, ','},
+      {{0, 8, 4}, '('}
+      //
+  });
+  return table;
+}
+
+// https://bitsavers.org/pdf/ibm/magtape/A22-6589-1_magTapeReference_Jun62.pdf
+// Page 8
+// Comercial collating sequence
+// See https://bitsavers.org/pdf/ibm/7090/C28-6365-1_genSort_Sep64.pdf
+// Page 7
+const std::vector<ColumnChar> &getBCDIC1() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+      //
+      {{12, 3, 8}, '.'},
+      {{12, 4, 8}, u'¤'},
+      {{12, 5, 8}, '['},
+      {{12, 6, 8}, '<'},
+      // Triple dagger
+      {{12, 7, 8}, u'\u2E4B'},
+      {{12}, '&'},
+      {{11, 3, 8}, '$'},
+      {{11, 4, 8}, '*'},
+      {{11, 5, 8}, ']'},
+      {{11, 6, 8}, ';'},
+      // Triangle
+      {{11, 7, 8}, u'\u25B3'},
+      {{11}, '-'},
+      {{0, 1}, '/'},
+      {{0, 3, 8}, ','},
+      {{0, 4, 8}, '%'},
+      // Gamma-like thing
+      {{0, 5, 8}, u'\u0194'},
+      {{0, 6, 8}, '\\'},
+      // Triple plus
+      {{0, 7, 8}, u'\u29FB'},
+      // Encoding used for 0 on tape
+      {{2, 8}, '0'},
+      {{3, 8}, '#'},
+      {{4, 8}, '@'},
+      {{5, 8}, ':'},
+      {{6, 8}, '>'},
+      // square root
+      {{7, 8}, u'\u221A'},
+      // Equivalent to 12-2-8
+      {{12, 0}, '?'},
+      {{11, 0}, '!'},
+      {{0, 2, 8}, u'‡'},
+      //
+  });
+  return table;
+}
+
+// https://bitsavers.org/pdf/ibm/magtape/A22-6589-1_magTapeReference_Jun62.pdf
+// Page 8
+// Comercial collating sequence
+// See https://bitsavers.org/pdf/ibm/7090/C28-6365-1_genSort_Sep64.pdf
+// Page 7
+const std::vector<ColumnChar> &getBCDIC2() {
+  static std::vector<ColumnChar> table = createBCDEncoding({
+
+      //
+      {{}, ' '},
+      {{12, 3, 8}, '.'},
+      {{12, 4, 8}, ')'},
+      {{12, 5, 8}, '['},
+      {{12, 6, 8}, '<'},
+      // Triple dagger
+      {{12, 7, 8}, u'\u2E4B'},
+      {{12}, '+'},
+      {{11, 3, 8}, '$'},
+      {{11, 4, 8}, '*'},
+      {{11, 5, 8}, ']'},
+      {{11, 6, 8}, ';'},
+      // Triangle
+      {{11, 7, 8}, u'\u25B3'},
+      {{11}, '-'},
+      {{0, 1}, '/'},
+      {{0, 3, 8}, ','},
+      {{0, 4, 8}, '('},
+      // Gamma-like thing
+      {{0, 5, 8}, u'\u0194'},
+      {{0, 6, 8}, '\\'},
+      // Triple plus
+      {{0, 7, 8}, u'\u29FB'},
+      // Used for 0 on tape. Strange character in table
+      {{2, 8}, '0'},
+      {{3, 8}, '='},
+      {{4, 8}, '\''},
+      {{5, 8}, ':'},
+      {{6, 8}, '>'},
+      // square root
+      {{7, 8}, u'\u221A'},
+      // Equivalent to 12-2-8
+      {{12, 0}, '?'},
+      {{11, 0}, '!'},
+      {{0, 2, 8}, u'‡'},
+      //
+  });
+  return table;
+}
+
 SAPDeck::SAPDeck(std::istream &stream) {
   char cardText[81];
   while (stream.good()) {
