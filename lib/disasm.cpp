@@ -49,14 +49,14 @@ void disassemble(std::ostream &output, addr_t location, word_t word) {
          << "      "
          << " ";
   if (opCode == opSpec->getOpCode()) {
-    output << opSpec->getOperation() << " " << (address - opSpec->getAddress());
+    output << std::dec << opSpec->getOperation() << " " << (address - opSpec->getAddress());
     output << "," << tag;
     if (decrement != 0) {
       output << "," << decrement;
     }
   } else {
     output << "OCT"
-           << " " << word;
+           << " " << std::oct << word;
   }
 }
 
