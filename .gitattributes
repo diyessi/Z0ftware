@@ -1,2 +1,7 @@
+*.bcd binary
+*.bin binary
 *.cbn binary
+*.data binary
 *.dck binary
+*.jpg binary
+*.pdf binary

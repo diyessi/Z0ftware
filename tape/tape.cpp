@@ -48,66 +48,80 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
 
 llvm::cl::opt<unsigned> cardWidth("w", llvm::cl::desc("card-width"),
                                   llvm::cl::init(84));
+
+llvm::cl::opt<bool>
+    columnBinary("column-binary",
+                 llvm::cl::desc("binary is in column-binary format"),
+                 llvm::cl::init(false));
 } // namespace
 
-enum class ReadKind { Data, EndOfRecord, EndOfFile, EndOfMedia, EndOfInput };
-
-using tape_event_handler_t =
-    std::function<void(ReadKind, char *begin, char *end)>;
+// tapePos is byte position of record start on tape
+// record.empty() => EOF
+using tape_event_handler_t = std::function<void(size_t tapePos, bool isBinary,
+                                                std::vector<char> &record)>;
 
 void readTape(std::istream &input, tape_event_handler_t handler) {
-  using buffer_t = std::array<char, 1024>;
-  buffer_t buffer;
-  auto bufferPos = buffer.begin();
+  // Every byte corresponds to one character on tape
+  // Bit 7 indicates the start of a new record.  One character 0x8F record
+  // indicates EOF. Bit 6 is parity. Binary records have odd parity, BCD records
+  // have even parity.
+  // EOF is a 1 byte record containing 0xF (plus parity).
+
+  // Start byte of current chunk on tape
+  size_t tapeChunkBegin{0};
+  // Start byte of current record on tape
+  size_t tapeRecordBegin{0};
+
+  std::vector<char> record;
+  std::array<char, 1024> buffer;
+  auto chunkBufferBegin = buffer.begin();
   auto bufferEnd = buffer.begin();
-  bool hasRecord{false};
+  char BORByte{'\0'};
   while (true) {
-    if (bufferPos == bufferEnd) {
+    if (chunkBufferBegin == bufferEnd) {
+      // Refill
+      chunkBufferBegin = buffer.begin();
       input.read(buffer.data(), buffer.size());
-      bufferPos = buffer.begin();
-      bufferEnd = bufferPos + input.gcount();
-      if (bufferPos == bufferEnd) {
-        handler(ReadKind::EndOfInput, nullptr, nullptr);
+      bufferEnd = chunkBufferBegin + input.gcount();
+      if (chunkBufferBegin == bufferEnd) {
         return;
       }
     }
-    auto recordChunkBegin = bufferPos;
-    while (bufferPos < bufferEnd) {
-      if ((std::byte(*bufferPos) & std::byte(0x80)) == std::byte(0x80)) {
-        // Beginning of next record
-        break;
-      }
-      bufferPos++;
+    // Scan for the next begin of record mark
+    auto BORBufferPos = std::find_if(chunkBufferBegin, bufferEnd, [](char c) {
+      return std::byte(0x80) == (std::byte(c) & std::byte(0x80));
+    });
+    auto chunkSize = (BORBufferPos - chunkBufferBegin);
+    if (chunkSize > 0) {
+      auto recordSize = tapeChunkBegin + chunkSize - tapeRecordBegin;
+      // Add data to the current record
+      std::copy(chunkBufferBegin, BORBufferPos, std::back_inserter(record));
+      tapeChunkBegin += chunkSize;
+      chunkBufferBegin += chunkSize;
     }
-    if (recordChunkBegin == bufferPos) {
-      // No more data in this record chunk
-      auto c = std::byte(*bufferPos);
-      if (hasRecord) {
-        handler(ReadKind::EndOfRecord, nullptr, nullptr);
-      }
-      if (c == std::byte(0x8F)) {
-        // Take byte
-        bufferPos++;
-        if (hasRecord) {
-          handler(ReadKind::EndOfFile, nullptr, nullptr);
-        } else {
-          handler(ReadKind::EndOfMedia, nullptr, nullptr);
-        }
-        hasRecord = false;
-        continue;
-      }
-      hasRecord = true;
-      *bufferPos = char(std::byte(*bufferPos) & std::byte(0x7F));
+    if (chunkBufferBegin == buffer.end()) {
+      // Didn't find BOR in buffer, get more bytes
       continue;
     }
-    handler(ReadKind::Data, recordChunkBegin, bufferPos);
+    if (tapeRecordBegin < tapeChunkBegin) {
+      if (record.size() == 1 && ((record[0] & 0x0F) == 0x0F)) {
+        record.clear();
+      }
+      auto evenCount = std::count_if(record.begin(), record.end(), [](char c) {
+        return isEvenParity(sixbit_t(c));
+      });
+      handler(tapeRecordBegin, evenCount * 2 < record.size(), record);
+      record.clear();
+    }
+    *chunkBufferBegin &= 0x7F;
+    tapeRecordBegin = tapeChunkBegin;
   }
 }
 
 class ReadHandler {
 public:
-  ReadHandler(std::istream &input, size_t cardWidth)
-      : input_(input), cardWidth_(cardWidth) {}
+  ReadHandler(std::istream &input, size_t cardWidth, bool columnBinary)
+      : input_(input), cardWidth_(cardWidth), columnBinary_(columnBinary) {}
 
   // Use c as the character for in-memory bcd
   void setChar(bcd_t bcd, char32_t c) {
@@ -120,117 +134,112 @@ public:
     table_[char(tapeBCD)] = c;
   }
 
-  void operator()(ReadKind readKind, char *begin, char *end) {
-    switch (readKind) {
-    case ReadKind::Data: {
-      // Capture the entire record before processing so we can get parity counts
-      std::copy(begin, end, std::back_inserter(record_));
-      break;
+  void operator()(size_t tapePos, bool isBinary, std::vector<char> &record) {
+    if (record.empty()) {
+      std::cout << "--- EOF ---\n";
+      return;
     }
-    case ReadKind::EndOfRecord: {
-      auto recordSize = record_.size();
-      size_t evenCount = 0;
-      for (auto it = record_.begin(); it != record_.end(); ++it) {
-        if (isEvenParity(sixbit_t(*it))) {
-          evenCount++;
+    auto recordSize = record.size();
+    if (isBinary) {
+      // Binary data
+      if (columnBinary) {
+        while (record.size() % (2 * cardWidth_) != 0) {
+          record.push_back(0x40);
         }
-      }
-      if (evenCount * 2 < recordSize) {
-        // Binary data
-        while ((record_.size() % 6) != 0) {
-          record_.push_back(0);
+        size_t loc{0};
+        for (size_t i = 0; i < record.size(); i += 2 * cardWidth_) {
+          BinaryColumnCard columnCard;
+          auto &columns = columnCard.getColumns();
+          for (size_t j = 0; j < lineSize_; ++j) {
+            columns[j] = (record[i + j] & 0x3F) | ((record[i + j + 1] & 0x3F) << 6);
+          }
+          BinaryRowCard rowCard(columnCard);
+          auto &rows = rowCard.getRows();
+          for (size_t j = 0; j < 24; ++j) {
+            disassemble(std::cout, addr_t(loc++), rows[j]);
+            std::cout << "\n";
+          }
+        }
+      } else {
+        while ((record.size() % 6) != 0) {
+          record.push_back(0);
         }
         for (size_t i = 0; i < recordSize;) {
           word_t word{0};
-          dpb<30, 6>(record_[i++], word);
-          dpb<24, 6>(record_[i++], word);
-          dpb<18, 6>(record_[i++], word);
-          dpb<12, 6>(record_[i++], word);
-          dpb<6, 6>(record_[i++], word);
-          dpb<0, 6>(record_[i++], word);
+          dpb<30, 6>(record[i++], word);
+          dpb<24, 6>(record[i++], word);
+          dpb<18, 6>(record[i++], word);
+          dpb<12, 6>(record[i++], word);
+          dpb<6, 6>(record[i++], word);
+          dpb<0, 6>(record[i++], word);
           disassemble(std::cout, addr_t(i / 6 - 1), word);
           std::cout << "\n";
         }
-      } else {
-        // BCD data
-        auto it = record_.begin();
-        while (it < record_.end()) {
-          auto thisWhack =
-              std::min<size_t>(cardWidth_ - lineSize_, record_.end() - it);
-          auto thisEnd = it + thisWhack;
-          std::ostringstream buffer;
-          while (it < thisEnd) {
-            char c;
-            auto tapeBCD = *it++;
-            auto charit = table_.find(tapeBCD);
-            if (charit != table_.end()) {
-              c = charit->second;
-            } else if (isEvenParity(bcd_t(tapeBCD))) {
-              // Unmapped character
-              c = 'a' + unmapped_.size();
-              unmapped_[tapeBCD] = c;
-              table_[tapeBCD] = c;
-              std::cout << "*** Unmapped " << std::hex << std::setw(2)
-                        << std::setfill('0') << int(tapeBCD) << " '" << c
-                        << "'\n";
-            } else {
-              // Bad parity, search for neighbors
-              std::vector<char> candidates;
-              unsigned char bit = 1;
-              do {
-                char bitc = tapeBCD ^ bit;
-                auto cit = table_.find(bitc);
-                if (cit != table_.end()) {
-                  candidates.push_back(cit->second);
-                }
-                bit <<= 1;
-              } while (bit != 1 << 7);
-              std::cout << "*** Parity " << std::hex << std::setw(2)
-                        << std::setfill('0') << int(tapeBCD) << " {";
-              for (auto nc : candidates) {
-                std::cout << nc;
+      }
+    } else {
+      // BCD data
+      auto it = record.begin();
+      while (it < record.end()) {
+        auto thisWhack =
+            std::min<size_t>(cardWidth_ - lineSize_, record.end() - it);
+        auto thisEnd = it + thisWhack;
+        std::ostringstream buffer;
+        while (it < thisEnd) {
+          char c;
+          auto tapeBCD = *it++;
+          auto charit = table_.find(tapeBCD);
+          if (charit != table_.end()) {
+            c = charit->second;
+          } else if (isEvenParity(bcd_t(tapeBCD))) {
+            // Unmapped character
+            c = 'a' + unmapped_.size();
+            unmapped_[tapeBCD] = c;
+            table_[tapeBCD] = c;
+            std::cout << "*** Unmapped " << std::hex << std::setw(2)
+                      << std::setfill('0') << int(tapeBCD) << " '" << c
+                      << "'\n";
+          } else {
+            // Bad parity, search for neighbors
+            std::vector<char> candidates;
+            unsigned char bit = 1;
+            do {
+              char bitc = tapeBCD ^ bit;
+              auto cit = table_.find(bitc);
+              if (cit != table_.end()) {
+                candidates.push_back(cit->second);
               }
-              std::cout << "}\n";
-              c = 'x';
+              bit <<= 1;
+            } while (bit != 1 << 7);
+            std::cout << "*** Parity " << std::hex << std::setw(2)
+                      << std::setfill('0') << int(tapeBCD) << " {";
+            for (auto nc : candidates) {
+              std::cout << nc;
             }
-            buffer << c;
+            std::cout << "}\n";
+            c = 'x';
           }
-          std::cout << buffer.str();
-          lineSize_ += thisWhack;
-          if (lineSize_ == cardWidth_) {
-            std::cout << '\n';
-            lineSize_ = 0;
-          }
+          buffer << c;
+        }
+        std::cout << buffer.str();
+        lineSize_ += thisWhack;
+        if (lineSize_ == cardWidth_) {
+          std::cout << '\n';
+          lineSize_ = 0;
         }
       }
-      record_.clear();
-      if (lineSize_ > 0) {
-        std::cout << '\n';
-        lineSize_ = 0;
-      }
-      std::cout << "--- EOR ---\n";
-      break;
     }
-    case ReadKind::EndOfFile: {
-      std::cout << "--- EOF ---\n";
-      break;
+    if (lineSize_ > 0) {
+      std::cout << '\n';
+      lineSize_ = 0;
     }
-    case ReadKind::EndOfMedia: {
-      std::cout << "--- EOT ---\n";
-      break;
-    }
-    case ReadKind::EndOfInput: {
-      std::cout << "--- EndOfInput ---\n";
-      break;
-    }
-    }
+    std::cout << "--- EOR " << std::dec << recordSize << " ---\n";
   }
 
 private:
   std::istream &input_;
-  std::vector<char> record_;
   size_t lineSize_{0};
   size_t cardWidth_{0};
+  bool columnBinary_{false};
   std::unordered_map<char, char32_t> table_;
   std::unordered_map<char, char> unmapped_;
 };
@@ -248,7 +257,7 @@ int main(int argc, const char **argv) {
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
-    ReadHandler handler(input, cardWidth);
+    ReadHandler handler(input, cardWidth, columnBinary);
     for (auto colUni : get029Encoding()) {
       handler.setChar(BCDFromColumn(colUni.column), colUni.unicode);
     }

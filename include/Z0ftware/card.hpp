@@ -112,6 +112,7 @@ class BinaryColumnCard {
   friend BinaryRowCard;
 
 public:
+  BinaryColumnCard() = default;
   BinaryColumnCard(const BinaryRowCard &card) { fill(card); }
 
   const auto &getColumns() const { return columns_; }
