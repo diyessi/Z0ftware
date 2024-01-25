@@ -151,7 +151,7 @@ const std::vector<ColumnChar> &get029Encoding() {
 
 // https://bitsavers.org/pdf/ibm/704/704_FortranProgRefMan_Oct56.pdf
 // Page 49
-const std::vector<ColumnChar> &getFOTRAN704Encoding() {
+const std::vector<ColumnChar> &getFORTRAN704Encoding() {
   static std::vector<ColumnChar> table = createBCDEncoding({
       {{8, 3}, '='},
       // This - cannot be used as a - operation in FORTRAN

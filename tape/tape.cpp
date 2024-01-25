@@ -46,13 +46,18 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
                                            llvm::cl::desc("<Input files>"),
                                            llvm::cl::OneOrMore);
 
-llvm::cl::opt<unsigned> cardWidth("w", llvm::cl::desc("card-width"),
+llvm::cl::opt<unsigned> cardWidth("w",
+                                  llvm::cl::desc("card-width (default 84)"),
                                   llvm::cl::init(84));
 
-llvm::cl::opt<bool>
-    columnBinary("column-binary",
-                 llvm::cl::desc("binary is in column-binary format"),
-                 llvm::cl::init(false));
+enum Encoding { IBM704, CP29 };
+
+llvm::cl::opt<Encoding> encoding(
+    "encoding", llvm::cl::desc("Character encoding (default 704)"),
+    values(clEnumValN(Encoding::IBM704, "704", "FORTRAN encoding for IBM 704"),
+           clEnumValN(Encoding::CP29, "029", "IBM 029 Card Punch")),
+    llvm::cl::init(Encoding::IBM704));
+
 } // namespace
 
 // tapePos is byte position of record start on tape
@@ -120,8 +125,8 @@ void readTape(std::istream &input, tape_event_handler_t handler) {
 
 class ReadHandler {
 public:
-  ReadHandler(std::istream &input, size_t cardWidth, bool columnBinary)
-      : input_(input), cardWidth_(cardWidth), columnBinary_(columnBinary) {}
+  ReadHandler(std::istream &input, size_t cardWidth)
+      : input_(input), cardWidth_(cardWidth) {}
 
   // Use c as the character for in-memory bcd
   void setChar(bcd_t bcd, char32_t c) {
@@ -141,40 +146,23 @@ public:
     }
     auto recordSize = record.size();
     if (isBinary) {
+
       // Binary data
-      if (columnBinary) {
-        while (record.size() % (2 * cardWidth_) != 0) {
-          record.push_back(0x40);
-        }
-        size_t loc{0};
-        for (size_t i = 0; i < record.size(); i += 2 * cardWidth_) {
-          BinaryColumnCard columnCard;
-          auto &columns = columnCard.getColumns();
-          for (size_t j = 0; j < lineSize_; ++j) {
-            columns[j] = (record[i + j] & 0x3F) | ((record[i + j + 1] & 0x3F) << 6);
-          }
-          BinaryRowCard rowCard(columnCard);
-          auto &rows = rowCard.getRows();
-          for (size_t j = 0; j < 24; ++j) {
-            disassemble(std::cout, addr_t(loc++), rows[j]);
-            std::cout << "\n";
-          }
-        }
-      } else {
-        while ((record.size() % 6) != 0) {
-          record.push_back(0);
-        }
-        for (size_t i = 0; i < recordSize;) {
-          word_t word{0};
-          dpb<30, 6>(record[i++], word);
-          dpb<24, 6>(record[i++], word);
-          dpb<18, 6>(record[i++], word);
-          dpb<12, 6>(record[i++], word);
-          dpb<6, 6>(record[i++], word);
-          dpb<0, 6>(record[i++], word);
-          disassemble(std::cout, addr_t(i / 6 - 1), word);
-          std::cout << "\n";
-        }
+      while ((record.size() % 6) != 0) {
+        record.push_back(0);
+      }
+      for (size_t i = 0; i < recordSize; ++i) {
+      }
+      for (size_t i = 0; i < recordSize;) {
+        word_t word{0};
+        dpb<30, 6>(record[i++], word);
+        dpb<24, 6>(record[i++], word);
+        dpb<18, 6>(record[i++], word);
+        dpb<12, 6>(record[i++], word);
+        dpb<6, 6>(record[i++], word);
+        dpb<0, 6>(record[i++], word);
+        disassemble(std::cout, addr_t(i / 6 - 1), word);
+        std::cout << "\n";
       }
     } else {
       // BCD data
@@ -239,7 +227,6 @@ private:
   std::istream &input_;
   size_t lineSize_{0};
   size_t cardWidth_{0};
-  bool columnBinary_{false};
   std::unordered_map<char, char32_t> table_;
   std::unordered_map<char, char> unmapped_;
 };
@@ -257,8 +244,12 @@ int main(int argc, const char **argv) {
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
-    ReadHandler handler(input, cardWidth, columnBinary);
-    for (auto colUni : get029Encoding()) {
+    ReadHandler handler(input, cardWidth);
+    auto charEncoding = getFORTRAN704Encoding();
+    if (encoding == CP29) {
+      charEncoding = get029Encoding();
+    }
+    for (auto colUni : charEncoding) {
       handler.setChar(BCDFromColumn(colUni.column), colUni.unicode);
     }
     // '0' overrides
