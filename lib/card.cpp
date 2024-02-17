@@ -169,6 +169,33 @@ const std::vector<ColumnChar> &getFORTRAN704Encoding() {
   return table;
 }
 
+// Coded Character Sets History and Development, C. E. MacKenzie, 1980
+// https://archive.org/details/mackenzie-coded-char-sets
+// Page 101
+const std::vector<ColumnChar> &getFORTRAN704Encoding4() {
+  static std::vector<ColumnChar> table =
+      createBCDEncoding({{{8, 3}, '='},
+                         // This - cannot be used as a - operation in FORTRAN
+                         {{8, 4}, '\''},
+                         {{8, 5}, ':'},
+                         {{8, 6}, '>'},
+                         {{12}, '+'},
+                         {{12, 8, 2}, '?'},
+                         {{12, 8, 3}, '.'},
+                         {{12, 8, 4}, ')'},
+                         {{12, 8, 6}, '<'},
+                         {{11}, '-'},
+                         {{11, 8, 2}, '!'},
+                         {{11, 8, 3}, '$'},
+                         {{11, 8, 4}, '*'},
+                         {{11, 8, 6}, ';'},
+                         {{0, 1}, '/'},
+                         {{0, 8, 3}, ','},
+                         {{0, 8, 4}, '('},
+                         {{0, 8, 7}, '"'}});
+  return table;
+}
+
 // http://www.bitsavers.org/pdf/ibm/7090/C28-6235-2_7090_FAP.pdf
 // Page 68
 // https://bitsavers.org/pdf/ibm/7090/C28-6054-4_7090_FORTRANII.pdf

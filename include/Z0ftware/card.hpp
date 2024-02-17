@@ -75,6 +75,8 @@ const std::vector<ColumnChar> &get026CommercialEncoding();
 const std::vector<ColumnChar> &getFAPEncoding();
 const std::vector<ColumnChar> &getFORTRAN704Encoding();
 const std::vector<ColumnChar> &getFORTRANIVEncoding();
+const std::vector<ColumnChar> &getFORTRAN704Encoding4();
+const std::vector<ColumnChar> &getBCDIC1();
 
 using CardTextField = TextField<cardColumnFirst, cardColumnLast>;
 

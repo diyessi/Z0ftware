@@ -66,8 +66,12 @@ int main(int argc, const char **argv) {
       addr_t cardBeginAddr = 0;
       addr_t cardEndAddr = cardBeginAddr;
       word_t checksum = 0;
-      auto finishCard = [&section, &cardBeginAddr, &cardEndAddr, &cardImage,
-                         &os, &pos, &checksum]() {
+      auto acl = [&checksum](word_t value) {
+        uint64_t sum = checksum + value;
+        checksum = ldb<0, 36>(sum) + ldb<36, 1>(sum);
+      };
+      auto finishCard = [&acl, &section, &cardBeginAddr, &cardEndAddr,
+                         &cardImage, &os, &pos, &checksum]() {
         switch (section.getBinaryFormat()) {
         case BinaryFormat::Absolute: {
           word_t L = 0;
@@ -75,7 +79,7 @@ int main(int argc, const char **argv) {
           dpb<18, 15>(cardEndAddr - cardBeginAddr, L);
           dpb<15, 3>(0, L);
           dpb<0, 15>(cardBeginAddr, L);
-          checksum += L;
+          acl(L);
           cardImage.setWord(0, L);
           cardImage.setWord(1, checksum);
           break;
@@ -95,24 +99,24 @@ int main(int argc, const char **argv) {
         pos = 0;
       };
       for (auto &chunk : section.getChunks()) {
-        for (auto it = chunk.begin(); it < chunk.end(); ++it) {
-          if (pos == 0) {
-            switch (section.getBinaryFormat()) {
-            case BinaryFormat::Absolute:
-            case BinaryFormat::Relative: {
-              cardBeginAddr = chunk.getBaseAddr() + (it - chunk.begin());
-              cardEndAddr = cardBeginAddr;
-              pos = 2;
-              checksum = 0;
-              break;
-            }
-            case BinaryFormat::Full: {
-              break;
-            }
-            }
+        if (pos == 0) {
+          switch (section.getBinaryFormat()) {
+          case BinaryFormat::Absolute:
+          case BinaryFormat::Relative: {
+            cardBeginAddr = chunk.getBaseAddr() + (it - chunk.begin());
+            cardEndAddr = cardBeginAddr;
+            pos = 2;
+            checksum = 0;
+            break;
           }
+          case BinaryFormat::Full: {
+            break;
+          }
+          }
+        }
+        for (auto it = chunk.begin(); it < chunk.end(); ++it) {
           cardImage.setWord(pos++, *it);
-          checksum += *it;
+          acl(*it);
           cardEndAddr++;
           if (24 == pos) {
             finishCard();
@@ -141,6 +145,9 @@ int main(int argc, const char **argv) {
           break;
         }
         }
+        writeCBN(os, cardImage);
+        cardImage.clear();
+        pos = 0;
       }
     };
     sapAssembler.setSectionWriter(sectionWriter);

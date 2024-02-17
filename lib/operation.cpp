@@ -39,6 +39,15 @@ void Operation::parseVariable(Assembler &assembler,
   exprs_ = assembler.parseEXP(*this, variable);
 }
 
+Section &Abs::getSection(Assembler &assembler) const {
+  auto *section = &assembler.getSection();
+  if (section->getAddrSize() > 0) {
+    section = &assembler.addSection(section->getEndAddr());
+  }
+  section->setBinaryFormat(BinaryFormat::Absolute);
+  return *section;
+}
+
 void Abs::allocate(Assembler &assembler, Chunk &chunk) const {
   assembler.setBinaryFormat(BinaryFormat::Absolute);
   assembler.allocate(chunk, 0, Assembler::AssignType::None);
@@ -186,6 +195,15 @@ void Ful::allocate(Assembler &assembler, Chunk &chunk) const {
   assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
 
+Section &Ful::getSection(Assembler &assembler) const {
+  auto *section = &assembler.getSection();
+  if (section->getAddrSize() > 0) {
+    section = &assembler.addSection(section->getEndAddr());
+  }
+  section->setBinaryFormat(BinaryFormat::Full);
+  return *section;
+}
+
 void Hed::parseVariable(Assembler &assembler,
                         const std::string_view &variable) {
   hed_ = variable;
@@ -210,6 +228,10 @@ void Oct::parseVariable(Assembler &assembler,
   std::optional<bool> negative;
   word_t magnitude{0};
   bool partial{false};
+  auto asFixPoint = [&negative, &magnitude]() {
+    return negative ? FixPoint(negative.value(), magnitude)
+                    : FixPoint(magnitude);
+  };
   while (it != variable.end()) {
     auto c = *it++;
     partial = true;
@@ -223,7 +245,7 @@ void Oct::parseVariable(Assembler &assembler,
     } else if ('0' <= c && c <= '9') {
       magnitude = magnitude * 8 + c - '0';
     } else {
-      values_.push_back({negative ? negative.value() : false, magnitude});
+      values_.push_back(asFixPoint());
       if (c == ' ') {
         break;
       } else if (c != ',') {
@@ -237,7 +259,7 @@ void Oct::parseVariable(Assembler &assembler,
     }
   }
   if (partial) {
-    values_.push_back({negative ? negative.value() : false, magnitude});
+    values_.push_back(asFixPoint());
   }
 }
 
@@ -288,7 +310,12 @@ void Org::validate(Assembler &assembler) {
 }
 
 Section &Org::getSection(Assembler &assembler) const {
-  return assembler.addSection(assembler.evaluate(*exprs_[0]));
+  auto &section = assembler.getSection();
+  if (section.getAddrSize() > 0) {
+    return assembler.addSection(assembler.evaluate(*exprs_[0]));
+  }
+  section.setBase(assembler.evaluate(*exprs_[0]));
+  return section;
 }
 
 void Org::allocate(Assembler &assembler, Chunk &chunk) const {

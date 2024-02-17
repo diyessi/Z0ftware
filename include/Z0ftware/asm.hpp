@@ -49,6 +49,7 @@ public:
   auto begin() const { return words_.begin(); }
   auto end() { return words_.end(); }
   auto end() const { return words_.end(); }
+  void shiftBase(int shift) { base_ += shift; }
 
 private:
   addr_t base_;
@@ -77,7 +78,13 @@ public:
   void setIsTransfer(bool value) { transfer_ = value; }
 
   addr_t getBase() const { return base_; }
-  void setBase(word_t base) { base_ = base; }
+  void setBase(word_t base) {
+    int shift = base - base_;
+    base_ = base;
+    for (auto &chunk : getChunks()) {
+      chunk.shiftBase(shift);
+    }
+  }
   addr_t getNextAddr() const {
     return chunks_.empty() ? base_ : chunks_.back().getEndAddr();
   }
@@ -85,12 +92,11 @@ public:
   std::vector<Chunk> &getChunks() { return chunks_; }
   const std::vector<Chunk> &getChunks() const { return chunks_; }
 
-  addr_t getAddrSize() const {
-    if (chunks_.empty()) {
-      return 0;
-    }
-    return chunks_.back().getEndAddr() - base_;
+  addr_t getEndAddr() const {
+    return chunks_.empty() ? base_ : chunks_.back().getEndAddr();
   }
+
+  addr_t getAddrSize() const { return getEndAddr() - base_; }
 
 private:
   BinaryFormat binaryFormat_;
@@ -140,13 +146,13 @@ public:
   BinaryFormat getBinaryFormat() const { return binaryFormat_; }
   void setBinaryFormat(BinaryFormat binaryFormat) {
     binaryFormat_ = binaryFormat;
+    if (!sections_.empty() && sections_.back().getAddrSize() == 0) {
+      sections_.back().setBinaryFormat(binaryFormat);
+    }
   }
   auto &getSections() { return sections_; }
   const auto &getSections() const { return sections_; }
   Section &addSection(addr_t base) {
-    if (!sections_.empty() && sections_.back().getAddrSize() == 0) {
-      sections_.pop_back();
-    }
     return sections_.emplace_back(base, binaryFormat_);
   }
 

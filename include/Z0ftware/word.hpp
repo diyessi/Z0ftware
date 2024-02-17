@@ -56,9 +56,7 @@ public:
     return word_ == other.word_;
   }
 
-  operator word_t() const {
-    return word_;
-  }
+  operator word_t() const { return word_; }
 
   int64_t asInt() const {
     return isNegative() ? -getMagnitude() : getMagnitude();
@@ -96,7 +94,6 @@ private:
   word_t word_{0};
 };
 
-
 class AC : public Int<AC, std::uint64_t> {
 public:
   using F_SIGN = BitField<37, 1>;
@@ -131,7 +128,6 @@ public:
 
   FixPoint(bool negative, int64_t exponent, uint64_t mantissa)
       : Word(negative, exponent, mantissa) {}
-
   FixPoint(std::uint64_t raw) : Word(raw) {}
   FixPoint(const FixPoint &fixPoint) = default;
   FixPoint(FixPoint &&fixPoint) = default;

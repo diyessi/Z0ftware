@@ -50,13 +50,15 @@ llvm::cl::opt<unsigned> cardWidth("w",
                                   llvm::cl::desc("card-width (default 84)"),
                                   llvm::cl::init(84));
 
-enum Encoding { IBM704, CP29 };
+enum Encoding { IBM704, IBM704_4, CP29 };
 
 llvm::cl::opt<Encoding> encoding(
-    "encoding", llvm::cl::desc("Character encoding (default 704)"),
+    "encoding", llvm::cl::desc("Character encoding (default 704-4)"),
     values(clEnumValN(Encoding::IBM704, "704", "FORTRAN encoding for IBM 704"),
+           clEnumValN(Encoding::IBM704_4, "704-4",
+                      "FORTRAN encoding for IBM 704 (4)"),
            clEnumValN(Encoding::CP29, "029", "IBM 029 Card Punch")),
-    llvm::cl::init(Encoding::IBM704));
+    llvm::cl::init(Encoding::IBM704_4));
 
 } // namespace
 
@@ -245,13 +247,22 @@ int main(int argc, const char **argv) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
     ReadHandler handler(input, cardWidth);
-    auto charEncoding = getFORTRAN704Encoding();
+    auto charEncoding = getBCDIC1();
     if (encoding == CP29) {
       charEncoding = get029Encoding();
+    } else if (encoding == IBM704) {
+      charEncoding = getFORTRAN704Encoding();
     }
     for (auto colUni : charEncoding) {
       handler.setChar(BCDFromColumn(colUni.column), colUni.unicode);
     }
+    // '+'
+    handler.setChar(BCDFromColumn(columnFromRows({12})), '+');
+
+    handler.setChar(BCDFromColumn(columnFromRows({3, 8})), '=');
+    handler.setChar(BCDFromColumn(columnFromRows({0, 4, 8})), '(');
+    handler.setChar(BCDFromColumn(columnFromRows({12, 4, 8})), ')');
+
     // '0' overrides
     handler.setChar(BCDFromColumn(columnFromRows({0})), '0');
     readTape(input, handler);

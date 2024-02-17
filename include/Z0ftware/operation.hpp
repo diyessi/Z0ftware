@@ -148,6 +148,7 @@ public:
 class Abs : public OperationImpl<Abs> {
 public:
   void validate(Assembler &assembler) override{};
+  Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override{};
 };
@@ -253,6 +254,7 @@ public:
 class Ful : public OperationImpl<Ful> {
 public:
   void validate(Assembler &assembler) override{};
+  Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override{};
 };
