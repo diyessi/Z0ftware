@@ -163,13 +163,10 @@ void End::validate(Assembler &assembler) {
   }
 }
 
-Section &End::getSection(Assembler &assembler) const {
-  auto &section = assembler.addSection(assembler.evaluate(*exprs_[0]));
-  section.setIsTransfer(true);
-  return section;
+void End::allocate(Assembler &assembler, Chunk &chunk) const {
+  chunk.setTransfer(assembler.evaluate(*exprs_[0]));
+  assembler.allocate(chunk, 0, Assembler::AssignType::None);
 }
-
-void End::allocate(Assembler &assembler, Chunk &chunk) const {}
 
 void Equ::validate(Assembler &assembler) {
   if (exprs_.size() != 1) {

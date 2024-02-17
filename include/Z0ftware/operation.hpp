@@ -232,7 +232,6 @@ public:
 class End : public OperationImpl<End> {
 public:
   void validate(Assembler &assembler) override;
-  Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override {}
 

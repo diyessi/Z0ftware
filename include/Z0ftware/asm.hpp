@@ -50,11 +50,15 @@ public:
   auto end() { return words_.end(); }
   auto end() const { return words_.end(); }
   void shiftBase(int shift) { base_ += shift; }
+  void setTransfer(addr_t addr) { transfer_ = addr; }
+  bool isTransfer() const { return transfer_.has_value(); }
+  addr_t getTransfer() const { return transfer_.value(); }
 
 private:
   addr_t base_;
   std::unique_ptr<Operation> operation_;
   std::vector<word_t> words_;
+  std::optional<addr_t> transfer_;
 };
 
 // Format for binary output
@@ -74,8 +78,6 @@ public:
   void setBinaryFormat(BinaryFormat binaryFormat) {
     binaryFormat_ = binaryFormat;
   }
-  bool isTransfer() const { return transfer_; }
-  void setIsTransfer(bool value) { transfer_ = value; }
 
   addr_t getBase() const { return base_; }
   void setBase(word_t base) {
@@ -100,7 +102,6 @@ public:
 
 private:
   BinaryFormat binaryFormat_;
-  bool transfer_{false};
   addr_t base_;
   std::vector<Chunk> chunks_;
 };
