@@ -23,8 +23,9 @@
 #ifndef Z0FTWARE_UTILS_HPP
 #define Z0FTWARE_UTILS_HPP
 
-#include <string>
+#include <functional>
 #include <sstream>
+#include <string>
 
 std::string_view trim(std::string_view text);
 std::string_view rightTrim(std::string_view text);

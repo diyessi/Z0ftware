@@ -44,6 +44,7 @@ FixPoint pegDecimal(const peg::SemanticValues &vs) {
     // Floating point
     auto exp = std::ilogb(d);
     auto mantissa = long(std::ldexp(d, 26 - exp));
+    // For 70x, 1/2 <= mantiss < 1, so shift exp by 1
     return FixPoint(sign, exp + 1, mantissa);
   }
   auto b = std::get<1>(expbexp) ? 35 - std::get<1>(expbexp).value() : 0;
