@@ -23,6 +23,7 @@
 // https://www.piercefuller.com/oldibm-shadow/709x.html
 // https://www.piercefuller.com/library/magtape7.html
 
+#include "Z0ftware/tape.hpp"
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/card.hpp"
 #include "Z0ftware/config.h"
@@ -38,7 +39,6 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <variant>
 
 namespace {
 
@@ -49,6 +49,8 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
 llvm::cl::opt<unsigned> cardWidth("w",
                                   llvm::cl::desc("card-width (default 84)"),
                                   llvm::cl::init(84));
+llvm::cl::opt<bool> dump("d", llvm::cl::desc("binary dump"),
+                         llvm::cl::init(false));
 
 enum Encoding { IBM704, IBM704_4, CP29 };
 
@@ -61,6 +63,50 @@ llvm::cl::opt<Encoding> encoding(
     llvm::cl::init(Encoding::IBM704_4));
 
 } // namespace
+
+
+class DumpTapeAdapter : public TapeReadAdapter {
+public:
+  DumpTapeAdapter(TapeIStream &tapeIStream) : TapeReadAdapter(tapeIStream) {}
+
+  void onRecordData(char *buffer, size_t size) override {
+    evenParityCount_ += std::count_if(buffer, buffer + size, [](char c) {
+      return isEvenParity(sevenbit_t(c));
+    });
+
+    for (size_t i = 0; i < size; ++i) {
+      std::cout << std::hex << std::setw(2) << std::setfill('0')
+                << int(buffer[i]);
+    }
+    std::cout << '\n';
+  }
+
+  void onEndOfRecord() override {
+    size_t recordLength = tapePos_ - recordStartPos_;
+    std::cout << "EOR " << std::dec << recordStartPos_ << ":" << recordLength
+              << " " << tapePos_ << " "
+              << ((2 * evenParityCount_ < recordLength) ? "odd" : "even")
+              << "\n";
+  }
+
+  void onEndOfFile() override {
+    std::cout << "EOF " << std::dec << tapePos_ << "\n";
+    stopReading();
+  }
+
+  void onEndOfTape() override {
+    std::cout << "EOT " << std::dec << tapePos_ << "\n";
+  }
+
+protected:
+  size_t evenParityCount_{0};
+};
+
+void dumpTape(std::istream &input) {
+  P7BIStream reader(input);
+  DumpTapeAdapter dumper(reader);
+  dumper.read();
+}
 
 // tapePos is byte position of record start on tape
 // record.empty() => EOF
@@ -153,8 +199,6 @@ public:
       while ((record.size() % 6) != 0) {
         record.push_back(0);
       }
-      for (size_t i = 0; i < recordSize; ++i) {
-      }
       for (size_t i = 0; i < recordSize;) {
         word_t word{0};
         dpb<30, 6>(record[i++], word);
@@ -246,6 +290,10 @@ int main(int argc, const char **argv) {
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
+    if (dump) {
+      dumpTape(input);
+      break;
+    }
     ReadHandler handler(input, cardWidth);
     auto charEncoding = getBCDIC1();
     if (encoding == CP29) {

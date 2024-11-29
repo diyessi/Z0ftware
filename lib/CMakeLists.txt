@@ -9,6 +9,7 @@ add_library(Z0ftware
     operation.cpp
     parity.cpp
     parser.cpp
+    tape.cpp
     utils.cpp
 )
 
