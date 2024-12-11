@@ -25,7 +25,12 @@
 #ifndef Z0FTWARE_HOLLERITH_HPP
 #define Z0FTWARE_HOLLERITH_HPP
 
+#include "Z0ftware/field.hpp"
+
 #include <cstdint>
+
+static constexpr bit_size_size_t hollerith_size = 12;
+using hollerith_t = unsigned_t<hollerith_size>;
 
 // Translate Hollerith row to bit position
 template <typename T> constexpr std::uint64_t hbit(T pos) {
@@ -52,6 +57,21 @@ constexpr std::uint64_t hbits() { return 0; }
 template <typename Row, typename... MoreRows>
 constexpr std::uint64_t hbits(Row row, MoreRows... moreRows) {
   return (std::uint64_t(1) << hbit(row)) | hbits(moreRows...);
+}
+
+// Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
+// Bit: 11 10    9 8 7 6 5 4 3 2 1 0
+inline constexpr unsigned positionFromRow(unsigned row) {
+  return row < 10 ? 9 - row : row - 1;
+}
+
+template <typename ROWS = std::initializer_list<unsigned>>
+constexpr hollerith_t hollerithFromRows(const ROWS &rows) {
+  hollerith_t hollerith{0};
+  for (auto &row : rows) {
+    hollerith |= (1 << positionFromRow(row));
+  }
+  return hollerith;
 }
 
 #endif

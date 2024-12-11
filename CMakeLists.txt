@@ -63,4 +63,4 @@ add_subdirectory(tests)
 enable_testing()
 
 add_subdirectory(sap23)
-add_subdirectory(tape)
+add_subdirectory(tapedump)

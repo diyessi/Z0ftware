@@ -21,11 +21,107 @@
 // SOFTWARE.
 
 #include "Z0ftware/bcd.hpp"
+#include "Z0ftware/card.hpp"
+#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/parity.hpp"
 
 #include <iostream>
-#include <set>
 #include <unordered_map>
+
+constexpr bcd_t bcdSwapZeroBlank(bcd_t bcd) {
+  return (bcd == bcd_t(0) || bcd == bcd_t(0x10)) ? bcd ^= bcd_t(0x10) : bcd;
+}
+
+constexpr bcd_t hbcdFromHollerith(hollerith_t hollerith) {
+  bcd_t bcd{0};
+  // digits
+  for (unsigned digit = 0; digit < 10; ++digit) {
+    if (0 != hbit(digit & hollerith)) {
+      bcd |= bcd_t(digit);
+    }
+  }
+  // zone
+  if (0 != (hbit(12) & hollerith)) {
+    bcd |= bcd_t(0x30);
+  }
+  if (0 != (hbit(11) & hollerith)) {
+    bcd |= bcd_t(0x20);
+  }
+  if (0 != (hbit(0) & hollerith)) {
+    bcd |= bcd_t(0x10);
+  }
+  return bcdSwapZeroBlank(bcd);
+}
+
+namespace {
+constexpr std::array<hollerith_t, 4> hbcdZoneMap = {
+    hollerithFromRows({}), hollerithFromRows({0}), hollerithFromRows({11}),
+    hollerithFromRows({12})};
+
+constexpr std::array<hollerith_t, 16> hbcdDigitsMap = {
+    hollerithFromRows({0}),    hollerithFromRows({1}),
+    hollerithFromRows({2}),    hollerithFromRows({3}),
+    hollerithFromRows({4}),    hollerithFromRows({5}),
+    hollerithFromRows({6}),    hollerithFromRows({7}),
+    hollerithFromRows({8}),    hollerithFromRows({9}),
+    hollerithFromRows({8, 2}), hollerithFromRows({8, 3}),
+    hollerithFromRows({8, 4}), hollerithFromRows({8, 5}),
+    hollerithFromRows({8, 6}), hollerithFromRows({8, 7})};
+
+} // namespace
+
+constexpr hollerith_t hollerithFromHbcd(bcd_t bcd) {
+  bcd_t bcdVal = bcdSwapZeroBlank(bcd);
+  return hbcdZoneMap[unsigned((bcdVal >> 4) & bcd_t(0x3))] |
+         hbcdDigitsMap[unsigned((bcdVal & bcd_t(0xF)))];
+}
+
+HBCD::HBCD(hollerith_t hollerith) : bcd_(hbcdFromHollerith(hollerith)) {}
+
+hollerith_t HBCD::getHollerith() const { return hollerithFromHbcd(bcd_); }
+
+namespace {
+std::unordered_map<hollerith_t, bcd_t> bcdFromHollerithMapInit() {
+  std::unordered_map<hollerith_t, bcd_t> result;
+  for (unsigned bcd = 0; bcd < 64; bcd++) {
+    result[hollerithFromHbcd(bcd_t(bcd))] = bcd_t(bcd);
+  }
+  return result;
+}
+
+std::array<hollerith_t, bcdSize> hollerithFromBcdInit() {
+  std::array<hollerith_t, bcdSize> result;
+  for (unsigned bcd = 0; bcd < 64; bcd++) {
+    result[bcd] = hollerithFromHbcd(bcd_t(bcd));
+  }
+  return result;
+}
+
+} // namespace
+
+std::unordered_map<hollerith_t, bcd_t> HBCD::bcdFromHollerith_ =
+    bcdFromHollerithMapInit();
+std::array<hollerith_t, bcdSize> HBCD::hollerithFromBcd_ =
+    hollerithFromBcdInit();
+
+const std::unordered_map<hollerith_t, bcd_t> &HBCD::getBcdFromHollerithMap() {
+  static bool initialized{false};
+  if (!initialized) {
+    std::vector<hollerith_t> hzones = {
+        hollerithFromRows({}), hollerithFromRows({0}), hollerithFromRows({11}),
+        hollerithFromRows({12})};
+    for (unsigned bzone = 0; bzone < hzones.size(); ++bzone) {
+      auto &hzone = hzones[bzone];
+      for (unsigned digit = 0; digit < 16; digit++) {
+      }
+    }
+  }
+  return bcdFromHollerith_;
+}
+
+const std::array<hollerith_t, bcdSize> &HBCD::getHollerithFromBcdArray() {
+  return hollerithFromBcd_;
+}
 
 bcd_t tapeBCDfromBCD(bcd_t bcd) {
   if (bcd == bcd_t(0)) {
@@ -37,7 +133,7 @@ bcd_t tapeBCDfromBCD(bcd_t bcd) {
   return bcd;
 }
 
-bcd_t BCDFromColumn(column_t column) {
+bcd_t BCDFromColumn(hollerith_t column) {
   bcd_t bcd{0};
   if (column == 0) {
     return bcd_t(0b110000);
@@ -241,7 +337,7 @@ char ASCIIFromTapeBCD(bcd_t bcd) {
   static auto table = []() {
     std::array<char32_t, 128> table;
     for (auto cu : getFORTRANIVEncoding()) {
-      auto tapeBCD = tapeBCDfromBCD(BCDFromColumn(cu.column));
+      auto tapeBCD = tapeBCDfromBCD(BCDFromColumn(cu.hollerith));
       table[unsigned(evenParity(tapeBCD))] = cu.unicode;
     }
     return table;
@@ -271,7 +367,7 @@ uint64_t bcd(std::string_view chars) {
 }
 
 std::array<std::uint8_t, bcdSize> bcdEvenParity() {
-  std::array<std::uint8_t, bcdSize> table;
+  static std::array<std::uint8_t, bcdSize> table;
   for (size_t i = 0; i < bcdSize; ++i) {
     std::uint8_t val = (i ^ (i >> 4));
     val ^= (val >> 2);

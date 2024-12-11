@@ -30,8 +30,8 @@
 // Everything shares the original encoding
 // https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/024-026/A24-0520-3_24_26_Card_Punch_Reference_Manual_Oct1965.pdf
 // Page 6
-const std::vector<ColumnChar> &getBaseCardEncoding() {
-  static std::vector<ColumnChar> table = {
+const std::vector<HollerithChar> &getBaseCardEncoding() {
+  static std::vector<HollerithChar> table = {
       // Blank
       {{}, ' '},
       // Digits
@@ -45,7 +45,7 @@ const std::vector<ColumnChar> &getBaseCardEncoding() {
       {{7}, '7'},
       {{8}, '8'},
       {{9}, '9'},
-      // Alphabetis
+      // Alphabetic
       {{12, 1}, 'A'},
       {{12, 2}, 'B'},
       {{12, 3}, 'C'},
@@ -77,7 +77,7 @@ const std::vector<ColumnChar> &getBaseCardEncoding() {
 }
 
 namespace {
-std::vector<ColumnChar> createBCDEncoding(std::vector<ColumnChar> &&symbols) {
+std::vector<HollerithChar> createBCDEncoding(std::vector<HollerithChar> &&symbols) {
   auto table = getBaseCardEncoding();
   table.reserve(table.size() + symbols.size());
   std::move(symbols.begin(), symbols.end(), std::inserter(table, table.end()));
@@ -87,8 +87,8 @@ std::vector<ColumnChar> createBCDEncoding(std::vector<ColumnChar> &&symbols) {
 
 // https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/024-026/A24-0520-3_24_26_Card_Punch_Reference_Manual_Oct1965.pdf
 // Page 6
-const std::vector<ColumnChar> &get026CommercialEncoding() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &get026CommercialEncoding() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
       //
       {{12}, '&'},
       {{12, 3, 8}, '.'},
@@ -111,8 +111,8 @@ const std::vector<ColumnChar> &get026CommercialEncoding() {
 // From:
 // https://bitsavers.org/pdf/ibm/punchedCard/Keypunch/029/A24-3332-3_29_Reference_Man.pdf
 // page 5
-const std::vector<ColumnChar> &get029Encoding() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &get029Encoding() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
       //
       {{12}, '&'},
       {{12, 2, 8}, u'¢'},
@@ -151,8 +151,8 @@ const std::vector<ColumnChar> &get029Encoding() {
 
 // https://bitsavers.org/pdf/ibm/704/704_FortranProgRefMan_Oct56.pdf
 // Page 49
-const std::vector<ColumnChar> &getFORTRAN704Encoding() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &getFORTRAN704Encoding() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
       {{8, 3}, '='},
       // This - cannot be used as a - operation in FORTRAN
       {{8, 4}, '-'},
@@ -172,8 +172,8 @@ const std::vector<ColumnChar> &getFORTRAN704Encoding() {
 // Coded Character Sets History and Development, C. E. MacKenzie, 1980
 // https://archive.org/details/mackenzie-coded-char-sets
 // Page 101
-const std::vector<ColumnChar> &getFORTRAN704Encoding4() {
-  static std::vector<ColumnChar> table =
+const std::vector<HollerithChar> &getFORTRAN704Encoding4() {
+  static std::vector<HollerithChar> table =
       createBCDEncoding({{{8, 3}, '='},
                          // This - cannot be used as a - operation in FORTRAN
                          {{8, 4}, '\''},
@@ -204,9 +204,9 @@ const std::vector<ColumnChar> &getFORTRAN704Encoding4() {
 // Page 56
 // https://bitsavers.org/pdf/ibm/7090/GC28-6392-4_MAP_Dec66.pdf
 // Page 58
-const std::vector<ColumnChar> &getFAPEncoding() {
-  static std::vector<ColumnChar> table = createBCDEncoding(
-      {{columnFromRows({}), ' '},
+const std::vector<HollerithChar> &getFAPEncoding() {
+  static std::vector<HollerithChar> table = createBCDEncoding(
+      {{hollerithFromRows({}), ' '},
        {{12}, '+'},
        {{11}, '-'},
        {{0, 1}, '/'},
@@ -224,8 +224,8 @@ const std::vector<ColumnChar> &getFAPEncoding() {
 
 // https://bitsavers.org/pdf/ibm/7090/C28-6274-1_7090_FORTRANIV.pdf
 // Page 33
-const std::vector<ColumnChar> &getFORTRANIVEncoding() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &getFORTRANIVEncoding() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
       //
       {{8, 3}, '='},
       {{8, 4}, '\''},
@@ -248,8 +248,8 @@ const std::vector<ColumnChar> &getFORTRANIVEncoding() {
 // Comercial collating sequence
 // See https://bitsavers.org/pdf/ibm/7090/C28-6365-1_genSort_Sep64.pdf
 // Page 7
-const std::vector<ColumnChar> &getBCDIC1() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &getBCDIC1() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
       //
       {{12, 3, 8}, '.'},
       {{12, 4, 8}, u'¤'},
@@ -295,8 +295,8 @@ const std::vector<ColumnChar> &getBCDIC1() {
 // Comercial collating sequence
 // See https://bitsavers.org/pdf/ibm/7090/C28-6365-1_genSort_Sep64.pdf
 // Page 7
-const std::vector<ColumnChar> &getBCDIC2() {
-  static std::vector<ColumnChar> table = createBCDEncoding({
+const std::vector<HollerithChar> &getBCDIC2() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
 
       //
       {{}, ' '},
@@ -382,7 +382,7 @@ void BinaryColumnCard::readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
     b1 &= 0x3f;
-    columns_[j++] = column_t(b0) << 6 | column_t(b1);
+    columns_[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
 }
 
@@ -395,7 +395,7 @@ void BinaryRowCard::fill(const BinaryColumnCard &card) {
   std::fill(rows_.begin(), rows_.end(), 0);
   // Left/right side of card
   for (int i = 0; i < 2; ++i) {
-    std::array<column_t, 36> columns;
+    std::array<hollerith_t, 36> columns;
     std::copy(card.getColumns().begin() + 36 * i,
               card.getColumns().begin() + 36 * i + 36, columns.begin());
     for (int row = 0; row < 12; row++) {
@@ -456,7 +456,7 @@ CardImage readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
     b1 &= 0x3f;
-    cardImage[j++] = column_t(b0) << 6 | column_t(b1);
+    cardImage[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
   return cardImage;
 }

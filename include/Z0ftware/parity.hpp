@@ -23,11 +23,10 @@
 #ifndef Z0FTWARE_PARITY_HPP
 #define Z0FTWARE_PARITY_HPP
 
+#include "Z0ftware/word.hpp"
+
 #include <array>
 #include <cstdint>
-
-using sixbit_t = std::byte;
-using sevenbit_t = std::byte;
 
 // Return with bit 6 set to give bits 0-6 even parity
 sevenbit_t evenParity(sixbit_t sixbit);

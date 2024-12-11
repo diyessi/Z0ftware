@@ -23,14 +23,20 @@
 #ifndef Z0FTWARE_TAPE_HPP
 #define Z0FTWARE_TAPE_HPP
 
-#include <istream>
+#include <array>
+#include <cstddef>
 
-class TapeIStream {
+class IByteStream {
+public:
+  virtual size_t read(char *buffer, size_t size) = 0;
+};
+
+class TapeIRecordStream {
 public:
   // Returns 0 at end of record
   virtual size_t read(char *buffer, size_t size) = 0;
-  // Returns true if at EOR and positions for next record
-  virtual bool resetEOR() = 0;
+  // Returns true if already at EOR and positions for next record
+  virtual bool nextRecord() = 0;
   // At end of record
   virtual bool isEOR() const = 0;
   // At end of tape
@@ -41,14 +47,14 @@ public:
 
 // Reads P7B format on PierceFuller IBM tapes
 //
-// Bit 7 is 1 for first byte of a record
-// Bit 6 is parity
+// Bit 7 is set for first byte of a record
+// Bit 6 is parity, odd for binary, even for BCD
 // Bits 5-0 are data
-class P7BIStream : public TapeIStream {
+class P7BIStream : public TapeIRecordStream {
 
 public:
-  P7BIStream(std::istream &input);
-  bool resetEOR() override;
+  P7BIStream(IByteStream &input);
+  bool nextRecord() override;
   size_t read(char *buffer, size_t size) override;
 
   bool isEOR() const override {
@@ -63,7 +69,7 @@ protected:
   // Scan for the next begin of record mark
   void findNextBOR();
 
-  std::istream &input_;
+  IByteStream &input_;
   std::array<char, 1024> tapeBuffer_;
   char *tapeBufferPos_{tapeBuffer_.data()};
   char *tapeBufferEnd_{tapeBufferPos_};
@@ -75,7 +81,7 @@ protected:
 
 class TapeReadAdapter {
 public:
-  TapeReadAdapter(TapeIStream &tapeIStream) : tapeIStream_(tapeIStream) {}
+  TapeReadAdapter(TapeIRecordStream &tapeIStream) : tapeIStream_(tapeIStream) {}
 
   void read();
   void stopReading() { reading_ = false; }
@@ -86,12 +92,13 @@ public:
   virtual void onRecordData(char *buffer, size_t size) {}
   virtual void onBinaryRecordData() {}
   virtual void onBCDRecordData() {}
+  virtual void onBeginOfRecord() {}
   virtual void onEndOfRecord() {}
   virtual void onEndOfFile() {}
   virtual void onEndOfTape() {}
 
 protected:
-  TapeIStream &tapeIStream_;
+  TapeIRecordStream &tapeIStream_;
   bool reading_{true};
   size_t recordStartPos_{0};
   size_t tapePos_{0};

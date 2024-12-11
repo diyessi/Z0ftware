@@ -1,10 +1,10 @@
-add_executable(tape
-    tape.cpp
+add_executable(tapedump
+    tapedump.cpp
 )
 
 llvm_map_components_to_libnames(llvm_libs Support)
 
-target_link_libraries(tape
+target_link_libraries(tapedump
     Z0ftware
     ${llvm_libs}
 )

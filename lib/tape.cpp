@@ -22,7 +22,7 @@
 
 #include "Z0ftware/tape.hpp"
 
-P7BIStream::P7BIStream(std::istream &input) : input_(input) {
+P7BIStream::P7BIStream(IByteStream &input) : input_(input) {
   fillTapeBuffer();
   tapeBORPos_ = tapeBufferPos_;
   if (0x80 == (*tapeBORPos_ & 0x80)) {
@@ -34,8 +34,8 @@ P7BIStream::P7BIStream(std::istream &input) : input_(input) {
 void P7BIStream::fillTapeBuffer() {
   if (!(error_ || eot_) && tapeBufferPos_ == tapeBufferEnd_) {
     tapeBufferPos_ = tapeBuffer_.data();
-    input_.read(tapeBufferPos_, tapeBuffer_.size());
-    tapeBufferEnd_ = tapeBufferPos_ + input_.gcount();
+    size_t numRead = input_.read(tapeBufferPos_, tapeBuffer_.size());
+    tapeBufferEnd_ = tapeBufferPos_ + numRead;
     if (tapeBufferPos_ == tapeBufferEnd_) {
       // End of input before EOF marker
       eot_ = true;
@@ -53,7 +53,7 @@ void P7BIStream::findNextBOR() {
   }
 }
 
-bool P7BIStream::resetEOR() {
+bool P7BIStream::nextRecord() {
   if (error_ || eot_) {
     return false;
   }
@@ -101,9 +101,9 @@ size_t P7BIStream::read(char *buffer, size_t size) {
 void TapeReadAdapter::read() {
   char buffer[40];
   reading_ = true;
+  onBeginOfRecord();
   while (reading_) {
     size_t size = tapeIStream_.read(buffer, sizeof(buffer));
-    tapePos_ += size;
     if (1 == size) {
       // Marker
       char mark = buffer[0] & 0x0F;
@@ -115,13 +115,15 @@ void TapeReadAdapter::read() {
     if (size > 0) {
       onRecordData(buffer, size);
     } else {
-      if (tapeIStream_.resetEOR()) {
+      if (tapeIStream_.nextRecord()) {
         onEndOfRecord();
         recordStartPos_ = tapePos_;
+        onBeginOfRecord();
       } else {
         onEndOfTape();
         break;
       }
     }
+    tapePos_ += size;
   }
 }

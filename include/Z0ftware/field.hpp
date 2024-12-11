@@ -26,9 +26,13 @@
 #define Z0FTWARE_FIELD_HPP
 
 #include <cstdint>
-#include <string>
 #include <string_view>
-#include <type_traits>
+
+using sixbit_t = std::byte;
+using sevenbit_t = std::byte;
+
+using bcd_t = sixbit_t;
+using tbcd_t = sevenbit_t;
 
 // Size of a bit size
 using bit_size_size_t = std::uint_least8_t;
@@ -285,5 +289,19 @@ private:
   std::string_view::size_type pos_;
   std::string_view::size_type size_;
 };
+
+using bcd_zone_t = unsigned_t<2>;
+
+inline bcd_zone_t bcd_zone(bcd_t bcd) { return ldb<4, 2>(unsigned(bcd)); }
+
+using bcd_digits_t = unsigned_t<4>;
+
+inline bcd_digits_t bcd_digits(bcd_t bcd) { return ldb<0, 4>(unsigned(bcd)); }
+
+// 12 11 0
+using hollerith_zone_t = unsigned_t<3>;
+
+// 9 8 7 6 5 4 3 2 1 0
+using hollerith_digits_t = unsigned_t<10>;
 
 #endif

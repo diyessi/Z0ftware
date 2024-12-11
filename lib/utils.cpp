@@ -23,6 +23,7 @@
 #include "Z0ftware/utils.hpp"
 
 #include <iomanip>
+#include <utility>
 
 std::string_view trim(std::string_view text) {
   auto pos = text.find_first_not_of(" ");
