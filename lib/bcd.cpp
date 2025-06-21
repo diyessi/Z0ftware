@@ -495,9 +495,7 @@ BCD_ASCII mapTape[] = {
 // clang-format on
 } // namespace
 
-bcd_t BCDFromChar(char ascii) {
-  return BCDSherman.getBCD(ascii);
-}
+bcd_t BCDFromChar(char ascii) { return BCDSherman.getBCD(ascii); }
 
 char charFromBCD(bcd_t bcd) {
   static auto buildTable = []() {

@@ -29,8 +29,8 @@
 #include "Z0ftware/disasm.hpp"
 #include "Z0ftware/parity.hpp"
 #include "Z0ftware/tape.hpp"
-#include "Z0ftware/word.hpp"
 #include "Z0ftware/unicode.hpp"
+#include "Z0ftware/word.hpp"
 
 #include "llvm/Support/CommandLine.h"
 
@@ -69,21 +69,21 @@ public:
   void onBCDRecordData() override {
     std::cout << "BCD: " << record_.size() << "\n";
     size_t line_size;
-    if (0 == (record_.size() % 80)){
-        line_size = 80;
-    } else if (record_.size() % 84){
-        line_size = 84;
-    } else if (record_.size() % 72){
-        line_size = 72;
+    if (0 == (record_.size() % 80)) {
+      line_size = 80;
+    } else if (record_.size() % 84) {
+      line_size = 84;
+    } else if (record_.size() % 72) {
+      line_size = 72;
     } else {
-        line_size = 80;
+      line_size = 80;
     }
-    
+
     size_t pos = 0;
     for (auto it : record_) {
-      auto& c = tapeChars_[it & 0x3F];
+      auto &c = tapeChars_[it & 0x3F];
       std::cout << c;
-      if (++pos == line_size){
+      if (++pos == line_size) {
         std::cout << "\n";
         pos = 0;
       }

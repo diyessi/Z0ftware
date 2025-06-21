@@ -66,8 +66,8 @@ int main(int argc, const char **argv) {
       addr_t cardBeginAddr = 0;
       addr_t cardEndAddr = cardBeginAddr;
       uint64_t checksum = 0;
-      auto finishCard = [&section, &cardBeginAddr, &cardEndAddr,
-                         &cardImage, &os, &pos, &checksum]() {
+      auto finishCard = [&section, &cardBeginAddr, &cardEndAddr, &cardImage,
+                         &os, &pos, &checksum]() {
         switch (section.getBinaryFormat()) {
         case BinaryFormat::Absolute: {
           word_t L = 0;

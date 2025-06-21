@@ -103,8 +103,7 @@ const std::vector<HollerithChar> &get026CommercialEncoding() {
       {{0, 3, 8}, ','},
       //
       {{3, 8}, '#'},
-      {{4, 8}, '@'}
-      //
+      {{4, 8}, '@'} //
   });
   return table;
 }
@@ -144,8 +143,7 @@ const std::vector<HollerithChar> &get029Encoding() {
       {{4, 8}, '@'},
       {{5, 8}, '\''},
       {{6, 8}, '='},
-      {{7, 8}, '"'}
-      //
+      {{7, 8}, '"'} //
   });
   return table;
 }
@@ -238,8 +236,7 @@ const std::vector<HollerithChar> &getFORTRANIVEncoding() {
       {{11, 8, 4}, '*'},
       {{0, 1}, '/'},
       {{0, 8, 3}, ','},
-      {{0, 8, 4}, '('}
-      //
+      {{0, 8, 4}, '('} //
   });
   return table;
 }

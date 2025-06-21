@@ -123,7 +123,7 @@ public:
 
   bool operator==(const Unicode &) const = default;
   bool operator!=(const Unicode &) const = default;
-  operator bool() const {return unicode_ == invalid;}
+  operator bool() const { return unicode_ == invalid; }
 
 protected:
   char32_t unicode_{invalid};

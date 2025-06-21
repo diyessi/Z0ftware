@@ -69,14 +69,14 @@ TapeCharacterSet::TapeCharacterSet() {
 }
 
 void TapeCharacterSet::initialize() {
-  for (uint8_t c = 0; c < 0x40; ++c){
+  for (uint8_t c = 0; c < 0x40; ++c) {
     uint8_t pc = uint8_t(evenParity(sixbit_t(c)));
     pbcdToString_[pc] = tbcdToString_[c];
     std::wostringstream os;
     os << '<';
-    for(int bit=0; bit < 7; bit++){
-        uint8_t xc = c ^ (1 << bit);
-        os << tbcdToString_[xc] << (bit == 6 ? ">" : "|");
+    for (int bit = 0; bit < 7; bit++) {
+      uint8_t xc = c ^ (1 << bit);
+      os << tbcdToString_[xc] << (bit == 6 ? ">" : "|");
     }
     pbcdToString_[0x40 ^ pc] = os.str();
   }

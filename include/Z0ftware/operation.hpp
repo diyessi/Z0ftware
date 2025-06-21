@@ -148,10 +148,10 @@ public:
 
 class Abs : public OperationImpl<Abs> {
 public:
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
-  void assemble(Assembler &assembler, Chunk &chunk) const override{};
+  void assemble(Assembler &assembler, Chunk &chunk) const override {};
 };
 
 // Packed characters, big-endian. If variable starts with ' ' there are 10
@@ -210,7 +210,7 @@ public:
 
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override;
 
@@ -253,10 +253,10 @@ public:
 
 class Ful : public OperationImpl<Ful> {
 public:
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
-  void assemble(Assembler &assembler, Chunk &chunk) const override{};
+  void assemble(Assembler &assembler, Chunk &chunk) const override {};
 };
 
 // Prefix every symbol following (until another HED) with character 1 (H)
@@ -265,7 +265,7 @@ class Hed : public OperationImpl<Hed> {
 public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
@@ -279,7 +279,7 @@ class Lib : public OperationImpl<Lib> {
 public:
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
@@ -297,7 +297,7 @@ public:
 
   void parseVariable(Assembler &assembler,
                      const std::string_view &variable) override;
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override;
 
@@ -325,7 +325,7 @@ public:
   void validate(Assembler &assembler) override;
   Section &getSection(Assembler &assembler) const override;
   void allocate(Assembler &assembler, Chunk &chunk) const override;
-  void assemble(Assembler &assembler, Chunk &chunk) const override{};
+  void assemble(Assembler &assembler, Chunk &chunk) const override {};
 
   std::ostream &print(std::ostream &os, Assembler &assembler,
                       const Chunk &chunk) const override;
@@ -334,7 +334,7 @@ public:
 // Comment is entire variable/comment field
 class Rem : public OperationImpl<Rem> {
 public:
-  void validate(Assembler &assembler) override{};
+  void validate(Assembler &assembler) override {};
   void allocate(Assembler &assembler, Chunk &chunk) const override;
   void assemble(Assembler &assembler, Chunk &chunk) const override {}
 
