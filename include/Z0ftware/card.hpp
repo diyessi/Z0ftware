@@ -86,7 +86,7 @@ public:
   void clear() { data_.fill(0); }
 
 private:
-  data_t data_;
+  data_t data_{0};
 };
 
 CardImage readCBN(std::istream &input);
@@ -114,17 +114,20 @@ private:
   // Initialize from card
   void fill(const BinaryRowCard &card);
 
-  std::array<hollerith_t, numCardColumns> columns_;
+  std::array<hollerith_t, numCardColumns> columns_{0};
 };
 
 class BinaryRowCard {
   friend BinaryColumnCard;
 
 public:
+  using column_t = int;
+  using row_t = int;
+
   BinaryRowCard(const BinaryColumnCard &card) { fill(card); }
 
-  const auto &getRows() const { return rows_; }
-  auto &getRows() { return rows_; }
+  const auto &getRowWords() const { return rowWords_; }
+  auto &getRowWords() { return rowWords_; }
 
   BinaryRowCard &operator=(BinaryColumnCard &card) {
     fill(card);
@@ -135,7 +138,7 @@ private:
   // Initialize from card
   void fill(const BinaryColumnCard &card);
 
-  std::array<word_t, 24> rows_;
+  std::array<std::array<word_t, 12>, 3> rowWords_{{0}};
 };
 
 class SAPDeck {

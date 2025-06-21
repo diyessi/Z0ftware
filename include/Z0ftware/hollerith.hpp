@@ -32,7 +32,8 @@
 static constexpr bit_size_size_t hollerith_size = 12;
 using hollerith_t = unsigned_t<hollerith_size>;
 
-// Translate Hollerith row to bit position
+// Translate Hollerith row number (12, 11, 10/0, 1, 2, ..., 9) to bit position
+// (11, 10, ..., 0)
 template <typename T> constexpr std::uint64_t hbit(T pos) {
   //   12  11
   //   11  10

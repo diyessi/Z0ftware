@@ -38,18 +38,11 @@ public:
   using F_MANTISSA = BitField<0, 27>;
   using F_ADDRESS = BitField<0, 15>;
   using base_type = Int<int_t, word_t>;
-
+  Int() = default;
   Int(bool negative, int64_t magnitude) {
     int_t::F_SIGN::ref(word_) = negative;
     int_t::F_MAGNITUDE::ref(word_) = magnitude;
   };
-
-  Int(bool negative, int64_t exponent, int64_t mantissa) {
-    int_t::F_SIGN::ref(word_) = negative;
-    int_t::F_EXP::ref(word_) = (mantissa == 0 ? 0 : exponent + 128);
-    int_t::F_MANTISSA::ref(word_) = mantissa;
-  }
-
   Int(word_t value) : word_(value) {}
 
   bool operator==(const Int<int_t, word_t> &other) const {
@@ -90,7 +83,7 @@ public:
                  getMagnitude() * other.getMagnitude());
   }
 
-private:
+protected:
   word_t word_{0};
 };
 
@@ -115,19 +108,17 @@ public:
   using F_SIGN = BitField<35, 1, bool>;
   using F_MAGNITUDE = BitField<0, 35>;
 
+  Word() = default;
+  Word(const Word &) = default;
   Word(bool negative, uint64_t magnitude) : base_type(negative, magnitude) {}
-  Word(bool negative, int64_t exponent, uint64_t mantissa)
-      : base_type(negative, exponent, mantissa) {}
   Word(word_t raw) : base_type(raw) {}
 };
 
 class FixPoint : public Word {
 public:
-  FixPoint() : FixPoint(false, 0) {}
-  FixPoint(bool negative, uint64_t magnitude) : Word(negative, magnitude) {}
+  using Word::Word;
 
-  FixPoint(bool negative, int64_t exponent, uint64_t mantissa)
-      : Word(negative, exponent, mantissa) {}
+  FixPoint() : FixPoint(false, 0) {}
   FixPoint(std::uint64_t raw) : Word(raw) {}
   FixPoint(const FixPoint &fixPoint) = default;
   FixPoint(FixPoint &&fixPoint) = default;
@@ -146,6 +137,46 @@ public:
   FixPoint operator*(FixPoint &value) const { return *this * value; }
 
   FixPoint operator/(FixPoint &value) const { return *this / value; }
+};
+
+class Float : public Word {
+public:
+  using SIGN = BitField<35, 1>;
+  using EXP = BitField<27, 8>;
+  using MANTISSA = BitField<0, 27>;
+
+  static constexpr unsigned_t<EXP::bit_size> exp_bias = 128;
+
+  using Word::Word;
+
+  Float(bool sign, signed_t<EXP::bit_size> exponent,
+        unsigned_t<MANTISSA::bit_size> mantissa) {
+    SIGN::ref(word_) = sign;
+    EXP::ref(word_) = (mantissa == 0 ? 0 : exponent + exp_bias);
+    MANTISSA::ref(word_) = mantissa;
+  }
+
+  Float() = default;
+  Float(const Float &) = default;
+
+  Float(double d) {
+    SIGN::ref(word_) = std::signbit(d);
+    auto exp = std::ilogb(d);
+    switch (exp) {
+    case FP_ILOGB0:
+      break;
+    default: {
+      // For 70x, 1/2 <= mantiss < 1, so shift exp by 1
+      EXP::ref(word_) = exp + 1 + exp_bias;
+      MANTISSA::ref(word_) = std::ldexp(d, 26 - exp);
+    }
+    }
+  }
+
+  auto getSign() { return SIGN::ref(word_); }
+  auto getExp() { return EXP::ref(word_) - exp_bias; }
+  auto getBiasedExp() { return EXP::ref(word_); }
+  auto getMantissa() { return MANTISSA::ref(word_); }
 };
 
 #endif

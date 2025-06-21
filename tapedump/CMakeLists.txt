@@ -8,3 +8,12 @@ target_link_libraries(tapedump
     Z0ftware
     ${llvm_libs}
 )
+
+add_executable(sharedump
+    sharedump.cpp
+)
+
+target_link_libraries(sharedump
+    Z0ftware
+    ${llvm_libs}
+)

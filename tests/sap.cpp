@@ -22,8 +22,6 @@
 
 #include "Z0ftware/asm.hpp"
 #include "Z0ftware/operation.hpp"
-#include "Z0ftware/parser.hpp"
-#include "Z0ftware/signature.hpp"
 
 #include <gtest/gtest.h>
 
@@ -107,7 +105,6 @@ TEST(sap, DEC) {
   Dec *dec{nullptr};
   ASSERT_TRUE(operation->on([&dec](Dec &ref) { dec = &ref; }));
   const auto &values = dec->getValues();
-  std::string variable = "210,2B2,1B2,146B8,.5B34,0.75E0,-0,-0.0 COMMENT";
   ASSERT_EQ(values.size(), 8);
   EXPECT_EQ(values.at(0), FixPoint(false, 210));
   EXPECT_EQ(values.at(1), FixPoint(false, 0200000000000));

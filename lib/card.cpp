@@ -77,7 +77,8 @@ const std::vector<HollerithChar> &getBaseCardEncoding() {
 }
 
 namespace {
-std::vector<HollerithChar> createBCDEncoding(std::vector<HollerithChar> &&symbols) {
+std::vector<HollerithChar>
+createBCDEncoding(std::vector<HollerithChar> &&symbols) {
   auto table = getBaseCardEncoding();
   table.reserve(table.size() + symbols.size());
   std::move(symbols.begin(), symbols.end(), std::inserter(table, table.end()));
@@ -339,6 +340,32 @@ const std::vector<HollerithChar> &getBCDIC2() {
   return table;
 }
 
+// https://bitsavers.org/pdf/ibm/702/22-6173-1_702prelim_Feb56.pdf
+// Page 32, 80
+// https://bitsavers.org/pdf/ibm/705/22-6627-4_705_Oper_Jun57.pdf
+// Page 10
+// https://bitsavers.org/pdf/ibm/punchedCard/AccountingMachine/22-5765-7_407_Operation_1953.pdf
+// Page 8, 13
+// https://bitsavers.org/pdf/ibm/650/22-6060-2_650_OperMan.pdf
+// Page 109
+const std::vector<HollerithChar> &getBCD702() {
+  static std::vector<HollerithChar> table = createBCDEncoding({
+
+      //
+      {{12}, '&'},
+      {{12, 3, 8}, '.'},
+      {{12, 4, 8}, u'¤'},
+      {{11}, '-'},
+      {{11, 3, 8}, '$'},
+      {{11, 4, 8}, '*'},
+      {{0, 1}, '/'},
+      {{0, 3, 8}, ','},
+      {{0, 4, 8}, '%'},
+      {{3, 8}, '#'},
+      {{4, 8}, '@'}});
+  return table;
+}
+
 SAPDeck::SAPDeck(std::istream &stream) {
   char cardText[81];
   while (stream.good()) {
@@ -388,22 +415,30 @@ void BinaryColumnCard::readCBN(std::istream &input) {
 
 void BinaryColumnCard::fill(const BinaryRowCard &card) {
   std::fill(columns_.begin(), columns_.end(), 0);
-  const auto &rows = card.getRows();
 }
 
 void BinaryRowCard::fill(const BinaryColumnCard &card) {
-  std::fill(rows_.begin(), rows_.end(), 0);
-  // Left/right side of card
-  for (int i = 0; i < 2; ++i) {
-    std::array<hollerith_t, 36> columns;
-    std::copy(card.getColumns().begin() + 36 * i,
-              card.getColumns().begin() + 36 * i + 36, columns.begin());
-    for (int row = 0; row < 12; row++) {
-      for (int column = 0; column < 36; column++) {
-        rows_[i + 2 * row] =
-            (rows_[i + 2 * row] << 1) | (columns[column] & 0x001);
-        columns[column] = columns[column] >> 1;
+  // The 9L row is mapped to columns 1, 2, 3 of a binary card with bits 1 to
+  // 12 of a word going with rows 12 to 9.
+  //
+  // We pair Hollerith row numbers (12, 11, 0, 1, 2, ..., 9) with bit
+  // little-endian positions (11, 10, ..., 0), so column 1
+  //
+  // 12 :  9L1 9L13 9L25 * 11
+  // 11 :  9L2 9L14 9L26 * 10
+  //  * :   *    *    *  *  *
+  //  9 : 9L12 9L24 9L36 *  0
+  //
+  // 9L : 1.12 1.11 1.0 ... 1.9 2.12 2.11 2.0 ... 2.9 ... 3.12 3.11 3.0 ... 3.9
+  int startCol = 1;
+  for (int row = 0; row < 12; ++row) {
+    for (int side = 0; side < 2; ++side) {
+      word_t &word = rowWords_[side][row];
+      word = 0;
+      for (int col = startCol - 1; col < startCol + 3 - 1; ++col) {
+        word = word << 12 | card.getColumns().at(col);
       }
+      startCol += 3;
     }
   }
 }
@@ -462,8 +497,7 @@ CardImage readCBN(std::istream &input) {
 }
 
 void writeCBN(std::ostream &output, const CardImage &cardImage) {
-  std::array<char, 160> buffer;
-  buffer.fill(0);
+  std::array<char, 160> buffer{0};
   auto bufferp = &buffer[0];
   for (int column = 1; column <= 80; column++) {
     auto column_value = cardImage[column];

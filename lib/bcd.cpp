@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023 Scott Cyphers
+// Copyright (c) 2025 Scott Cyphers
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,194 @@
 
 #include <iostream>
 #include <unordered_map>
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#48-character_BCD_code
+const TapeBCDCharSet BCD{
+    "IBM 48-character BCDIC code",
+    {// 0
+     " ", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "#", "@", c_invalid,
+     c_invalid, c_invalid,
+     // 1
+     c_invalid, "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_invalid, ",",
+     "%", c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_invalid, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     "&", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_invalid, ".",
+     c_lozenge, c_invalid, c_invalid, c_invalid}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#Code_page_353
+const TapeBCDCharSet BCDIC_A{"BCDIC-A Code Page 353",
+                             {// 0
+                              " ", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                              "0", "#", "@", ":", ">", c_radical,
+                              // 1
+                              c_blank, "/", "S", "T", "U", "V", "W", "X", "Y",
+                              "Z", c_record_mark, ",", "%", c_gamma, "\\",
+                              c_triple_plus,
+                              // 2
+                              "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
+                              "!", CharSpec("#", false), "*", "]", ";", c_delta,
+                              // 3
+                              "&", "A", "B", "C", "D", "E", "F", "G", "H", "I",
+                              "?", ".", c_lozenge, "[", "<", c_group_mark}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#Code_page_354
+const TapeBCDCharSet BCDIC_B{"BCDIC-B Code Page 354",
+                             {// 0
+                              " ", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                              "0", c_circle_dot, "'", ":", ">", c_radical,
+                              // 1
+                              c_blank, "/", "S", "T", "U", "V", "W", "X", "Y",
+                              "Z", c_record_mark, ",", "(", c_gamma, "\\",
+                              c_triple_plus,
+                              // 2
+                              "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
+                              "!", "#", "*", "]", ";", c_delta,
+                              // 3
+                              "+", "A", "B", "C", "D", "E", "F", "G", "H", "I",
+                              "?", ".", ")", "[", "<", c_group_mark}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#IBM_704_BCD_code
+const IBM704BCDCharSet BCD704{
+    "IBM 704 character set",
+    {// 0
+     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", c_invalid, "#", "@",
+     c_invalid, c_invalid, c_invalid,
+     // 1
+     "&", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_plus_zero, ".",
+     c_lozenge, c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_minus_zero, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     " ", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_record_mark, ",", "%",
+     c_invalid, c_invalid, c_invalid}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#IBM_704_storage_style
+const IBM704BCDCharSet BCD716G{
+    "IBM 716 printer character set G",
+    {// 0
+     "*", "1", "2", "3", "4", "5", "6", "7", "8", "9", c_invalid, "+", "-",
+     c_invalid, c_invalid, c_invalid,
+     // 1
+     "+", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_invalid, ".",
+     c_lozenge, c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_invalid, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     "0", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_invalid, ",", "%",
+     c_invalid, c_invalid, c_invalid}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#Fortran_character_set
+const IBM704BCDCharSet BCD716Fortran{
+    "IBM 716 printer Fortran character set",
+    {// 0
+     "*", "1", "2", "3", "4", "5", "6", "7", "8", "9", c_invalid, "=", "-",
+     c_invalid, c_invalid, c_invalid,
+     // 1
+     "+", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_invalid, ".", ")",
+     c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_invalid, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     "0", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_invalid, ",", "(",
+     c_invalid, c_invalid, c_invalid}};
+
+// https://en.wikipedia.org/wiki/BCD_(character_encoding)#IBM_704_storage_style
+const IBM704BCDCharSet BCDIBM7090{
+    "IBM 7090/7094 character set",
+    {// 0
+     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", c_invalid, "=", "\"",
+     c_invalid, c_invalid, c_invalid,
+     // 1
+     "&", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_plus_zero, ".", ")",
+     c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_minus_zero, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     " ", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_plus_minus, ",", "(",
+     c_invalid, c_invalid, c_invalid}};
+
+// clang-format off
+// From page 209, Philip M. Sherman, PROGRAMMING AND CODING THE IBM 709-7090-7094 COMPUTERS, 1963.
+// https://bitsavers.org/pdf/ibm/7090/books/Sherman_Programming_and_Coding_the_IBM_709-7090-7094_Computers_1963.pdf
+const IBM704BCDCharSet BCDSherman{
+    "Philip M. Sherman, PROGRAMMING AND CODING THE IBM 709-7090-7094 COMPUTERS, 1963.",
+    {// 0
+     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", c_invalid, "=", "\"",
+     c_invalid, c_invalid, c_invalid,
+     // 1
+     "+", "A", "B", "C", "D", "E", "F", "G", "H", "I", c_invalid, ".", ")",
+     c_invalid, c_invalid, c_invalid,
+     // 2
+     "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", c_invalid, "$", "*",
+     c_invalid, c_invalid, c_invalid,
+     // 3
+     " ", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", c_plus_minus, ",", "(",
+     c_invalid, c_invalid, c_invalid}};
+
+bcd_t CPUFromTape(bcd_t tapeBCD) {
+    bcd_t cpuBCD = (bcd_t(0) == (tapeBCD & bcd_t(0x10))) ? tapeBCD : tapeBCD ^ bcd_t(0x10);
+    if (tapeBCD == bcd_t(0x10)) {
+      // '0'
+      cpuBCD = bcd_t(0x00);
+    } else if (tapeBCD == bcd_t(0x10)) {
+      // ' '
+      cpuBCD = bcd_t(0x30);
+    }
+    return cpuBCD;
+}
+
+bcd_t tapeFromCPU(bcd_t cpuBCD) {
+    bcd_t tapeBCD = (bcd_t(0) == (cpuBCD & bcd_t(0x10))) ? cpuBCD : (cpuBCD ^ bcd_t(0x20));
+    if (cpuBCD == bcd_t(0x00)) {
+      // '0'
+      tapeBCD = bcd_t(0x0A);
+    } else if (cpuBCD == bcd_t(0x30)) {
+      // ' '
+      tapeBCD = bcd_t(0x10);
+    }
+    return tapeBCD;
+}
+
+void TapeBCDCharSet::initCPUChars(charmap_t &cpuChars) const {
+  std::fill(cpuChars.begin(), cpuChars.end(), c_invalid);
+  for (int tapeBCD = 0; tapeBCD < 64; tapeBCD = tapeBCD++) {
+    int cpuBCD = int(CPUFromTape(bcd_t(tapeBCD)));
+    auto& c = charMap_[tapeBCD];
+    if (c) {
+        cpuChars[cpuBCD] = c;
+    }
+  }
+}
+
+void TapeBCDCharSet::initTapeChars(charmap_t &tapeChars) const {
+  std::copy(charMap_.begin(), charMap_.end(), tapeChars.begin());
+}
+
+void IBM704BCDCharSet::initCPUChars(charmap_t &cpuChars) const {
+  std::copy(charMap_.begin(), charMap_.end(), cpuChars.end());
+}
+
+void IBM704BCDCharSet::initTapeChars(charmap_t &tapeChars) const {
+  std::fill(tapeChars.begin(), tapeChars.end(), c_invalid);
+  for (int cpuBCD = 0; cpuBCD < 64; cpuBCD++) {
+    if (cpuBCD == 0x0A) {
+        // Remapped to space
+      continue;
+    }
+    int tapeBCD = int(tapeFromCPU(bcd_t(cpuBCD)));
+    auto &c =charMap_[cpuBCD];
+    if (c) { 
+        tapeChars[tapeBCD] = c;
+    }
+  }
+}
 
 constexpr bcd_t bcdSwapZeroBlank(bcd_t bcd) {
   return (bcd == bcd_t(0) || bcd == bcd_t(0x10)) ? bcd ^= bcd_t(0x10) : bcd;
@@ -237,7 +425,7 @@ BCD_ASCII bcd704[] = {
     {bcd_t(010), '8'},
     {bcd_t(011), '9'},
     // '0' on tape
-    {bcd_t(012), '0'},
+    //{bcd_t(012), '0'},
     {bcd_t(013), '='},
     {bcd_t(014), '"'},
     {bcd_t(020), '+'},
@@ -308,16 +496,7 @@ BCD_ASCII mapTape[] = {
 } // namespace
 
 bcd_t BCDFromChar(char ascii) {
-  static auto buildTable = []() {
-    std::unordered_map<char32_t, bcd_t> table;
-    for (auto bcd : bcd704) {
-      table[bcd.ascii] = bcd.bcd;
-    }
-    return table;
-  };
-  static auto table = buildTable();
-  auto it = table.find(ascii);
-  return it == table.end() ? bcd_t(0x7f) : it->second;
+  return BCDSherman.getBCD(ascii);
 }
 
 char charFromBCD(bcd_t bcd) {

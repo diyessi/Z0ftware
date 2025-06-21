@@ -36,6 +36,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <istream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -46,10 +47,12 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
                                            llvm::cl::desc("<Input files>"),
                                            llvm::cl::OneOrMore);
 
-llvm::cl::opt<unsigned> width("w", llvm::cl::desc("line-width (default 40)"),
-                              llvm::cl::init(40));
-llvm::cl::opt<unsigned> grouping("g", llvm::cl::desc("grouping (default 5)"),
-                                 llvm::cl::init(5));
+llvm::cl::opt<unsigned>
+    width("w", llvm::cl::desc("line-width for dumps (default 40)"),
+          llvm::cl::init(40));
+llvm::cl::opt<unsigned>
+    grouping("g", llvm::cl::desc("grouping for printing (default 5)"),
+             llvm::cl::init(5));
 llvm::cl::opt<bool> dump("d", llvm::cl::desc("binary dump"),
                          llvm::cl::init(false));
 llvm::cl::opt<bool> raw("r", llvm::cl::desc("raw binary dump"),
@@ -58,6 +61,8 @@ llvm::cl::opt<bool> binary("b", llvm::cl::desc("binary records"),
                            llvm::cl::init(false));
 llvm::cl::opt<bool> symbolic("s", llvm::cl::desc("symbolic records"),
                              llvm::cl::init(false));
+llvm::cl::opt<bool> headers("H", llvm::cl::desc("headers"),
+                            llvm::cl::init(false));
 
 enum Encoding { IBM704, IBM704_4, CP29 };
 
@@ -124,13 +129,12 @@ protected:
   std::unordered_map<char, char> unmapped_;
 };
 
-class DumpTapeIByteStream : public IByteStream {
+class DumpTapeAdapter : public TapeReadAdapter {
 public:
-  DumpTapeIByteStream(std::istream &input) : input_(input) {}
-  size_t read(char *buffer, size_t size) override {
-    size_t pos = input_.tellg();
-    input_.read(buffer, size);
-    size_t numRead = input_.gcount();
+  DumpTapeAdapter(TapeIRecordStream &tapeIStream, BCDHandler &bcdHandler)
+      : TapeReadAdapter(tapeIStream), bcdHandler_(bcdHandler) {}
+
+  void onRead(size_t pos, char *buffer, size_t numRead) override {
     if (raw) {
       for (size_t i = 0; i < numRead; ++i) {
         if (0 == (pos + i) % width_) {
@@ -150,26 +154,10 @@ public:
         std::cout << "\n";
       }
     }
-    return numRead;
   }
 
-protected:
-  std::istream &input_;
-  size_t width_{width};
-  size_t grouping_{grouping};
-};
-
-class DumpTapeAdapter : public TapeReadAdapter {
-public:
-  DumpTapeAdapter(TapeIRecordStream &tapeIStream, BCDHandler &bcdHandler)
-      : TapeReadAdapter(tapeIStream), bcdHandler_(bcdHandler) {}
-
   void onRecordData(char *buffer, size_t size) override {
-    evenParityCount_ += std::count_if(buffer, buffer + size, [](char c) {
-      return isEvenParity(sevenbit_t(c));
-    });
     if (dump) {
-
       for (size_t i = 0; i < size; ++i) {
         if (0 == i % width_) {
           if (i > 0) {
@@ -186,31 +174,120 @@ public:
       }
       std::cout << '\n';
     }
-    std::copy(&buffer[0], &buffer[size], std::back_inserter(record_));
   }
 
   void onBinaryRecordData() override {
     if (binary) {
-      while ((record_.size() % 6) != 0) {
-        record_.push_back(0);
-      }
-      for (size_t i = 0; i < record_.size();) {
-        word_t word{0};
-        dpb<30, 6>(record_[i++], word);
-        dpb<24, 6>(record_[i++], word);
-        dpb<18, 6>(record_[i++], word);
-        dpb<12, 6>(record_[i++], word);
-        dpb<6, 6>(record_[i++], word);
-        dpb<0, 6>(record_[i++], word);
-        std::cout << std::oct << std::setw(12) << std::setfill('0') << word
-                  << '\n';
+      size_t recordSize = record_.size();
+      std::cout << "Binary record " << std::dec << "size: " << recordSize
+                << "\n";
+      if (recordSize % 80 * 2 == 0) {
+        // 80 columns, 2 bytes per column
+        size_t record_pos = 0;
+        while (record_pos < recordSize) {
+          std::cout << "Card " << std::dec << binaryCardNum_++ << "\n";
+          CardImage card;
+          for (int column = 1; column <= 80; ++column) {
+            hollerith_t high = record_[record_pos++];
+            hollerith_t low = record_[record_pos++];
+            card[column] = ((high & 0x3F) << 6) | (low & 0x3F);
+          }
+          std::cout << "Columns\n";
+          for (int row = 0; row < 4; ++row) {
+            for (int column = 1; column <= 80; ++column) {
+              if (column > 1 && column % 36 == 0) {
+                std::cout << " ";
+              }
+              hollerith_t val = card[column];
+              std::cout << std::oct << std::setw(1)
+                        << unsigned(0x7 & (val >> (3 * (3 - row))));
+            }
+            std::cout << "\n";
+          }
+          std::cout << "Column Binary\n";
+          std::cout << "\n";
+          for (int col = 1; col <= 72; col += 3) {
+            uint64_t val = uint64_t(card[col]) << 24 |
+                           uint64_t(card[col + 1]) << 12 |
+                           uint64_t(card[col + 2]);
+            std::cout << std::oct << std::setw(12) << val << "\n";
+          }
+          std::cout << "\n";
+          std::cout << "Row Binary\n";
+          for (int row = 0; row < 12; ++row) {
+            for (int side = 0; side < 2; ++side) {
+              std::cout << std::oct << std::setw(12)
+                        << card.getWord(2 * row + side);
+              if (side == 0) {
+                std::cout << " ";
+              } else {
+                std::cout << "\n";
+              }
+            }
+          }
+          card.clear();
+          std::cout << "\n";
+#if 0
+          BinaryColumnCard card;
+          auto &columns = card.getColumns();
+          for (size_t col = 0; col < 80; col++) {
+            hollerith_t high = record_[record_pos++];
+            hollerith_t low = record_[record_pos++];
+            columns[col] = ((high & 0x3F) << 6) | (low & 0x3F);
+            if (0 == col % 6) {
+              std::cout << "\n";
+            } else if (0 == col % 3) {
+              std::cout << " ";
+            }
+            std::cout << std::oct << std::setw(4) << std::setfill('0')
+                      << columns[col] << ' ';
+          }
+          std::cout << "\n";
+
+          BinaryRowCard rowCard(card);
+
+          static size_t row_trans[] = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 11, 12};
+          for (int row = 11; row >= 0; --row) {
+            std::cout << std::dec << ::std::setw(2) << row_trans[row] << " "
+                      << std::oct << std::setw(12) << std::setfill('0')
+                      << rowCard.getRowWords()[0][row] << " " << std::setw(12)
+                      << std::setfill('0') << rowCard.getRowWords()[1][row]
+                      << " " << std::setw(3) << std::setfill('0')
+                      << rowCard.getRowWords()[2][row] << std::endl;
+          }
+          std::cout << std::endl;
+          uint64_t checksum{0};
+          for (size_t row = 0; row < 11; row++) {
+            checksum += rowCard.getRowWords()[0][row];
+            checksum += rowCard.getRowWords()[1][row];
+          }
+          std::cout << "Checksum: " << std::oct << checksum << "\n";
+#endif
+        }
+      } else {
+        std::cout << "Unhandled record size\n";
+
+        int word_num = 0;
+        for (size_t i = 0; i < record_.size();) {
+          word_t word{0};
+          dpb<30, 6>(record_[i++], word);
+          dpb<24, 6>(record_[i++], word);
+          dpb<18, 6>(record_[i++], word);
+          dpb<12, 6>(record_[i++], word);
+          dpb<6, 6>(record_[i++], word);
+          dpb<0, 6>(record_[i++], word);
+          std::cout << std::dec << std::setw(4) << std::setfill(' ')
+                    << word_num++ << " " << std::oct << std::setw(12)
+                    << std::setfill('0') << word << '\n';
+        }
       }
     }
   }
 
   void onBCDRecordData() override {
-    if (symbolic) {
+    if (symbolic || (headers && record_.size() <= 84)) {
       // BCD data
+      binaryCardNum_ = 0;
       auto it = record_.begin();
       while (it < record_.end()) {
         auto thisWhack =
@@ -232,7 +309,6 @@ public:
   }
 
   void onBeginOfRecord() override {
-    evenParityCount_ = 0;
     lineSize_ = 0;
     if (dump) {
       std::cout << "BOR\n";
@@ -240,17 +316,9 @@ public:
   }
 
   void onEndOfRecord() override {
-    if (2 * evenParityCount_ < record_.size()) {
-      onBinaryRecordData();
-    } else {
-      onBCDRecordData();
-    }
-    record_.clear();
     if (dump) {
       size_t recordLength = tapePos_ - recordStartPos_;
-      std::cout << "EOR " << std::dec << "even/odd parity: " << evenParityCount_
-                << '/' << recordLength - evenParityCount_
-                << " record length: " << recordLength << "\n";
+      std::cout << "EOR " << " record length: " << recordLength << "\n";
     }
   }
 
@@ -268,17 +336,16 @@ public:
   }
 
 protected:
-  size_t evenParityCount_{0};
-  std::vector<char> record_;
   BCDHandler bcdHandler_;
   size_t width_{width};
   size_t grouping_{grouping};
   size_t lineSize_{0};
+  // Since last symbolic record
+  size_t binaryCardNum_{0};
 };
 
 void dumpTape(BCDHandler &bcdHandler, std::istream &input) {
-  DumpTapeIByteStream rawStream(input);
-  P7BIStream reader(rawStream);
+  P7BIStream reader(input);
   DumpTapeAdapter dumper(reader, bcdHandler);
   dumper.read();
 }
@@ -288,12 +355,14 @@ void dumpTape(BCDHandler &bcdHandler, std::istream &input) {
 using tape_event_handler_t = std::function<void(size_t tapePos, bool isBinary,
                                                 std::vector<char> &record)>;
 
+#ifdef READ_HANDLER
 void readTape(std::istream &input, tape_event_handler_t handler) {
-  // Every byte corresponds to one character on tape
-  // Bit 7 indicates the start of a new record.  One character 0x8F record
-  // indicates EOF. Bit 6 is parity. Binary records have odd parity, BCD records
-  // have even parity.
-  // EOF is a 1 byte record containing 0xF (plus parity).
+  // Every byte corresponds to one character on
+  // tape Bit 7 indicates the start of a new
+  // record.  One character 0x8F record indicates
+  // EOF. Bit 6 is parity. Binary records have odd
+  // parity, BCD records have even parity. EOF is a
+  // 1 byte record containing 0xF (plus parity).
 
   // Start byte of current chunk on tape
   size_t tapeChunkBegin{0};
@@ -407,16 +476,17 @@ private:
   size_t width_{0};
   BCDHandler bcdHandler_;
 };
+#endif
 
 int main(int argc, const char **argv) {
   llvm::cl::SetVersionPrinter([](llvm::raw_ostream &os) {
     os << "Version " << Z0ftware_VERSION_MAJOR << "." << Z0ftware_VERSION_MINOR
        << "." << Z0ftware_VERSION_PATCH << "\n";
   });
-  llvm::cl::ParseCommandLineOptions(
-      argc, argv,
-      "BCD tape dumper for IBM 704\n\n"
-      "  This program dumps a BCD tape as ASCII\n");
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                                    "BCD tape dumper for IBM 704\n\n"
+                                    "  This program dumps a BCD tape as "
+                                    "ASCII\n");
 
   BCDHandler bcdHandler;
   auto charEncoding = getBCDIC1();
@@ -441,12 +511,20 @@ int main(int argc, const char **argv) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
 
+#ifdef READ_HANDLER
     if (dump || raw || binary || symbolic) {
+#endif
       dumpTape(bcdHandler, input);
-      break;
+#ifdef READ_HANDLER
     }
-    ReadHandler handler(input, bcdHandler, width);
-    readTape(input, handler);
+#endif
+#ifdef READ_HANDLER
+    else {
+
+      ReadHandler handler(input, bcdHandler, width);
+      readTape(input, handler);
+    }
+#endif
     input.close();
   }
   return EXIT_SUCCESS;

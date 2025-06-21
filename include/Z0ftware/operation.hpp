@@ -24,6 +24,7 @@
 #define Z0FTWARE_OPERATION_HPP
 
 #include "Z0ftware/exprs.hpp"
+#include "Z0ftware/signature.hpp"
 #include "Z0ftware/utils.hpp"
 
 #include <memory>
@@ -214,7 +215,7 @@ public:
   void assemble(Assembler &assembler, Chunk &chunk) const override;
 
 private:
-  std::vector<FixPoint> values_;
+  std::vector<Word> values_;
 };
 
 // Undefined symbols after DEF line are allocated addresses started at
@@ -301,7 +302,7 @@ public:
   void assemble(Assembler &assembler, Chunk &chunk) const override;
 
 private:
-  std::vector<FixPoint> values_;
+  std::vector<Word> values_;
 };
 
 class Instruction : public OperationImpl<Instruction> {

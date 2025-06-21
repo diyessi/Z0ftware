@@ -20,16 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Z0ftware/exprs.hpp"
 #include "Z0ftware/parser.hpp"
+#include "Z0ftware/exprs.hpp"
 #include "Z0ftware/word.hpp"
 
 #include <any>
-#include <map>
 #include <string>
 
 namespace {
-FixPoint pegDecimal(const peg::SemanticValues &vs) {
+Word pegDecimal(const peg::SemanticValues &vs) {
   auto sign = std::any_cast<std::uint8_t>(vs[0]);
   auto num = vs.tokens[0];
   auto expbexp = std::any_cast<ExpBExp_t>(vs[vs.size() - 1]);
@@ -42,10 +41,7 @@ FixPoint pegDecimal(const peg::SemanticValues &vs) {
   if (!std::get<1>(expbexp) &&
       (num.find('.') != std::string::npos || std::get<0>(expbexp))) {
     // Floating point
-    auto exp = std::ilogb(d);
-    auto mantissa = long(std::ldexp(d, 26 - exp));
-    // For 70x, 1/2 <= mantiss < 1, so shift exp by 1
-    return FixPoint(sign, exp + 1, mantissa);
+    return Float(d);
   }
   auto b = std::get<1>(expbexp) ? 35 - std::get<1>(expbexp).value() : 0;
   d = std::ldexp(d, b);
@@ -124,10 +120,10 @@ const std::string grammarDEC = R"(
 } // namespace
 
 PegDECParser::PegDECParser() : peg::parser(grammarDEC) {
-  (*this)["DEC"] = [](const peg::SemanticValues &vs) -> std::vector<FixPoint> {
-    std::vector<FixPoint> numbers;
+  (*this)["DEC"] = [](const peg::SemanticValues &vs) -> std::vector<Word> {
+    std::vector<Word> numbers;
     for (auto v : vs) {
-      numbers.push_back(std::any_cast<FixPoint>(v));
+      numbers.push_back(std::any_cast<Word>(v));
     }
     return numbers;
   };

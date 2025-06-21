@@ -3,6 +3,7 @@ add_library(Z0ftware
     asm.cpp
     bcd.cpp
     card.cpp
+    characters.cpp
     disasm.cpp
     exprs.cpp
     op.cpp

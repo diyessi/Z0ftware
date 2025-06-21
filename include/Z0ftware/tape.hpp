@@ -25,11 +25,7 @@
 
 #include <array>
 #include <cstddef>
-
-class IByteStream {
-public:
-  virtual size_t read(char *buffer, size_t size) = 0;
-};
+#include <vector>
 
 class TapeIRecordStream {
 public:
@@ -53,7 +49,7 @@ public:
 class P7BIStream : public TapeIRecordStream {
 
 public:
-  P7BIStream(IByteStream &input);
+  P7BIStream(std::istream &input);
   bool nextRecord() override;
   size_t read(char *buffer, size_t size) override;
 
@@ -69,8 +65,8 @@ protected:
   // Scan for the next begin of record mark
   void findNextBOR();
 
-  IByteStream &input_;
-  std::array<char, 1024> tapeBuffer_;
+  std::istream &input_;
+  std::array<char, 1024> tapeBuffer_{0};
   char *tapeBufferPos_{tapeBuffer_.data()};
   char *tapeBufferEnd_{tapeBufferPos_};
   char *tapeBORPos_{nullptr};
@@ -89,6 +85,10 @@ public:
   size_t getTapePos() const { return tapePos_; }
 
   // Events
+
+  // Buffer read from input
+  // pos is file position
+  virtual void onRead(size_t pos, char *buffer, size_t size) {}
   virtual void onRecordData(char *buffer, size_t size) {}
   virtual void onBinaryRecordData() {}
   virtual void onBCDRecordData() {}
@@ -102,6 +102,7 @@ protected:
   bool reading_{true};
   size_t recordStartPos_{0};
   size_t tapePos_{0};
+  std::vector<char> record_;
 };
 
 #endif

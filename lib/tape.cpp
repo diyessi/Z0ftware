@@ -21,8 +21,11 @@
 // SOFTWARE.
 
 #include "Z0ftware/tape.hpp"
+#include "Z0ftware/parity.hpp"
 
-P7BIStream::P7BIStream(IByteStream &input) : input_(input) {
+#include <istream>
+
+P7BIStream::P7BIStream(std::istream &input) : input_(input) {
   fillTapeBuffer();
   tapeBORPos_ = tapeBufferPos_;
   if (0x80 == (*tapeBORPos_ & 0x80)) {
@@ -34,8 +37,8 @@ P7BIStream::P7BIStream(IByteStream &input) : input_(input) {
 void P7BIStream::fillTapeBuffer() {
   if (!(error_ || eot_) && tapeBufferPos_ == tapeBufferEnd_) {
     tapeBufferPos_ = tapeBuffer_.data();
-    size_t numRead = input_.read(tapeBufferPos_, tapeBuffer_.size());
-    tapeBufferEnd_ = tapeBufferPos_ + numRead;
+    input_.read(tapeBufferPos_, tapeBuffer_.size());
+    tapeBufferEnd_ = tapeBufferPos_ + input_.gcount();
     if (tapeBufferPos_ == tapeBufferEnd_) {
       // End of input before EOF marker
       eot_ = true;
@@ -101,9 +104,12 @@ size_t P7BIStream::read(char *buffer, size_t size) {
 void TapeReadAdapter::read() {
   char buffer[40];
   reading_ = true;
+  size_t pos = 0;
   onBeginOfRecord();
   while (reading_) {
     size_t size = tapeIStream_.read(buffer, sizeof(buffer));
+    onRead(pos, buffer, size);
+    pos += size;
     if (1 == size) {
       // Marker
       char mark = buffer[0] & 0x0F;
@@ -114,9 +120,20 @@ void TapeReadAdapter::read() {
     }
     if (size > 0) {
       onRecordData(buffer, size);
+
+      std::copy(&buffer[0], &buffer[size], std::back_inserter(record_));
     } else {
       if (tapeIStream_.nextRecord()) {
         onEndOfRecord();
+        size_t evenParityCount =
+            std::count_if(record_.begin(), record_.end(),
+                          [](char c) { return isEvenParity(sevenbit_t(c)); });
+        if (2 * evenParityCount < record_.size()) {
+          onBinaryRecordData();
+        } else {
+          onBCDRecordData();
+        }
+        record_.clear();
         recordStartPos_ = tapePos_;
         onBeginOfRecord();
       } else {

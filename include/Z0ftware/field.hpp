@@ -149,6 +149,23 @@ constexpr unsigned_t<bit_size + bit_pos> bitmask =
     unsigned_t<bit_size + bit_pos>(
         ((unsigned_t<bit_size + 1>(1) << bit_size) - 1) << bit_pos);
 
+template <bit_size_size_t bit_size> class Unsigned {
+public:
+  using value_t = unsigned_t<bit_size>;
+
+  Unsigned() = default;
+  template <typename T> Unsigned(T value) : value_(value & bitmask<bit_size>) {}
+  Unsigned(const Unsigned &) = default;
+  Unsigned &operator=(const Unsigned &) = default;
+
+  operator value_t() const { return value_; }
+
+  static constexpr bit_size_size_t size() { return value_t::size(); };
+
+protected:
+  const value_t value_{0};
+};
+
 // ldb<bit_pos, bit_size>
 template <bit_pos_size_t bit_pos, bit_size_size_t bit_size,
           typename value_t = unsigned_t<bit_pos + bit_size>,
@@ -169,9 +186,9 @@ constexpr value_t zipb(field_t field, value_t value = 0) {
 template <bit_pos_size_t bit_pos, bit_size_size_t bit_size, typename value_t,
           typename field_t>
 constexpr field_t dpb(field_t field, value_t &value = 0) {
-  field_t maskedField = bitmask<bit_size> & field;
-  value = (value & ~(value_t(bitmask<bit_size>) << bit_pos)) |
-          (value_t(maskedField) << bit_pos);
+  value_t mask = bitmask<bit_size>;
+  value_t maskedField = field & mask;
+  value = (value & ~(mask << bit_pos)) | (maskedField << bit_pos);
   return maskedField;
 }
 
