@@ -307,10 +307,6 @@ const std::unordered_map<hollerith_t, bcd_t> &HBCD::getBcdFromHollerithMap() {
   return bcdFromHollerith_;
 }
 
-const std::array<hollerith_t, bcdSize> &HBCD::getHollerithFromBcdArray() {
-  return hollerithFromBcd_;
-}
-
 bcd_t tapeBCDfromBCD(bcd_t bcd) {
   if (bcd == bcd_t(0)) {
     return bcd_t(0b001010);
@@ -356,53 +352,6 @@ bcd_t BCDFromColumn(hollerith_t column) {
   return bcd;
 }
 
-bcd_t BCDfromPunches(const std::vector<uint8_t> &punches, bool forTape) {
-  if (punches.empty()) {
-    return bcd_t(forTape ? 0b010000 : 0b110000);
-  }
-
-  bcd_t bcd{0};
-  for (auto punch : punches) {
-    switch (punch) {
-    case 12: {
-      bcd |= bcd_t(forTape ? 0b110000 : 0b010000);
-      break;
-    }
-    case 11: {
-      bcd |= bcd_t(0b100000);
-      break;
-    }
-    case 0: {
-      // 0 is a zone if more than one punch
-      if (punches.size() == 1) {
-        bcd |= bcd_t(forTape ? 0b001010 : 0b000000);
-      } else if (*punches.begin() == 0) {
-        bcd |= bcd_t(forTape ? 0b010000 : 0b110000);
-      } else {
-        bcd |= bcd_t(0b001010);
-      }
-      break;
-    }
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-    case 9: {
-      bcd |= bcd_t(punch);
-      break;
-    }
-    }
-  }
-  return bcd;
-}
-
-bcd_t tapeBCDParity(const std::vector<uint8_t> &rows) {
-  return evenParity(BCDfromPunches(rows, true));
-}
 
 namespace {
 struct BCD_ASCII {
@@ -495,21 +444,6 @@ BCD_ASCII mapTape[] = {
 // clang-format on
 } // namespace
 
-bcd_t BCDFromChar(char ascii) { return BCDSherman.getBCD(ascii); }
-
-char charFromBCD(bcd_t bcd) {
-  static auto buildTable = []() {
-    std::unordered_map<bcd_t, char32_t> table;
-    for (auto bcd : bcd704) {
-      table[bcd.bcd] = bcd.ascii;
-    }
-    return table;
-  };
-  static auto table = buildTable();
-  auto it = table.find(bcd);
-  return it == table.end() ? 0x7f : it->second;
-}
-
 char ASCIIFromTapeBCD(bcd_t bcd) {
   static auto table = []() {
     std::array<char32_t, 128> table;
@@ -534,11 +468,12 @@ char ASCIIFromTapeBCD(bcd_t bcd) {
 /// Convert first 6 ASCII chars to big-endian bcd chars
 /// If less than 6, pad right with spaces
 uint64_t bcd(std::string_view chars) {
-  std::uint64_t result =
-      std::uint64_t(BCDFromChar(chars.empty() ? ' ' : chars[0]));
-  for (int i = 1; i < 6; ++i) {
+  int count = 0;
+  std::uint64_t result = 0;
+  while (count < 6 && !chars.empty()) {
     result = (result << 6) |
-             std::uint64_t(BCDFromChar(i < chars.size() ? chars[i] : ' '));
+             std::uint64_t(BCDSherman.getBCD(Unicode::next_char(chars)));
+    count++;
   }
   return result;
 }

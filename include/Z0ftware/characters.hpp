@@ -27,7 +27,7 @@
 // Pg 25: 0A used in memory for '0'
 //
 
-// HollerithChar, SerialChar, BCDChar and TapeChar are values that can represent
+// HollerithChar, SerialChar, BCDChar are values that can represent
 // a character. There is a mapping between most values of different kinds of
 // Char.
 //
@@ -51,9 +51,6 @@ class SerialChar;
 
 // 701/704/709
 class BCDChar;
-
-// Includes parity
-class TapeChar;
 
 // 12-bit
 // Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
@@ -154,37 +151,5 @@ SerialChar::bits_t SerialChar::serialFromBCD(BCDChar c) {
 }
 
 SerialChar::SerialChar(BCDChar c) : bits_(serialFromBCD(c)) {}
-
-class TapeChar {
-public:
-  using bits_t = std::uint8_t;
-
-  // Odd parity
-  TapeChar(bits_t bits);
-
-  TapeChar() = default;
-  // Even parity
-  TapeChar(SerialChar c);
-  TapeChar(BCDChar c) : TapeChar(SerialChar(c)) {}
-
-protected:
-  bits_t bits_;
-};
-
-class TapeCharacterSet {
-public:
-  virtual ~TapeCharacterSet() = default;
-  TapeCharacterSet();
-  // Set a character for translation
-  void setChar(uint8_t bcd, std::wstring c) { tbcdToString_[bcd] = c; }
-  // Use tbcdToString_ for values with correct parity
-  // For incorrect parity, use "(c5|c4|...|c0)" where ci is the correct parity
-  // char with bit i complemented
-  void initialize();
-
-protected:
-  std::array<std::wstring, 64> tbcdToString_;
-  std::array<std::wstring, 128> pbcdToString_;
-};
 
 #endif

@@ -59,25 +59,3 @@ HollerithChar::operator SerialChar() const {
 HollerithChar::operator BCDChar() const {
   return BCDChar(this->operator ::SerialChar());
 }
-
-TapeCharacterSet::TapeCharacterSet() {
-  for (uint8_t c = 0; c < 0x80; c++) {
-    std::wostringstream os;
-    os << "[0x" << std::hex << std::setw(2) << std::setfill(L'0') << c << "]";
-    tbcdToString_[c] = os.str();
-  }
-}
-
-void TapeCharacterSet::initialize() {
-  for (uint8_t c = 0; c < 0x40; ++c) {
-    uint8_t pc = uint8_t(evenParity(sixbit_t(c)));
-    pbcdToString_[pc] = tbcdToString_[c];
-    std::wostringstream os;
-    os << '<';
-    for (int bit = 0; bit < 7; bit++) {
-      uint8_t xc = c ^ (1 << bit);
-      os << tbcdToString_[xc] << (bit == 6 ? ">" : "|");
-    }
-    pbcdToString_[0x40 ^ pc] = os.str();
-  }
-}

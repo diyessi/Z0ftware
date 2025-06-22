@@ -20,6 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * @file unicode.hpp
+ * @brief Helpers for conversion between char32_t and utf-8 strings.
+ */
+
 #ifndef Z0FTWARE_UNICODE
 #define Z0FTWARE_UNICODE
 
@@ -27,23 +32,45 @@
 #include <string>
 #include <string_view>
 
+/**
+ * @brief Provids methods for conversion between utf-8 and char32_t unicode.
+ */
 class Unicode {
-  static constexpr char32_t uni_0{0};
-  static constexpr char32_t uni_1{0x80};
-  static constexpr char32_t uni_2{0x800};
-  static constexpr char32_t uni_3{0x10000};
-  static constexpr char32_t uni_4{0x110000};
 
 public:
-  static constexpr char32_t invalid{0xFFFD};
+  static constexpr char32_t invalid{
+      0xFFFD}; //!< Value associated with invalid utf-8
 
-  static char32_t next_char(const std::string &s) {
-    std::string_view sv(s);
-    return next_char(sv);
-  }
+  /**
+   * @brief Tag a char32_t as Unicode
+   * @arg unicode The value to be tagged
+   */
+  Unicode(char32_t unicode) : unicode_(unicode) {}
 
-  // Removes the next unicode char from the prefix. Returns invalid if
-  // mal-formed.
+  /**
+   * @brief Convert a utf-8 prefix to unicode, removing the prefix.
+   * @arg A utf-8 encoded string.
+   */
+  Unicode(std::string_view &sv) : unicode_(next_char(sv)) {}
+
+  /**
+   * @brief Convert the first utf-8 char to unicode.
+   * @arg A utf-8 string.
+   */
+  Unicode(const std::string &s) : unicode_(next_char(s)) {}
+
+  /**
+   * @returns The untagged char32_t value.
+   */
+  operator char32_t() const { return unicode_; }
+
+  /**
+   * @brief Removes the next unicode char from the prefix of the utf-8 string
+   * view.
+   * @arg sv A utf-8 string view.
+   * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
+   * invalid.
+   */
   static char32_t next_char(std::string_view &sv) {
     if (sv.empty()) {
       return invalid;
@@ -94,15 +121,28 @@ public:
     return invalid;
   }
 
-  Unicode(char32_t unicode) : unicode_(unicode) {}
+  /**
+   * @brief Unicode char32_t of the first utf-8 char prefix.
+   * @arg s A utf-8 string.
+   * @returns The Unicode character. Unicode::invalid if the utf-8 char is
+   * invalid.
+   */
+  static char32_t next_char(const std::string &s) {
+    std::string_view sv(s);
+    return next_char(sv);
+  }
 
-  Unicode(std::string_view &sv) : unicode_(next_char(sv)) {}
-  Unicode(const std::string &s) : unicode_(next_char(s)) {}
-
-  operator char32_t() const { return unicode_; }
-
+public:
+  /**
+   * @brief Output utf-8 for a tagged Unicode char.
+   */
   template <typename S>
   friend inline auto &operator<<(S &os, const Unicode &unicode) {
+    static constexpr char32_t uni_1{0x80};
+    static constexpr char32_t uni_2{0x800};
+    static constexpr char32_t uni_3{0x10000};
+    static constexpr char32_t uni_4{0x110000};
+
     if (unicode.unicode_ < uni_1) {
       return os << char(unicode.unicode_);
     } else if (unicode.unicode_ < uni_2) {

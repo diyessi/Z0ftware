@@ -38,6 +38,18 @@ include_directories(include)
 include(FetchContent)
 include(CTest)
 
+find_package(Doxygen
+             REQUIRED dot
+             OPTIONAL_COMPONENTS mscgen dia)
+             
+set(DOXYGEN_GENERATE_HTML YES)
+set(DOXYGEN_GENERATE_MAN NO)
+
+doxygen_add_docs(doxygen
+  ${PROJECT_SOURCE_DIRS}
+)
+
+
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git

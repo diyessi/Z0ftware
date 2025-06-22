@@ -255,7 +255,6 @@ public:
   inline hollerith_t getHollerith() const;
 
   static const std::unordered_map<hollerith_t, bcd_t> &getBcdFromHollerithMap();
-  static const std::array<hollerith_t, bcdSize> &getHollerithFromBcdArray();
 
 protected:
   bcd_t bcd_;
@@ -390,19 +389,9 @@ inline TBCD::operator CBCD() const { return CBCD(*this); }
 
 inline TBCD::operator HBCD() const { return HBCD(*this); }
 
-// Decode tape bcd with even parity
-char32_t char32Decoder(bcd_t tapeBCD);
-
-char charFromBCD(bcd_t bcd);
 char ASCIIFromTapeBCD(bcd_t bcd);
-bcd_t BCDFromChar(char ascii);
 std::array<std::uint8_t, bcdSize> bcdEvenParity();
 uint64_t bcd(std::string_view chars);
-
-// Given selected card rows, ordered top to bottom, return the BCD value for
-// tape
-bcd_t BCDfromPunches(const std::vector<uint8_t> &punches, bool forTape);
-bcd_t tapeBCDParity(const std::vector<uint8_t> &punches);
 
 bcd_t BCDFromColumn(hollerith_t column);
 bcd_t tapeBCDfromBCD(bcd_t bcd);
