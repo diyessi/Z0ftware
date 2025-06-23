@@ -38,10 +38,8 @@
 #ifndef Z0FTWARE_CHARACTERS_HPP
 #define Z0FTWARE_CHARACTERS_HPP
 
-#include <array>
 #include <cstdint>
 #include <initializer_list>
-#include <string>
 
 // 12-bit
 class HollerithChar;

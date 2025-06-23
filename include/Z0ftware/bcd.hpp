@@ -55,79 +55,68 @@
 #include "Z0ftware/parity.hpp"
 
 #include <Z0ftware/unicode.hpp>
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <unordered_map>
-#include <vector>
 
-class CharSpec {
+/**
+ * @brief Information about the Unicode character to use for a BCD character.
+ */
+class BCDUnicodeChar {
+
 public:
   template <typename T>
-  CharSpec(T c, bool canonic = true) : char_(c), canonic_(canonic) {}
+  BCDUnicodeChar(T c, bool canonic = true)
+      : char_(get_unicode_char(c)), canonic_(canonic) {}
 
-  CharSpec() : char_(invalid_), canonic_(false) {}
-
-  bool operator==(const CharSpec &other) const {
+  bool operator==(const BCDUnicodeChar &other) const {
     return char_ == other.char_ && canonic_ == other.canonic_;
   }
 
-  bool operator!=(const CharSpec &other) const {
+  bool operator!=(const BCDUnicodeChar &other) const {
     return char_ != other.char_ || canonic_ != other.canonic_;
   }
 
-  operator bool() const { return char_ != invalid_; }
+  operator unicode_char_t() const { return char_; }
 
-  operator const Unicode &() const { return char_; }
-  operator Unicode() const { return char_; }
-
-  friend inline std::ostream &operator<<(std::ostream &s, const CharSpec &cs) {
-    return s << cs.char_;
+  /**
+   * @brief Print using utf-8.
+   */
+  friend inline std::ostream &operator<<(std::ostream &s,
+                                         const BCDUnicodeChar &cs) {
+    return s << Unicode(cs.char_);
   }
 
-  const Unicode &getChar() const { return char_; }
+  const unicode_char_t getChar() const { return char_; }
+
   bool isCanonic() const { return canonic_; }
 
 protected:
-  static constexpr std::string invalid_{"x"};
-
-  Unicode char_;
+  unicode_char_t char_;
   bool canonic_;
 };
-
-static const CharSpec c_invalid{};
-
-// Characters not in ASCII
-static const CharSpec c_blank{"␢"};
-static const CharSpec c_circle_dot{"⊙"};
-static const CharSpec c_delta{"Δ"};
-static const CharSpec c_gamma{"γ"};
-static const CharSpec c_group_mark{"⯒"};
-static const CharSpec c_lozenge{"⌑"};
-static const CharSpec c_minus_zero{"⦵"};
-static const CharSpec c_plus_minus{"±"};
-static const CharSpec c_plus_zero{"⨁"};
-static const CharSpec c_radical{"√"};
-static const CharSpec c_record_mark{"⧧"};
-static const CharSpec c_triple_plus{"⧻"};
 
 class TapeBCDCharSet;
 class IBM704BCDCharSet;
 
-struct BCDCharSet {
+class BCDCharSet {
 public:
-  using charmap_t = std::array<CharSpec, 64>;
-  using unicodeMap_t = std::unordered_map<char32_t, bcd_t>;
+  static const unicode_char_t
+      invalid; //!< Use "x" to identify unmapped BCD characters
+
+  using charmap_t = std::array<unicode_char_t, 64>;
+  using unicodeMap_t = std::unordered_map<unicode_char_t, bcd_t>;
 
   BCDCharSet(std::string &&description,
-             const std::initializer_list<CharSpec> &chars)
+             const std::initializer_list<BCDUnicodeChar> &chars)
       : description_(std::move(description)) {
-    std::copy(chars.begin(), chars.end(), charMap_.begin());
-    for (int bcd = 0; bcd < 64; bcd++) {
-      auto &c = charMap_[bcd];
-      if (c && c.isCanonic()) {
+    int bcd = 0;
+    for (auto &c : chars) {
+      charMap_[bcd] = c.getChar();
+      if (c.getChar() != invalid && c.isCanonic()) {
         unicodeMap_[c.getChar()] = bcd_t(bcd);
       }
+      bcd++;
     }
   }
 
@@ -135,7 +124,7 @@ public:
 
   BCDCharSet() = default;
 
-  const CharSpec &operator[](int index) const { return charMap_[index]; }
+  const unicode_char_t &operator[](int index) const { return charMap_[index]; }
 
   virtual void initCPUChars(charmap_t &) const = 0;
   virtual void initTapeChars(charmap_t &) const = 0;
@@ -143,14 +132,14 @@ public:
 
   const std::string &getDescription() const { return description_; }
 
-  bcd_t getBCD(char32_t c) const {
+  bcd_t getCPUBCD(char32_t c) const {
     auto it = unicodeMap_.find(c);
     return it == unicodeMap_.end() ? bcd_t(0x7f) : it->second;
   }
 
 protected:
   std::string description_;
-  charmap_t charMap_{c_invalid};
+  charmap_t charMap_{get_unicode_char(BCDCharSet::invalid)};
   unicodeMap_t unicodeMap_;
 };
 
@@ -193,6 +182,8 @@ extern const IBM704BCDCharSet BCD716G;
 extern const IBM704BCDCharSet BCD716Fortran;
 extern const IBM704BCDCharSet BCDIBM7090;
 extern const IBM704BCDCharSet BCDSherman;
+extern const TapeBCDCharSet BCDICFinal_A;
+extern const TapeBCDCharSet BCDICFinal_B;
 
 struct BCDPoint {
   wchar_t point;
@@ -391,7 +382,7 @@ inline TBCD::operator HBCD() const { return HBCD(*this); }
 
 char ASCIIFromTapeBCD(bcd_t bcd);
 std::array<std::uint8_t, bcdSize> bcdEvenParity();
-uint64_t bcd(std::string_view chars);
+uint64_t bcd(utf8_string_view_t chars);
 
 bcd_t BCDFromColumn(hollerith_t column);
 bcd_t tapeBCDfromBCD(bcd_t bcd);

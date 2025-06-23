@@ -24,24 +24,16 @@
 // https://www.piercefuller.com/library/magtape7.html
 
 #include "Z0ftware/bcd.hpp"
-#include "Z0ftware/card.hpp"
 #include "Z0ftware/config.h"
-#include "Z0ftware/disasm.hpp"
-#include "Z0ftware/parity.hpp"
 #include "Z0ftware/tape.hpp"
 #include "Z0ftware/unicode.hpp"
-#include "Z0ftware/word.hpp"
 
 #include "llvm/Support/CommandLine.h"
 
-#include <codecvt>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <istream>
-#include <sstream>
 #include <string>
-#include <utility>
 
 namespace {
 llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
@@ -57,8 +49,7 @@ public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const BCDCharSet &charSet)
       : TapeReadAdapter(tapeIStream), tapeChars_(charSet) {
     for (int i = 0; i < 64; ++i) {
-      auto &c = tapeChars_[i];
-      std::cout << c;
+      std::cout << Unicode(tapeChars_[i]);
     }
     std::cout << std::endl;
   }
@@ -81,8 +72,7 @@ public:
 
     size_t pos = 0;
     for (auto it : record_) {
-      auto &c = tapeChars_[it & 0x3F];
-      std::cout << c;
+      std::cout << Unicode(tapeChars_[it & 0x3F]);
       if (++pos == line_size) {
         std::cout << "\n";
         pos = 0;

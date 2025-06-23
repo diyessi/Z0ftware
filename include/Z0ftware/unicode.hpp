@@ -32,105 +32,120 @@
 #include <string>
 #include <string_view>
 
+using utf8_t = std::string; //!< Single utf8 character or string
+using utf8_string_view_t = std::string_view;
+
+using unicode_char_t = char32_t;
+using unicode_string_t = std::u32string;
+using unicode_string_view_t = std::u32string_view;
+
+// Characters not in ASCII
+static const utf8_t utf8_blank{"␢"};
+static const utf8_t utf8_circle_dot{"⊙"};
+static const utf8_t utf8_delta{"Δ"};
+static const utf8_t utf8_gamma{"γ"};
+static const utf8_t utf8_group_mark{"⯒"};
+static const utf8_t utf8_lozenge{"⌑"};
+static const utf8_t utf8_minus_zero{"⦵"};
+static const utf8_t utf8_plus_minus{"±"};
+static const utf8_t utf8_plus_zero{"⨁"};
+static const utf8_t utf8_radical{"√"};
+static const utf8_t utf8_record_mark{"⧧"};
+static const utf8_t utf8_triple_plus{"⧻"};
+
 /**
- * @brief Provids methods for conversion between utf-8 and char32_t unicode.
+ * @brief Value indicating invalid utf-8
+ */
+static constexpr unicode_char_t unicode_char_invalid{0xFFFD};
+
+/**
+ * @brief Removes the next unicode char from the prefix of the utf-8 string
+ * view.
+ * @arg sv A utf-8 string view.
+ * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
+ * invalid.
+ */
+static unicode_char_t get_next_unicode_char(utf8_string_view_t &sv) {
+  if (sv.empty()) {
+    return unicode_char_invalid;
+  }
+  unicode_char_t c0 = sv.at(0);
+  sv.remove_prefix(1);
+
+  if (0 == (c0 & 0x80)) {
+    return c0;
+  } else if (0xC0 != (c0 & 0xC0)) {
+    // High two bits must be 1
+    return unicode_char_invalid;
+  }
+  if (sv.empty()) {
+    return unicode_char_invalid;
+  }
+  unicode_char_t c1 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c1 & 0xC0)) {
+    // Missing 10
+    return unicode_char_invalid;
+  }
+  if (0xC0 == (c0 & 0xE0)) {
+    return ((c0 & 0x1F) << 6) | (c1 & 0x3F);
+  }
+  if (sv.empty()) {
+    return unicode_char_invalid;
+  }
+  unicode_char_t c2 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return unicode_char_invalid;
+  }
+  if (0xE0 == (c0 & 0xF0)) {
+    return ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
+  }
+  unicode_char_t c3 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return unicode_char_invalid;
+  }
+  if (0xF0 == (c0 & 0xF8)) {
+    return ((c0 & 0x7) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) |
+           (c3 & 0x3F);
+  }
+  return unicode_char_invalid;
+}
+
+static unicode_char_t get_unicode_char(unicode_char_t c) { return c; }
+
+/**
+ * @brief Unicode char32_t of the first utf-8 char prefix.
+ * @arg s A utf-8 string.
+ * @returns The Unicode character. Unicode::invalid if the utf-8 char is
+ * invalid.
+ */
+template <typename T> static unicode_char_t get_unicode_char(T s) {
+  utf8_string_view_t sv(s);
+  if (sv.empty()) {
+    return unicode_char_invalid;
+  }
+  unicode_char_t c = get_next_unicode_char(sv);
+  return sv.empty() ? c : unicode_char_invalid;
+}
+
+/**
+ * @brief Provides stream wrapper for unicode output as utf8
  */
 class Unicode {
 
 public:
-  static constexpr char32_t invalid{
-      0xFFFD}; //!< Value associated with invalid utf-8
+  explicit Unicode(unicode_char_t unicode) : unicode_(unicode) {}
 
-  /**
-   * @brief Tag a char32_t as Unicode
-   * @arg unicode The value to be tagged
-   */
-  Unicode(char32_t unicode) : unicode_(unicode) {}
-
-  /**
-   * @brief Convert a utf-8 prefix to unicode, removing the prefix.
-   * @arg A utf-8 encoded string.
-   */
-  Unicode(std::string_view &sv) : unicode_(next_char(sv)) {}
-
-  /**
-   * @brief Convert the first utf-8 char to unicode.
-   * @arg A utf-8 string.
-   */
-  Unicode(const std::string &s) : unicode_(next_char(s)) {}
+  template <typename T> Unicode(T utf8) : unicode_(get_unicode_char(utf8)) {}
 
   /**
    * @returns The untagged char32_t value.
    */
-  operator char32_t() const { return unicode_; }
-
-  /**
-   * @brief Removes the next unicode char from the prefix of the utf-8 string
-   * view.
-   * @arg sv A utf-8 string view.
-   * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
-   * invalid.
-   */
-  static char32_t next_char(std::string_view &sv) {
-    if (sv.empty()) {
-      return invalid;
-    }
-    char32_t c0 = sv.at(0);
-    sv.remove_prefix(1);
-
-    if (0 == (c0 & 0x80)) {
-      return c0;
-    } else if (0xC0 != (c0 & 0xC0)) {
-      // High two bits must be 1
-      return invalid;
-    }
-    if (sv.empty()) {
-      return invalid;
-    }
-    char32_t c1 = sv.at(0);
-    sv.remove_prefix(1);
-    if (0x80 != (c1 & 0xC0)) {
-      // Missing 10
-      return invalid;
-    }
-    if (0xC0 == (c0 & 0xE0)) {
-      return ((c0 & 0x1F) << 6) | (c1 & 0x3F);
-    }
-    if (sv.empty()) {
-      return invalid;
-    }
-    char32_t c2 = sv.at(0);
-    sv.remove_prefix(1);
-    if (0x80 != (c2 & 0xC0)) {
-      // Missing prefix
-      return invalid;
-    }
-    if (0xE0 == (c0 & 0xF0)) {
-      return ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
-    }
-    char32_t c3 = sv.at(0);
-    sv.remove_prefix(1);
-    if (0x80 != (c2 & 0xC0)) {
-      // Missing prefix
-      return invalid;
-    }
-    if (0xF0 == (c0 & 0xF8)) {
-      return ((c0 & 0x7) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) |
-             (c3 & 0x3F);
-    }
-    return invalid;
-  }
-
-  /**
-   * @brief Unicode char32_t of the first utf-8 char prefix.
-   * @arg s A utf-8 string.
-   * @returns The Unicode character. Unicode::invalid if the utf-8 char is
-   * invalid.
-   */
-  static char32_t next_char(const std::string &s) {
-    std::string_view sv(s);
-    return next_char(sv);
-  }
+  operator unicode_char_t() const { return unicode_; }
 
 public:
   /**
@@ -158,29 +173,23 @@ public:
                 << char(((unicode.unicode_ >> 6) & 0x3F) | 0x80)
                 << char((unicode.unicode_ & 0x3F) | 0x80);
     }
-    return os << 'X';
+    return os << 'x';
   }
 
   bool operator==(const Unicode &) const = default;
   bool operator!=(const Unicode &) const = default;
-  operator bool() const { return unicode_ == invalid; }
+  operator bool() const { return unicode_ == unicode_char_invalid; }
 
 protected:
-  char32_t unicode_{invalid};
+  unicode_char_t unicode_{unicode_char_invalid};
 };
 
 class UnicodeString {
 public:
-  UnicodeString(std::string_view &sv) {
+  template <typename T> UnicodeString(T arg) {
+    utf8_string_view_t sv(arg);
     while (!sv.empty()) {
-      unicode_.push_back(Unicode::next_char(sv));
-    }
-  }
-
-  UnicodeString(const std::string &s) {
-    std::string_view sv(s);
-    while (!sv.empty()) {
-      unicode_.push_back(Unicode::next_char(sv));
+      unicode_.push_back(get_next_unicode_char(sv));
     }
   }
 
