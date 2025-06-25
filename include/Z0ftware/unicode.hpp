@@ -158,7 +158,9 @@ public:
     static constexpr char32_t uni_3{0x10000};
     static constexpr char32_t uni_4{0x110000};
 
-    if (unicode.unicode_ < uni_1) {
+    if (unicode_char_invalid == unicode.unicode_) {
+      return os << 'x';
+    } else if (unicode.unicode_ < uni_1) {
       return os << char(unicode.unicode_);
     } else if (unicode.unicode_ < uni_2) {
       return os << char((unicode.unicode_ >> 6) | 0xC0)

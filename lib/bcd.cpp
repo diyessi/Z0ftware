@@ -28,8 +28,6 @@
 #include <iostream>
 #include <unordered_map>
 
-const unicode_char_t BCDCharSet::invalid{get_unicode_char("x")};
-
 // https://en.wikipedia.org/wiki/BCD_(character_encoding)#48-character_BCD_code
 const TapeBCDCharSet BCD{
     "IBM 48-character BCDIC code",
@@ -59,7 +57,7 @@ const TapeBCDCharSet BCDIC_A{
      ",", "%", utf8_gamma, "\\", utf8_triple_plus,
      // 2
      "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "!",
-     BCDUnicodeChar("#", false), "*", "]", ";", utf8_delta,
+     BCDCharDef("#", false), "*", "]", ";", utf8_delta,
      // 3
      "&", "A", "B", "C", "D", "E", "F", "G", "H", "I", "?", ".", utf8_lozenge,
      "[", "<", utf8_group_mark}};
@@ -169,7 +167,7 @@ const TapeBCDCharSet BCDICFinal_A {
     {// 0 
         BCDCharSet::invalid, "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "#", "@", ":", ">", utf8_radical,
         // 1
-        " ", "/", "S", "T", "U", "V", "w", "X", "Y", "Z", utf8_record_mark, ",", "%", utf8_gamma, "\\", utf8_triple_plus,
+        " ", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", utf8_record_mark, ",", "%", utf8_gamma, "\\", utf8_triple_plus,
         // 2
         "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "!", "$", "*", "]", ";", utf8_delta, 
         // 3
@@ -181,7 +179,7 @@ const TapeBCDCharSet BCDICFinal_B {
     {// 0 
         BCDCharSet::invalid, "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "=", "'", ":", ">", utf8_radical,
         // 1
-        " ", "/", "S", "T", "U", "V", "w", "X", "Y", "Z", utf8_record_mark, ",", "(", utf8_gamma, "\\", utf8_triple_plus,
+        " ", "/", "S", "T", "U", "V", "W", "X", "Y", "Z", utf8_record_mark, ",", "(", utf8_gamma, "\\", utf8_triple_plus,
         // 2
         "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "!", "$", "*", "]", ";", utf8_delta, 
         // 3
@@ -307,8 +305,8 @@ std::unordered_map<hollerith_t, bcd_t> bcdFromHollerithMapInit() {
   return result;
 }
 
-std::array<hollerith_t, bcdSize> hollerithFromBcdInit() {
-  std::array<hollerith_t, bcdSize> result;
+std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcdInit() {
+  std::array<hollerith_t, CPU704BCDValue::size> result;
   for (unsigned bcd = 0; bcd < 64; bcd++) {
     result[bcd] = hollerithFromHbcd(bcd_t(bcd));
   }
@@ -319,7 +317,7 @@ std::array<hollerith_t, bcdSize> hollerithFromBcdInit() {
 
 std::unordered_map<hollerith_t, bcd_t> HBCD::bcdFromHollerith_ =
     bcdFromHollerithMapInit();
-std::array<hollerith_t, bcdSize> HBCD::hollerithFromBcd_ =
+std::array<hollerith_t, CPU704BCDValue::size> HBCD::hollerithFromBcd_ =
     hollerithFromBcdInit();
 
 const std::unordered_map<hollerith_t, bcd_t> &HBCD::getBcdFromHollerithMap() {
@@ -452,9 +450,9 @@ uint64_t bcd(utf8_string_view_t chars) {
   return result;
 }
 
-std::array<std::uint8_t, bcdSize> bcdEvenParity() {
-  static std::array<std::uint8_t, bcdSize> table;
-  for (size_t i = 0; i < bcdSize; ++i) {
+std::array<std::uint8_t, CPU704BCDValue::size> bcdEvenParity() {
+  static std::array<std::uint8_t, CPU704BCDValue::size> table;
+  for (size_t i = 0; i < CPU704BCDValue::size; ++i) {
     std::uint8_t val = (i ^ (i >> 4));
     val ^= (val >> 2);
     val ^= (val >> 1);

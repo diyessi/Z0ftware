@@ -20,6 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// A character set associates a set of characters with a subset of BCD values.
+// In a few cases character sets a character is associated with more than one
+// BCD value. Most of the characters are in ASCII, some of the remaining are in
+// Unicode, and a few are not in Unicode.
+
+// C++ has poor Unicode support. If a program calls std::setlocale(LC_ALL, "")
+// string output will be interpreted as UTF-8, but means some individual
+// characters are a sequence of chars.
+
 // TODO:
 //
 // Zones 01 and 11 are switched, so check for 0x10 but ^= with 0x20.
@@ -59,23 +68,95 @@
 #include <cstdint>
 #include <unordered_map>
 
+// There are two representations of BCD values:
+// - Tape values are 7-bit, with the high bit being even parity. All 7-bit
+// even parity values except 0x00 are valid. There is a simple mapping between a
+// valid 12-bit Hollerith value and the low six bits of a tape value.
+// - 704 CPU values are 6-bit. 0x1X and 0x3X are interchanged between tape ans
+// 704 values and a 704 0x00 is relocated to a Tape 0x0A, so 0x0A is not used as
+// a 704 values since it would collide with the moved 704 0x00 value. The 704
+// representation was used on the scientific CPUs, 704, 709, 7090 and 7094, but
+// not on the business CPUs, 702, 705, etc.
+class TapeBCDValue;
+class CPU704BCDValue;
+
+class TapeBCDValue {
+public:
+  static constexpr size_t num_bits = 7;
+  static constexpr size_t size = 1 << num_bits;
+
+  TapeBCDValue() = default;
+  TapeBCDValue(std::uint8_t value) : value_(value & 0x7F) {};
+  TapeBCDValue(const TapeBCDValue &) = default;
+  inline TapeBCDValue(const CPU704BCDValue &);
+
+  explicit operator uint8_t() const { return value_; }
+  inline operator CPU704BCDValue() const;
+
+  template <typename OS>
+  inline friend OS &operator<<(OS &os, TapeBCDValue &value) {
+    return os << unsigned(value.value_);
+  }
+
+protected:
+  uint8_t value_{0};
+};
+
+class CPU704BCDValue {
+public:
+  static constexpr size_t num_bits = 6;
+  static constexpr size_t size = 1 << num_bits;
+
+  CPU704BCDValue() = default;
+  CPU704BCDValue(std::uint8_t value) : value_(value & 0x3F) {};
+  CPU704BCDValue(const CPU704BCDValue &) = default;
+  inline CPU704BCDValue(const TapeBCDValue &);
+
+  explicit operator uint8_t() const { return value_; }
+  inline operator TapeBCDValue() const;
+
+  template <typename OS>
+  inline friend OS &operator<<(OS &os, CPU704BCDValue &value) {
+    return os << unsigned(value.value_);
+  }
+
+protected:
+  uint8_t value_{0};
+};
+
+TapeBCDValue::TapeBCDValue(const CPU704BCDValue &cpuValue) {
+  uint8_t bits = uint8_t(cpuValue);
+  if (bits & 0x10) {
+    bits ^= 0x20;
+  } else if (0x00 == bits) {
+    bits = 0x0A;
+  }
+  value_ = uint8_t(evenParity(std::byte(bits)));
+}
+
+TapeBCDValue::operator CPU704BCDValue() const { return CPU704BCDValue(*this); }
+
+CPU704BCDValue::CPU704BCDValue(const TapeBCDValue &tapeValue) {
+  uint8_t bits = 0x3F & uint8_t(tapeValue);
+  if (bits & 0x10) {
+    bits ^= 0x20;
+  } else if (0x0A == bits) {
+    bits = 0x00;
+  }
+  value_ = bits;
+}
+
+CPU704BCDValue::operator TapeBCDValue() const { return TapeBCDValue(*this); }
+
 /**
  * @brief Information about the Unicode character to use for a BCD character.
  */
-class BCDUnicodeChar {
+class BCDCharDef {
 
 public:
   template <typename T>
-  BCDUnicodeChar(T c, bool canonic = true)
+  BCDCharDef(T c, bool canonic = true)
       : char_(get_unicode_char(c)), canonic_(canonic) {}
-
-  bool operator==(const BCDUnicodeChar &other) const {
-    return char_ == other.char_ && canonic_ == other.canonic_;
-  }
-
-  bool operator!=(const BCDUnicodeChar &other) const {
-    return char_ != other.char_ || canonic_ != other.canonic_;
-  }
 
   operator unicode_char_t() const { return char_; }
 
@@ -83,7 +164,7 @@ public:
    * @brief Print using utf-8.
    */
   friend inline std::ostream &operator<<(std::ostream &s,
-                                         const BCDUnicodeChar &cs) {
+                                         const BCDCharDef &cs) {
     return s << Unicode(cs.char_);
   }
 
@@ -101,14 +182,15 @@ class IBM704BCDCharSet;
 
 class BCDCharSet {
 public:
-  static const unicode_char_t
-      invalid; //!< Use "x" to identify unmapped BCD characters
+  static constexpr unicode_char_t invalid = unicode_char_invalid;
 
+  // TODO Switch these to utf-8 since about all they get used for is in utf-8
+  // contexts
   using charmap_t = std::array<unicode_char_t, 64>;
   using unicodeMap_t = std::unordered_map<unicode_char_t, bcd_t>;
 
   BCDCharSet(std::string &&description,
-             const std::initializer_list<BCDUnicodeChar> &chars)
+             const std::initializer_list<BCDCharDef> &chars)
       : description_(std::move(description)) {
     int bcd = 0;
     for (auto &c : chars) {
@@ -185,11 +267,6 @@ extern const IBM704BCDCharSet BCDSherman;
 extern const TapeBCDCharSet BCDICFinal_A;
 extern const TapeBCDCharSet BCDICFinal_B;
 
-struct BCDPoint {
-  wchar_t point;
-  wchar_t symbol;
-};
-
 /*
  * The BCD character encoding is a six bit encoding for characters based on the
  * Hollerith encoding for cards. The encodings for digits and alphabetic
@@ -213,12 +290,6 @@ struct BCDPoint {
  *
  * Hollerith is a sparse 12-bit encoding.
  */
-constexpr size_t bcdBits = 6;
-constexpr size_t bcdSize = 1 << bcdBits;
-
-// Tape has even parity
-constexpr size_t tbcdBits = 7;
-constexpr size_t tbcdSize = 1 << tbcdBits;
 
 // Hollerith
 class HBCD;
@@ -251,7 +322,7 @@ protected:
   bcd_t bcd_;
 
   static std::unordered_map<hollerith_t, bcd_t> bcdFromHollerith_;
-  static std::array<hollerith_t, bcdSize> hollerithFromBcd_;
+  static std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcd_;
 };
 
 // CPU BCD
@@ -381,7 +452,7 @@ inline TBCD::operator CBCD() const { return CBCD(*this); }
 inline TBCD::operator HBCD() const { return HBCD(*this); }
 
 char ASCIIFromTapeBCD(bcd_t bcd);
-std::array<std::uint8_t, bcdSize> bcdEvenParity();
+std::array<std::uint8_t, CPU704BCDValue::size> bcdEvenParity();
 uint64_t bcd(utf8_string_view_t chars);
 
 bcd_t BCDFromColumn(hollerith_t column);

@@ -106,7 +106,7 @@ int main(int argc, const char **argv) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
     P7BIStream reader(input);
-    ShareExtractor extractor(reader, BCDSherman);
+    ShareExtractor extractor(reader, BCDICFinal_B);
     extractor.read();
     input.close();
   }
