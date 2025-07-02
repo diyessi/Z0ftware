@@ -80,26 +80,40 @@
 class TapeBCDValue;
 class CPU704BCDValue;
 
+/**
+ * @brief six bit unsigned value
+ */
+class bcd_t : public UnsignedImp<bcd_t, 6> {
+public:
+  using UnsignedImp<bcd_t, 6>::UnsignedImp;
+};
+
+/**
+ * @brief six bit unsigned value + even parity
+ */
+class parity_bcd_t : public UnsignedImp<parity_bcd_t, 7> {
+public:
+  using UnsignedImp<parity_bcd_t, 7>::UnsignedImp;
+};
+
 class TapeBCDValue {
 public:
-  static constexpr size_t num_bits = 7;
-  static constexpr size_t size = 1 << num_bits;
-
   TapeBCDValue() = default;
-  TapeBCDValue(std::uint8_t value) : value_(value & 0x7F) {};
+  TapeBCDValue(std::uint8_t value) : value_(value & 0x3F) {};
   TapeBCDValue(const TapeBCDValue &) = default;
   inline TapeBCDValue(const CPU704BCDValue &);
 
-  explicit operator uint8_t() const { return value_; }
+  explicit operator bcd_t() const { return value_; }
+  explicit operator bcd_t::value_t() const { return bcd_t::value_t(value_); }
   inline operator CPU704BCDValue() const;
 
   template <typename OS>
   inline friend OS &operator<<(OS &os, TapeBCDValue &value) {
-    return os << unsigned(value.value_);
+    return os << value;
   }
 
 protected:
-  uint8_t value_{0};
+  bcd_t value_{0};
 };
 
 class CPU704BCDValue {
@@ -112,33 +126,34 @@ public:
   CPU704BCDValue(const CPU704BCDValue &) = default;
   inline CPU704BCDValue(const TapeBCDValue &);
 
-  explicit operator uint8_t() const { return value_; }
+  explicit operator bcd_t() const { return value_; }
+  explicit operator bcd_t::value_t() const { return bcd_t::value_t(value_); }
   inline operator TapeBCDValue() const;
 
   template <typename OS>
   inline friend OS &operator<<(OS &os, CPU704BCDValue &value) {
-    return os << unsigned(value.value_);
+    return os << value;
   }
 
 protected:
-  uint8_t value_{0};
+  bcd_t value_{0};
 };
 
 TapeBCDValue::TapeBCDValue(const CPU704BCDValue &cpuValue) {
-  uint8_t bits = uint8_t(cpuValue);
-  if (bits & 0x10) {
+  bcd_t bits = bcd_t(cpuValue);
+  if (bcd_t(0) != (bits & bcd_t(0x10))) {
     bits ^= 0x20;
   } else if (0x00 == bits) {
     bits = 0x0A;
   }
-  value_ = uint8_t(evenParity(std::byte(bits)));
+  value_ = bits;
 }
 
 TapeBCDValue::operator CPU704BCDValue() const { return CPU704BCDValue(*this); }
 
 CPU704BCDValue::CPU704BCDValue(const TapeBCDValue &tapeValue) {
-  uint8_t bits = 0x3F & uint8_t(tapeValue);
-  if (bits & 0x10) {
+  bcd_t bits = tapeValue;
+  if (bcd_t(0) != (bits & 0x10)) {
     bits ^= 0x20;
   } else if (0x0A == bits) {
     bits = 0x00;
@@ -358,7 +373,7 @@ protected:
 // Tape BCD
 class TBCD {
 public:
-  inline TBCD(tbcd_t tbcd) : tbcd_(tbcd) {}
+  inline TBCD(parity_bcd_t tbcd) : tbcd_(tbcd) {}
   inline TBCD(const TBCD &) = default;
   inline TBCD(const CBCD &);
   inline TBCD(const HBCD &);
@@ -371,15 +386,15 @@ public:
 
   inline bcd_t getBCD() const { return tbcd_; }
 
-  static inline tbcd_t toTape(bcd_t bcd) {
+  static inline parity_bcd_t toTape(bcd_t bcd) {
     if (bcd_t(0) == bcd) {
       bcd = bcd_t(0x0A);
     }
     return evenParity(bcd);
   }
 
-  static inline bcd_t fromTape(tbcd_t tbcd) {
-    bcd_t bcd = bcd_t((tbcd_t(0x3F) & tbcd));
+  static inline bcd_t fromTape(parity_bcd_t tbcd) {
+    bcd_t bcd = bcd_t((parity_bcd_t(0x3F) & tbcd));
     if (bcd_t(0x0A) == bcd) {
       bcd = bcd_t(0);
     }
@@ -387,7 +402,7 @@ public:
   }
 
 protected:
-  tbcd_t tbcd_;
+  parity_bcd_t tbcd_;
 };
 
 /* CPU */
@@ -452,7 +467,6 @@ inline TBCD::operator CBCD() const { return CBCD(*this); }
 inline TBCD::operator HBCD() const { return HBCD(*this); }
 
 char ASCIIFromTapeBCD(bcd_t bcd);
-std::array<std::uint8_t, CPU704BCDValue::size> bcdEvenParity();
 uint64_t bcd(utf8_string_view_t chars);
 
 bcd_t BCDFromColumn(hollerith_t column);

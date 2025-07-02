@@ -20,6 +20,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * @file field.hpp
+ * @brief Classes and types for working with assorted bit lengths.
+ *
+ *
+ */
+
 // Helpers for working with bit fields
 
 #ifndef Z0FTWARE_FIELD_HPP
@@ -28,34 +35,56 @@
 #include <cstdint>
 #include <string_view>
 
-using sixbit_t = std::byte;
-using sevenbit_t = std::byte;
-
-using bcd_t = sixbit_t;
-using tbcd_t = sevenbit_t;
-
-// Size of a bit size
+/**
+ * @brief Size of a bit size
+ *
+ */
 using bit_size_size_t = std::uint_least8_t;
-// size of a little-endian bit position
+
+/**
+ * @brief Size of a little-endian bit position
+ *
+ */
 using bit_pos_size_t = std::uint_least8_t;
 
-template <bit_size_size_t bit_size, typename unsigned_imp_t,
+/**
+ * @brief Hold meta-information for the C++ integer type to use for a
+ * signed/unsigned value of a particular bit size.
+ *
+ * @tparam bit_size_ The integer size being defined.
+ * @tparam unsigned_imp_t The C++ type to use for an unsigned of this type.
+ * @tparam signed_imp_t The C++ type to use for a signed of this type.
+ */
+template <bit_size_size_t bit_size_, typename unsigned_imp_t,
           typename signed_imp_t>
 struct BitSizeTraitsImp {
-  static constexpr bit_size_size_t size() { return bit_size; }
+  static constexpr bit_size_size_t bit_size() { return bit_size_; }
   using unsigned_t = unsigned_imp_t;
   using signed_t = signed_imp_t;
 };
 
+/**
+ * @brief Hold meta-information about signed/unsigned value representation.
+ *
+ * @tparam bit_size The size being defined.
+ */
 template <bit_size_size_t bit_size> struct BitSizeTraits;
 
-// Define the signed/unsigned int types to use for each field size
-// int8_t types are not used because of character overloadings
+/**
+ * @brief Specify C++ types to hold signed/unsigned values of various bit sizes.
+ *
+ * @param BITSIZE The bit size being defined.
+ * @param UNSIGNED_TYPE The type to hold unsigned values of this size.
+ * @param SIGNED_TYPE The type to hold signed values of this size.
+ */
 #define BITSIZETRAITS(BITSIZE, UNSIGNED_TYPE, SIGNED_TYPE)                     \
   template <>                                                                  \
   struct BitSizeTraits<BITSIZE>                                                \
       : public BitSizeTraitsImp<BITSIZE, UNSIGNED_TYPE, SIGNED_TYPE> {}
 
+/**
+ * int8_t/uint8_t are not used because they are output as chars.
+ */
 BITSIZETRAITS(1, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(2, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(3, std::uint_least16_t, std::int_least16_t);
@@ -137,34 +166,32 @@ BITSIZETRAITS(78, __uint128_t, __int128_t);
 BITSIZETRAITS(79, __uint128_t, __int128_t);
 BITSIZETRAITS(80, __uint128_t, __int128_t);
 
-// unsigned_t<size> is the type to use for a size-bit value
+/**
+ * @brief unsigned_t<size> is the type to hold a size-bit unsigned value.
+ *
+ * @tparam field_size The bit-width.
+ */
 template <bit_size_size_t field_size>
 using unsigned_t = BitSizeTraits<field_size>::unsigned_t;
 
+/**
+ * @brief signed_t<size> is the type to hold a size-bit signed value.
+ *
+ * @tparam field_size The bit-width.
+ */
 template <bit_size_size_t field_size>
 using signed_t = BitSizeTraits<field_size>::signed_t;
 
+/**
+ * @brief bitmask for a field at a position.
+ *
+ * @tparam bit_size The width of the field
+ * @tparam bit_pos The little-endian bit position of the field.
+ */
 template <bit_size_size_t bit_size, bit_pos_size_t bit_pos = 0>
 constexpr unsigned_t<bit_size + bit_pos> bitmask =
     unsigned_t<bit_size + bit_pos>(
         ((unsigned_t<bit_size + 1>(1) << bit_size) - 1) << bit_pos);
-
-template <bit_size_size_t bit_size> class Unsigned {
-public:
-  using value_t = unsigned_t<bit_size>;
-
-  Unsigned() = default;
-  template <typename T> Unsigned(T value) : value_(value & bitmask<bit_size>) {}
-  Unsigned(const Unsigned &) = default;
-  Unsigned &operator=(const Unsigned &) = default;
-
-  operator value_t() const { return value_; }
-
-  static constexpr bit_size_size_t size() { return value_t::size(); };
-
-protected:
-  const value_t value_{0};
-};
 
 // ldb<bit_pos, bit_size>
 template <bit_pos_size_t bit_pos, bit_size_size_t bit_size,
@@ -307,13 +334,122 @@ private:
   std::string_view::size_type size_;
 };
 
-using bcd_zone_t = unsigned_t<2>;
+/**
+ * @brief A boxed unsigned value. Allows specialization on bit-size.
+ *
+ * @tparam bit_size The size of the value.
+ */
+template <typename T, bit_size_size_t bit_size> class UnsignedImp {
+public:
+  using value_t = unsigned_t<bit_size>;
 
-inline bcd_zone_t bcd_zone(bcd_t bcd) { return ldb<4, 2>(unsigned(bcd)); }
+  static constexpr T begin() { return 0; }
+  static constexpr T end() {
+    T result;
+    result.value_ = 1 << bit_size;
+    return result;
+  }
+  static constexpr bit_size_size_t size() { return value_t::size(); };
 
-using bcd_digits_t = unsigned_t<4>;
+  UnsignedImp() = default;
+  template <typename V>
+  constexpr UnsignedImp(V value) : value_(value_t(value) & bitmask<bit_size>) {}
+  UnsignedImp(const UnsignedImp &) = default;
 
-inline bcd_digits_t bcd_digits(bcd_t bcd) { return ldb<0, 4>(unsigned(bcd)); }
+  explicit operator const value_t &() const { return value_; }
+  explicit operator value_t &() { return value_; }
+
+  const value_t &value() const { return value_; }
+  value_t &value() { return value_; }
+
+  template <typename RHS>
+  friend constexpr bool operator==(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) == value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr bool operator!=(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) != value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr bool operator<(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) < value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr bool operator<=(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) <= value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr bool operator>(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) > value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr bool operator>=(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) >= value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr T operator&(const T &lhs, const RHS &rhs) {
+    return T(value_t(lhs) & value_t(rhs));
+  }
+
+  template <typename RHS> friend T &operator&=(T &lhs, const RHS &rhs) {
+    lhs.value_ &= value_t(rhs);
+    return lhs;
+  }
+
+  template <typename RHS>
+  friend constexpr T operator^(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) ^ value_t(rhs);
+  }
+
+  template <typename RHS> friend T &operator^=(T &lhs, const RHS &rhs) {
+    lhs.value_ ^= value_t(rhs);
+    return lhs;
+  }
+
+  template <typename RHS>
+  friend constexpr T operator|(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) | value_t(rhs);
+  }
+
+  template <typename RHS> friend T &operator|=(T &lhs, const RHS &rhs) {
+    lhs.value_ |= value_t(rhs);
+    return lhs;
+  }
+
+  template <typename RHS>
+  friend constexpr T operator<<(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) << value_t(rhs);
+  }
+
+  template <typename RHS> friend T &operator<<=(T &lhs, const RHS &rhs) {
+    return lhs.value_t <<= value_t(rhs);
+  }
+
+  template <typename RHS>
+  friend constexpr T operator>>(const T &lhs, const RHS &rhs) {
+    return value_t(lhs) >> value_t(rhs);
+  }
+
+  T operator++() {
+    value_++;
+    return value_;
+  }
+
+  T operator++(int) {
+    value_t old = value_;
+    value_++;
+    return old;
+  }
+
+protected:
+  value_t value_{0};
+};
 
 // 12 11 0
 using hollerith_zone_t = unsigned_t<3>;

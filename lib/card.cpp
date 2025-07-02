@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "Z0ftware/card.hpp"
+#include "Z0ftware/bcd.hpp"
 #include "Z0ftware/field.hpp"
 #include "Z0ftware/parity.hpp"
 
@@ -401,10 +402,10 @@ void BinaryColumnCard::readCBN(std::istream &input) {
       assert((b0 & 0x80) != 0);
       b0 &= 0x7f;
     }
-    assert(sevenbit_t(b0) == oddParity(sixbit_t(b0)));
+    assert(parity_bcd_t(b0) == oddParity(bcd_t(b0)));
     b0 &= 0x3f;
     uint8_t b1 = buffer[i++];
-    assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
+    assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
     columns_[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
@@ -483,10 +484,10 @@ CardImage readCBN(std::istream &input) {
       assert((b0 & 0x80) != 0);
       b0 &= 0x7f;
     }
-    assert(sevenbit_t(b0) == oddParity(sixbit_t(b0)));
+    assert(parity_bcd_t(b0) == oddParity(bcd_t(b0)));
     b0 &= 0x3f;
     uint8_t b1 = buffer[i++];
-    assert(sevenbit_t(b1) == oddParity(sixbit_t(b1)));
+    assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
     cardImage[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
@@ -499,15 +500,15 @@ void writeCBN(std::ostream &output, const CardImage &cardImage) {
   for (int column = 1; column <= 80; column++) {
     auto column_value = cardImage[column];
     // First byte has bit 7 set
-    auto high = sixbit_t(ldb<6, 6>(column_value));
+    auto high = bcd_t(ldb<6, 6>(column_value));
     if (column == 1) {
-      high = evenParity(high) | sevenbit_t(0x80);
+      high = evenParity(high) | parity_bcd_t(0x80);
     } else {
       high = oddParity(high);
     }
-    *bufferp++ = char(high);
-    auto low = oddParity(sixbit_t(ldb<0, 6>(column_value)));
-    *bufferp++ = char(low);
+    *bufferp++ = high.value();
+    auto low = oddParity(bcd_t(ldb<0, 6>(column_value)));
+    *bufferp++ = low.value();
   }
   output.write(buffer.data(), 160);
 }

@@ -187,65 +187,65 @@ const TapeBCDCharSet BCDICFinal_B {
     }};
 
 bcd_t CPUFromTape(bcd_t tapeBCD) {
-    bcd_t cpuBCD = (bcd_t(0) == (tapeBCD & bcd_t(0x10))) ? tapeBCD : tapeBCD ^ bcd_t(0x10);
-    if (tapeBCD == bcd_t(0x10)) {
+    bcd_t cpuBCD = (0 == (tapeBCD & 0x10)) ? tapeBCD : tapeBCD ^ 0x10;
+    if (tapeBCD == 0x10) {
       // '0'
-      cpuBCD = bcd_t(0x00);
-    } else if (tapeBCD == bcd_t(0x10)) {
+      cpuBCD = 0x00;
+    } else if (tapeBCD == 0x10) {
       // ' '
-      cpuBCD = bcd_t(0x30);
+      cpuBCD = 0x30;
     }
     return cpuBCD;
 }
 
 bcd_t tapeFromCPU(bcd_t cpuBCD) {
     bcd_t tapeBCD = (bcd_t(0) == (cpuBCD & bcd_t(0x10))) ? cpuBCD : (cpuBCD ^ bcd_t(0x20));
-    if (cpuBCD == bcd_t(0x00)) {
+    if (cpuBCD == 0x00) {
       // '0'
-      tapeBCD = bcd_t(0x0A);
-    } else if (cpuBCD == bcd_t(0x30)) {
+      tapeBCD = 0x0A;
+    } else if (cpuBCD == 0x30) {
       // ' '
-      tapeBCD = bcd_t(0x10);
+      tapeBCD = 0x10;
     }
     return tapeBCD;
 }
 
 void TapeBCDCharSet::initCPUChars(charmap_t &cpuChars) const {
   std::fill(cpuChars.begin(), cpuChars.end(), Unicode(BCDCharSet::invalid));
-  for (int tapeBCD = 0; tapeBCD < 64; tapeBCD = tapeBCD++) {
-    int cpuBCD = int(CPUFromTape(bcd_t(tapeBCD)));
-    auto& c = charMap_[tapeBCD];
+  for (bcd_t tapeBCD = bcd_t::begin(); tapeBCD < bcd_t::end(); tapeBCD++) {
+    bcd_t cpuBCD = CPUFromTape(tapeBCD);
+    auto& c = charMap_[tapeBCD.value()];
     if (c) {
-        cpuChars[cpuBCD] = c;
+        cpuChars[cpuBCD.value()] = c;
     }
   }
 }
 
 void TapeBCDCharSet::initTapeChars(charmap_t &tapeChars) const {
-  std::copy(charMap_.begin(), charMap_.end(), tapeChars.begin());
+    std::copy(charMap_.begin(), charMap_.end(), tapeChars.begin());
 }
 
 void IBM704BCDCharSet::initCPUChars(charmap_t &cpuChars) const {
-  std::copy(charMap_.begin(), charMap_.end(), cpuChars.end());
+  std::copy(charMap_.begin(), charMap_.end(), cpuChars.begin());
 }
 
 void IBM704BCDCharSet::initTapeChars(charmap_t &tapeChars) const {
   std::fill(tapeChars.begin(), tapeChars.end(), get_unicode_char(BCDCharSet::invalid));
-  for (int cpuBCD = 0; cpuBCD < 64; cpuBCD++) {
+  for (bcd_t cpuBCD = bcd_t::begin(); cpuBCD < bcd_t::end(); cpuBCD++) {
     if (cpuBCD == 0x0A) {
         // Remapped to space
       continue;
     }
-    int tapeBCD = int(tapeFromCPU(bcd_t(cpuBCD)));
-    auto &c =charMap_[cpuBCD];
+    bcd_t tapeBCD = tapeFromCPU(cpuBCD);
+    auto &c =charMap_[cpuBCD.value()];
     if (c) { 
-        tapeChars[tapeBCD] = c;
+        tapeChars[tapeBCD.value()] = c;
     }
   }
 }
 
 constexpr bcd_t bcdSwapZeroBlank(bcd_t bcd) {
-  return (bcd == bcd_t(0) || bcd == bcd_t(0x10)) ? bcd ^= bcd_t(0x10) : bcd;
+  return (bcd == 0 || bcd == 0x10) ? bcd ^ 0x10 : bcd;
 }
 
 constexpr bcd_t hbcdFromHollerith(hollerith_t hollerith) {
@@ -288,8 +288,8 @@ constexpr std::array<hollerith_t, 16> hbcdDigitsMap = {
 
 constexpr hollerith_t hollerithFromHbcd(bcd_t bcd) {
   bcd_t bcdVal = bcdSwapZeroBlank(bcd);
-  return hbcdZoneMap[unsigned((bcdVal >> 4) & bcd_t(0x3))] |
-         hbcdDigitsMap[unsigned((bcdVal & bcd_t(0xF)))];
+  return hbcdZoneMap[((bcdVal >> 4) & 0x3).value()] |
+         hbcdDigitsMap[(bcdVal & 0xF).value()];
 }
 
 HBCD::HBCD(hollerith_t hollerith) : bcd_(hbcdFromHollerith(hollerith)) {}
@@ -348,12 +348,12 @@ bcd_t tapeBCDfromBCD(bcd_t bcd) {
 bcd_t BCDFromColumn(hollerith_t column) {
   bcd_t bcd{0};
   if (column == 0) {
-    return bcd_t(0b110000);
+    return 0b110000;
   }
   // Rows 9 to 1
   for (int pos = 9; pos > 0; pos--) {
     if (1 == (column & 0x1)) {
-      bcd |= bcd_t(pos);
+      bcd |= pos;
     }
     column >>= 1;
   }
@@ -421,18 +421,18 @@ char ASCIIFromTapeBCD(bcd_t bcd) {
     std::array<char32_t, 128> table;
     for (auto cu : getFORTRANIVEncoding()) {
       auto tapeBCD = tapeBCDfromBCD(BCDFromColumn(cu.hollerith));
-      table[unsigned(evenParity(tapeBCD))] = cu.unicode;
+      table[tapeBCD.value()] = cu.unicode;
     }
     return table;
   }();
   static char fill{'a'};
-  auto i = unsigned(bcd & bcd_t(0x3F));
-  char c = table[i];
+  auto i = bcd & bcd_t(0x3F);
+  char c = table[i.value()];
   if (c == '\0') {
-    std::cout << "\n*** SUB " << std::hex << int(i) << " '" << fill
+    std::cout << "\n*** SUB " << std::hex << i.value() << " '" << fill
               << "' ***\n";
     c = fill++;
-    table[i] = c;
+    table[i.value()] = c;
   }
   return c;
 }
@@ -444,19 +444,8 @@ uint64_t bcd(utf8_string_view_t chars) {
   std::uint64_t result = 0;
   while (count < 6 && !chars.empty()) {
     result = (result << 6) |
-             std::uint64_t(BCDSherman.getCPUBCD(get_next_unicode_char(chars)));
+             BCDSherman.getCPUBCD(get_next_unicode_char(chars)).value();
     count++;
   }
   return result;
-}
-
-std::array<std::uint8_t, CPU704BCDValue::size> bcdEvenParity() {
-  static std::array<std::uint8_t, CPU704BCDValue::size> table;
-  for (size_t i = 0; i < CPU704BCDValue::size; ++i) {
-    std::uint8_t val = (i ^ (i >> 4));
-    val ^= (val >> 2);
-    val ^= (val >> 1);
-    table[i] = (val & 0x01) << 6;
-  }
-  return table;
 }

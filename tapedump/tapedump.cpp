@@ -86,7 +86,7 @@ public:
       // Relocated zero can't be used
       return;
     }
-    table_[char(tapeBCD)] = c;
+    table_[tapeBCD.value()] = c;
   }
 
   char decode(char tapeBCD) {
@@ -405,7 +405,7 @@ void readTape(std::istream &input, tape_event_handler_t handler) {
         record.clear();
       }
       auto evenCount = std::count_if(record.begin(), record.end(), [](char c) {
-        return isEvenParity(sixbit_t(c));
+        return isEvenParity(bcd_t(c));
       });
       handler(tapeRecordBegin, evenCount * 2 < record.size(), record);
       record.clear();

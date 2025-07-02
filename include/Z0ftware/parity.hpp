@@ -28,12 +28,15 @@
 #include <array>
 #include <cstdint>
 
+class bcd_t;
+class parity_bcd_t;
+
 // Return with bit 6 set to give bits 0-6 even parity
-sevenbit_t evenParity(sixbit_t sixbit);
-bool isEvenParity(sevenbit_t sevenbit);
-const std::array<sevenbit_t, 1 << 6> &getEvenParityTable();
+parity_bcd_t evenParity(bcd_t bcd_t);
+bool isEvenParity(parity_bcd_t parity_bcd_t);
+const std::array<parity_bcd_t, 1 << 6> &getEvenParityTable();
 // Return with bit 6 set to give bits 0-6 odd parity
-sevenbit_t oddParity(sixbit_t sixbit);
-const std::array<sevenbit_t, 1 << 6> &getOddParityTable();
+parity_bcd_t oddParity(bcd_t bcd_t);
+const std::array<parity_bcd_t, 1 << 6> &getOddParityTable();
 
 #endif

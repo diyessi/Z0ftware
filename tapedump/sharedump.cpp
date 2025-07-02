@@ -48,8 +48,8 @@ class ShareExtractor : public TapeReadAdapter {
 public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const BCDCharSet &charSet)
       : TapeReadAdapter(tapeIStream), tapeChars_(charSet) {
-    for (int i = 0; i < 64; ++i) {
-      std::cout << Unicode(tapeChars_[i]);
+    for (bcd_t i = bcd_t::begin(); i < bcd_t::end(); ++i) {
+      std::cout << Unicode(tapeChars_[i.value()]);
     }
     std::cout << std::endl;
   }
@@ -105,6 +105,10 @@ int main(int argc, const char **argv) {
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
+    if (!input.is_open()) {
+      std::cerr << "Count not open " << inputFileName << "\n";
+      continue;
+    }
     P7BIStream reader(input);
     ShareExtractor extractor(reader, BCDICFinal_B);
     extractor.read();

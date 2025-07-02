@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "Z0ftware/tape.hpp"
+#include "Z0ftware/bcd.hpp"
 #include "Z0ftware/parity.hpp"
 
 #include <istream>
@@ -127,7 +128,7 @@ void TapeReadAdapter::read() {
         onEndOfRecord();
         size_t evenParityCount =
             std::count_if(record_.begin(), record_.end(),
-                          [](char c) { return isEvenParity(sevenbit_t(c)); });
+                          [](char c) { return isEvenParity(parity_bcd_t(c)); });
         if (2 * evenParityCount < record_.size()) {
           onBinaryRecordData();
         } else {
