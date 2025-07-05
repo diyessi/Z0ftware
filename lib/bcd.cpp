@@ -249,21 +249,22 @@ constexpr bcd_t bcdSwapZeroBlank(bcd_t bcd) {
 }
 
 constexpr bcd_t hbcdFromHollerith(hollerith_t hollerith) {
+    auto hval = hollerith.value();
   bcd_t bcd{0};
   // digits
   for (unsigned digit = 0; digit < 10; ++digit) {
-    if (0 != hbit(digit & hollerith)) {
+    if (0 != hbit(digit & hval)) {
       bcd |= bcd_t(digit);
     }
   }
   // zone
-  if (0 != (hbit(12) & hollerith)) {
+  if (0 != (hbit(12) & hval)) {
     bcd |= bcd_t(0x30);
   }
-  if (0 != (hbit(11) & hollerith)) {
+  if (0 != (hbit(11) & hval)) {
     bcd |= bcd_t(0x20);
   }
-  if (0 != (hbit(0) & hollerith)) {
+  if (0 != (hbit(0) & hval)) {
     bcd |= bcd_t(0x10);
   }
   return bcdSwapZeroBlank(bcd);
@@ -299,7 +300,7 @@ hollerith_t HBCD::getHollerith() const { return hollerithFromHbcd(bcd_); }
 namespace {
 std::unordered_map<hollerith_t, bcd_t> bcdFromHollerithMapInit() {
   std::unordered_map<hollerith_t, bcd_t> result;
-  for (unsigned bcd = 0; bcd < 64; bcd++) {
+  for (bcd_t bcd = bcd_t::begin(); bcd < bcd_t::end(); bcd++) {
     result[hollerithFromHbcd(bcd_t(bcd))] = bcd_t(bcd);
   }
   return result;
@@ -307,8 +308,8 @@ std::unordered_map<hollerith_t, bcd_t> bcdFromHollerithMapInit() {
 
 std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcdInit() {
   std::array<hollerith_t, CPU704BCDValue::size> result;
-  for (unsigned bcd = 0; bcd < 64; bcd++) {
-    result[bcd] = hollerithFromHbcd(bcd_t(bcd));
+  for (bcd_t bcd = bcd_t::begin(); bcd < bcd_t::end(); bcd++) {
+    result[bcd.value()] = hollerithFromHbcd(bcd_t(bcd));
   }
   return result;
 }

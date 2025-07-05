@@ -434,7 +434,7 @@ void BinaryRowCard::fill(const BinaryColumnCard &card) {
       word_t &word = rowWords_[side][row];
       word = 0;
       for (int col = startCol - 1; col < startCol + 3 - 1; ++col) {
-        word = word << 12 | card.getColumns().at(col);
+        word = word << 12 | card.getColumns().at(col).value();
       }
       startCol += 3;
     }
@@ -449,7 +449,7 @@ word_t CardImage::getWord(int position) const {
   word_t result{0};
   word_t mask = 1 << bitpos;
   for (auto column = startColumn; column < endColumn; ++column) {
-    result = (result << 1) | ((data_[column] & mask) >> bitpos);
+    result = (result << 1) | ((data_[column].value() & mask) >> bitpos);
   }
   return result;
 }

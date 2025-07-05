@@ -68,15 +68,16 @@
 #include <cstdint>
 #include <unordered_map>
 
-// There are two representations of BCD values:
-// - Tape values are 7-bit, with the high bit being even parity. All 7-bit
-// even parity values except 0x00 are valid. There is a simple mapping between a
-// valid 12-bit Hollerith value and the low six bits of a tape value.
-// - 704 CPU values are 6-bit. 0x1X and 0x3X are interchanged between tape ans
-// 704 values and a 704 0x00 is relocated to a Tape 0x0A, so 0x0A is not used as
-// a 704 values since it would collide with the moved 704 0x00 value. The 704
-// representation was used on the scientific CPUs, 704, 709, 7090 and 7094, but
-// not on the business CPUs, 702, 705, etc.
+// BCD values are 6 bits, but values are transformed between tape (which also
+// includes a 7th even parity bit) and scientific CPUs to make BCD order
+// correspond to alphabetic order and to represent the digits with their binary
+// equivalents. The BCD values on tape correspond more closely to the Hollerith
+// card encoding.
+//
+// Tape hardware does no support all seven bits 0, so BCD 0 with even parity
+// cannot be used on tape. The 0 digit is moved to the "10" position, 0x0A. As a
+// result, 0x0A is not used as a character on the scientific CPUs.
+
 class TapeBCDValue;
 class CPU704BCDValue;
 

@@ -200,16 +200,16 @@ public:
               }
               hollerith_t val = card[column];
               std::cout << std::oct << std::setw(1)
-                        << unsigned(0x7 & (val >> (3 * (3 - row))));
+                        << (0x7 & (val >> (3 * (3 - row)))).value();
             }
             std::cout << "\n";
           }
           std::cout << "Column Binary\n";
           std::cout << "\n";
           for (int col = 1; col <= 72; col += 3) {
-            uint64_t val = uint64_t(card[col]) << 24 |
-                           uint64_t(card[col + 1]) << 12 |
-                           uint64_t(card[col + 2]);
+            uint64_t val = uint64_t(card[col].value()) << 24 |
+                           uint64_t(card[col + 1].value()) << 12 |
+                           uint64_t(card[col + 2].value());
             std::cout << std::oct << std::setw(12) << val << "\n";
           }
           std::cout << "\n";

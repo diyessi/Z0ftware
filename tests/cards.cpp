@@ -100,7 +100,8 @@ TEST(cards, readWords) {
     cardImage[i + 1] = i | ((i + 1) << 7);
   }
   for (int i = 0; i < 80; i++) {
-    EXPECT_EQ(cardImage[i + 1], i | ((i + 1) << 7));
+    EXPECT_EQ(cardImage[i + 1], hollerith_t(i | ((i + 1) << 7)))
+        << "Column " << i;
   }
   EXPECT_EQ(cardImage.getWord(0), 0x555555555);
   EXPECT_EQ(cardImage.getWord(1), 0x555555555);
