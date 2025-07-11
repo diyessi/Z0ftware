@@ -38,7 +38,8 @@
 #ifndef Z0FTWARE_CHARACTERS_HPP
 #define Z0FTWARE_CHARACTERS_HPP
 
-#include <cstdint>
+#include "Z0ftware/bcd.hpp"
+
 #include <initializer_list>
 
 // 12-bit
@@ -55,16 +56,15 @@ class BCDChar;
 // Bit: 11 10    9 8 7 6 5 4 3 2 1 0
 class HollerithChar {
 public:
-  using bits_t = std::uint_least16_t;
   using row_t = unsigned;
 
   HollerithChar() = default;
-  HollerithChar(bits_t bits) : bits_(bits) {}
+  HollerithChar(hollerith_t bits) : bits_(bits) {}
   HollerithChar(const HollerithChar &) = default;
 
   HollerithChar(const std::initializer_list<row_t> &rows) {
     for (auto row : rows) {
-      bits_ |= bits_t(1) << positionFromRow(row);
+      bits_ |= hollerith_t(1) << positionFromRow(row);
     }
   }
 
@@ -72,9 +72,9 @@ public:
 
   bool operator==(const HollerithChar &c) { return getBits() == c.getBits(); }
 
-  bits_t getBits() const { return bits_; }
-  operator SerialChar() const;
-  operator BCDChar() const;
+  hollerith_t getBits() const { return bits_; }
+  operator bcd_t() const;
+  // operator BCDChar() const;
 
   // Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
   // Bit: 11 10    9 8 7 6 5 4 3 2 1 0
@@ -82,52 +82,43 @@ public:
     return row < 10 ? 9 - row : row - 1;
   }
 
-  inline constexpr bits_t bitFromRow(row_t row) const {
+  inline constexpr hollerith_t bitFromRow(row_t row) const {
     return (bits_ >> (positionFromRow(row))) & 1;
   }
 
-  static constexpr bits_t hbits() { return 0; }
-
-  template <typename Row, typename... MoreRows>
-  static constexpr bits_t hbits(Row row, MoreRows... moreRows) {
-    return (bits_t(1) << positionFromRow(row)) | hbits(moreRows...);
-  }
-
 protected:
-  bits_t bits_{0};
+  hollerith_t bits_{hollerith_t{}};
 };
 
 // Used on tape and character at a time computers such as 702, 705
 class SerialChar {
 public:
-  using bits_t = std::uint8_t;
   SerialChar() = default;
   SerialChar(const SerialChar &) = default;
-  SerialChar(bits_t bits) : bits_(bits) {}
+  template <typename T> SerialChar(const T &bits) : bits_(bits) {}
   inline SerialChar(BCDChar c);
   inline bool operator==(const SerialChar &) const = default;
 
-  bits_t getBits() const { return bits_; }
+  bcd_t getBits() const { return bits_; }
 
-  static inline bits_t serialFromBCD(BCDChar c);
+  static inline bcd_t serialFromBCD(BCDChar c);
 
 protected:
-  bits_t bits_{0};
+  bcd_t bits_{0};
 };
 
 // Used on scientific computers such as 701(?), 704, 709
 class BCDChar {
 public:
-  using bits_t = std::uint8_t;
   BCDChar() = default;
   BCDChar(const BCDChar &) = default;
-  BCDChar(bits_t bits) : bits_(bits) {}
+  BCDChar(bcd_t bits) : bits_(bits) {}
   BCDChar(SerialChar c) : bits_(bcdFromSerial(c)) {}
 
-  bits_t getBits() const { return bits_; }
+  bcd_t getBits() const { return bits_; }
 
-  static bits_t bcdFromSerial(SerialChar c) {
-    bits_t bits = c.getBits();
+  static bcd_t bcdFromSerial(SerialChar c) {
+    bcd_t bits = c.getBits();
     // Swap zones 12 and 0
     if (0 != (bits & 0x10)) {
       bits ^= 0x20;
@@ -136,11 +127,11 @@ public:
   }
 
 protected:
-  bits_t bits_{0};
+  bcd_t bits_{0};
 };
 
-SerialChar::bits_t SerialChar::serialFromBCD(BCDChar c) {
-  bits_t bits = c.getBits();
+bcd_t SerialChar::serialFromBCD(BCDChar c) {
+  bcd_t bits = c.getBits();
   // Swap 12 and 0
   if (0 != (bits & 0x10)) {
     bits ^= 0x20;

@@ -23,8 +23,8 @@
 #ifndef Z0FTWARE_CARD
 #define Z0FTWARE_CARD
 
+#include "Z0ftware/bcd.hpp"
 #include "Z0ftware/field.hpp"
-#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/word.hpp"
 
 #include <array>
@@ -36,18 +36,22 @@ constexpr unsigned numCardRows = 12;
 constexpr unsigned cardColumnFirst = 1;
 constexpr unsigned cardColumnLast = 80;
 
-using card_row_t = unsigned_t<numCardColumns>;
+class card_row_t : public UnsignedImp<card_row_t, numCardColumns> {
+public:
+  using UnsignedImp::UnsignedImp;
+};
+
+class card_column_t : public UnsignedImp<card_column_t, numCardRows> {
+public:
+  using UnsignedImp::UnsignedImp;
+  card_column_t(const hollerith_t &hollerith)
+      : UnsignedImp(hollerith.value()) {}
+};
 
 // Pairs a Hollerith encoding with a unicode character
 struct HollerithChar {
-  template <typename ROWS>
-  HollerithChar(const ROWS &rows, char32_t unicode)
-      : hollerith(hollerithFromRows(rows)), unicode(unicode) {}
-  template <typename T>
-  HollerithChar(const std::initializer_list<T> &rows, char32_t unicode)
-      : hollerith(hollerithFromRows(rows)), unicode(unicode) {}
 
-  HollerithChar(hollerith_t hollerith, char32_t unicode)
+  HollerithChar(const hollerith_t &hollerith, char32_t unicode)
       : hollerith(hollerith), unicode(unicode) {}
   hollerith_t hollerith;
   char32_t unicode;
@@ -69,9 +73,11 @@ public:
 
   // Row: 12 11  0  1  2  3  4  5  6  7  8  9
   // Bit: 11 10  9  8  7  6  5  4  3  2  1  0
-  using data_t = std::array<hollerith_t, numCardColumns>;
-  hollerith_t &operator[](int column) { return data_[column - 1]; }
-  const hollerith_t &operator[](int column) const { return data_[column - 1]; }
+  using data_t = std::array<card_column_t, numCardColumns>;
+  card_column_t &operator[](int column) { return data_[column - 1]; }
+  const card_column_t &operator[](int column) const {
+    return data_[column - 1];
+  }
   data_t &getData() { return data_; }
   const data_t &getData() const { return data_; }
 
@@ -114,15 +120,15 @@ private:
   // Initialize from card
   void fill(const BinaryRowCard &card);
 
-  std::array<hollerith_t, numCardColumns> columns_{0};
+  std::array<card_column_t, numCardColumns> columns_{0};
 };
 
 class BinaryRowCard {
   friend BinaryColumnCard;
 
 public:
-  using column_t = int;
-  using row_t = int;
+  using column_num_t = int;
+  using row_num_t = int;
 
   BinaryRowCard(const BinaryColumnCard &card) { fill(card); }
 

@@ -100,8 +100,7 @@ BITSIZETRAITS(12, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(13, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(14, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(15, std::uint_least16_t, std::int_least16_t);
-// Allow for 17-bit end()
-BITSIZETRAITS(16, std::uint_least32_t, std::int_least32_t);
+BITSIZETRAITS(16, std::uint_least16_t, std::int_least16_t);
 BITSIZETRAITS(17, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(18, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(19, std::uint_least32_t, std::int_least32_t);
@@ -117,8 +116,7 @@ BITSIZETRAITS(28, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(29, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(30, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(31, std::uint_least32_t, std::int_least32_t);
-// Allow for 33-bit end
-BITSIZETRAITS(32, std::uint_least64_t, std::int_least64_t);
+BITSIZETRAITS(32, std::uint_least32_t, std::int_least32_t);
 BITSIZETRAITS(33, std::uint_least64_t, std::int_least64_t);
 BITSIZETRAITS(34, std::uint_least64_t, std::int_least64_t);
 BITSIZETRAITS(35, std::uint_least64_t, std::int_least64_t);
@@ -150,8 +148,7 @@ BITSIZETRAITS(60, std::uint_least64_t, std::int_least64_t);
 BITSIZETRAITS(61, std::uint_least64_t, std::int_least64_t);
 BITSIZETRAITS(62, std::uint_least64_t, std::int_least64_t);
 BITSIZETRAITS(63, std::uint_least64_t, std::int_least64_t);
-// Allow for 65-bit end()
-BITSIZETRAITS(64, __uint128_t, __int128_t);
+BITSIZETRAITS(64, __uint64_t, __int64_t);
 BITSIZETRAITS(65, __uint128_t, __int128_t);
 BITSIZETRAITS(66, __uint128_t, __int128_t);
 BITSIZETRAITS(67, __uint128_t, __int128_t);
@@ -346,19 +343,18 @@ template <typename T, bit_size_size_t bit_size_> class UnsignedImp {
 public:
   using value_t = unsigned_t<bit_size_>;
 
-  static constexpr T begin() { return 0; }
-  static constexpr T end() {
-    T result;
-    result.value_ = 1 << bit_size_;
-    return result;
-  }
+  // These should return random-access iterators
+  static constexpr T min() { return 0; }
+  static constexpr T max() { return (1 << bit_size_) - 1; }
   static constexpr bit_size_size_t bit_size() { return bit_size_; };
 
   UnsignedImp() = default;
+  UnsignedImp(const UnsignedImp &) = default;
+
   template <typename V>
   constexpr UnsignedImp(V value)
       : value_(value_t(value) & bitmask<bit_size_>) {}
-  UnsignedImp(const UnsignedImp &) = default;
+
   template <typename RHS> T &operator=(const RHS &rhs) {
     value_ = value_t(rhs) & bitmask<bit_size_>;
     return *this;
@@ -469,11 +465,5 @@ public:
 protected:
   value_t value_{0};
 };
-
-// 12 11 0
-using hollerith_zone_t = unsigned_t<3>;
-
-// 9 8 7 6 5 4 3 2 1 0
-using hollerith_digits_t = unsigned_t<10>;
 
 #endif

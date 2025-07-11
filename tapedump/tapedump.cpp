@@ -26,7 +26,6 @@
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/card.hpp"
 #include "Z0ftware/config.h"
-#include "Z0ftware/disasm.hpp"
 #include "Z0ftware/parity.hpp"
 #include "Z0ftware/tape.hpp"
 #include "Z0ftware/word.hpp"
@@ -198,7 +197,7 @@ public:
               if (column > 1 && column % 36 == 0) {
                 std::cout << " ";
               }
-              hollerith_t val = card[column];
+              card_column_t val = card[column];
               std::cout << std::oct << std::setw(1)
                         << (0x7 & (val >> (3 * (3 - row)))).value();
             }
@@ -496,17 +495,17 @@ int main(int argc, const char **argv) {
     charEncoding = getFORTRAN704Encoding();
   }
   for (auto colUni : charEncoding) {
-    bcdHandler.setChar(BCDFromColumn(colUni.hollerith), colUni.unicode);
+    bcdHandler.setChar(cpu704_bcd_t(colUni.hollerith), colUni.unicode);
   }
   // '+'
-  bcdHandler.setChar(BCDFromColumn(hollerithFromRows({12})), '+');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{12}), '+');
 
-  bcdHandler.setChar(BCDFromColumn(hollerithFromRows({3, 8})), '=');
-  bcdHandler.setChar(BCDFromColumn(hollerithFromRows({0, 4, 8})), '(');
-  bcdHandler.setChar(BCDFromColumn(hollerithFromRows({12, 4, 8})), ')');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{3, 8}), '=');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{0, 4, 8}), '(');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{12, 4, 8}), ')');
 
   // '0' overrides
-  bcdHandler.setChar(BCDFromColumn(hollerithFromRows({0})), '0');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{0}), '0');
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);

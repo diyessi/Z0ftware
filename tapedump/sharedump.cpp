@@ -48,7 +48,7 @@ class ShareExtractor : public TapeReadAdapter {
 public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const BCDCharSet &charSet)
       : TapeReadAdapter(tapeIStream), tapeChars_(charSet) {
-    for (bcd_t i = bcd_t::begin(); i < bcd_t::end(); ++i) {
+    for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
       std::cout << Unicode(tapeChars_[i.value()]);
     }
     std::cout << std::endl;

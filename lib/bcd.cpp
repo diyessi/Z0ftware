@@ -22,7 +22,6 @@
 
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/card.hpp"
-#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/parity.hpp"
 
 #include <iostream>
@@ -212,7 +211,7 @@ bcd_t tapeFromCPU(bcd_t cpuBCD) {
 
 void TapeBCDCharSet::initCPUChars(charmap_t &cpuChars) const {
   std::fill(cpuChars.begin(), cpuChars.end(), Unicode(BCDCharSet::invalid));
-  for (bcd_t tapeBCD = bcd_t::begin(); tapeBCD < bcd_t::end(); tapeBCD++) {
+  for (bcd_t tapeBCD = bcd_t::min(); tapeBCD <= bcd_t::max(); tapeBCD++) {
     bcd_t cpuBCD = CPUFromTape(tapeBCD);
     auto& c = charMap_[tapeBCD.value()];
     if (c) {
@@ -231,7 +230,7 @@ void IBM704BCDCharSet::initCPUChars(charmap_t &cpuChars) const {
 
 void IBM704BCDCharSet::initTapeChars(charmap_t &tapeChars) const {
   std::fill(tapeChars.begin(), tapeChars.end(), get_unicode_char(BCDCharSet::invalid));
-  for (bcd_t cpuBCD = bcd_t::begin(); cpuBCD < bcd_t::end(); cpuBCD++) {
+  for (bcd_t cpuBCD = bcd_t::min(); cpuBCD <= bcd_t::max(); cpuBCD++) {
     if (cpuBCD == 0x0A) {
         // Remapped to space
       continue;
@@ -253,18 +252,18 @@ constexpr bcd_t hbcdFromHollerith(hollerith_t hollerith) {
   bcd_t bcd{0};
   // digits
   for (unsigned digit = 0; digit < 10; ++digit) {
-    if (0 != hbit(digit & hval)) {
+    if (0 != hollerith_t::positionFromRow(digit & hval)) {
       bcd |= bcd_t(digit);
     }
   }
   // zone
-  if (0 != (hbit(12) & hval)) {
+  if (0 != (hollerith_t::positionFromRow(12) & hval)) {
     bcd |= bcd_t(0x30);
   }
-  if (0 != (hbit(11) & hval)) {
+  if (0 != (hollerith_t::positionFromRow(11) & hval)) {
     bcd |= bcd_t(0x20);
   }
-  if (0 != (hbit(0) & hval)) {
+  if (0 != (hollerith_t::positionFromRow(0) & hval)) {
     bcd |= bcd_t(0x10);
   }
   return bcdSwapZeroBlank(bcd);
@@ -272,18 +271,17 @@ constexpr bcd_t hbcdFromHollerith(hollerith_t hollerith) {
 
 namespace {
 constexpr std::array<hollerith_t, 4> hbcdZoneMap = {
-    hollerithFromRows({}), hollerithFromRows({0}), hollerithFromRows({11}),
-    hollerithFromRows({12})};
+    hollerith_t{}, hollerith_t{0}, hollerith_t{11},hollerith_t{12}};
 
-constexpr std::array<hollerith_t, 16> hbcdDigitsMap = {
-    hollerithFromRows({0}),    hollerithFromRows({1}),
-    hollerithFromRows({2}),    hollerithFromRows({3}),
-    hollerithFromRows({4}),    hollerithFromRows({5}),
-    hollerithFromRows({6}),    hollerithFromRows({7}),
-    hollerithFromRows({8}),    hollerithFromRows({9}),
-    hollerithFromRows({8, 2}), hollerithFromRows({8, 3}),
-    hollerithFromRows({8, 4}), hollerithFromRows({8, 5}),
-    hollerithFromRows({8, 6}), hollerithFromRows({8, 7})};
+/*constexpr*/ std::array<hollerith_t, 16> hbcdDigitsMap = {
+    hollerith_t{0},    hollerith_t{1},
+    hollerith_t{2},    hollerith_t{3},
+    hollerith_t{4},    hollerith_t{5},
+    hollerith_t{6},    hollerith_t{7},
+    hollerith_t{8},    hollerith_t{9},
+    hollerith_t{8, 2}, hollerith_t{8, 3},
+    hollerith_t{8, 4}, hollerith_t{8, 5},
+    hollerith_t{8, 6}, hollerith_t{8, 7}};
 
 } // namespace
 
@@ -293,22 +291,18 @@ constexpr hollerith_t hollerithFromHbcd(bcd_t bcd) {
          hbcdDigitsMap[(bcdVal & 0xF).value()];
 }
 
-HBCD::HBCD(hollerith_t hollerith) : bcd_(hbcdFromHollerith(hollerith)) {}
-
-hollerith_t HBCD::getHollerith() const { return hollerithFromHbcd(bcd_); }
-
 namespace {
 std::unordered_map<hollerith_t, bcd_t> bcdFromHollerithMapInit() {
   std::unordered_map<hollerith_t, bcd_t> result;
-  for (bcd_t bcd = bcd_t::begin(); bcd < bcd_t::end(); bcd++) {
+  for (bcd_t bcd = bcd_t::min(); bcd <= bcd_t::max(); bcd++) {
     result[hollerithFromHbcd(bcd_t(bcd))] = bcd_t(bcd);
   }
   return result;
 }
 
-std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcdInit() {
-  std::array<hollerith_t, CPU704BCDValue::size> result;
-  for (bcd_t bcd = bcd_t::begin(); bcd < bcd_t::end(); bcd++) {
+std::array<hollerith_t, 1 << cpu704_bcd_t::bit_size()> hollerithFromBcdInit() {
+  std::array<hollerith_t, 1 << cpu704_bcd_t::bit_size()> result;
+  for (bcd_t bcd = bcd_t::min(); bcd <= bcd_t::max(); bcd++) {
     result[bcd.value()] = hollerithFromHbcd(bcd_t(bcd));
   }
   return result;
@@ -316,67 +310,12 @@ std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcdInit() {
 
 } // namespace
 
-std::unordered_map<hollerith_t, bcd_t> HBCD::bcdFromHollerith_ =
-    bcdFromHollerithMapInit();
-std::array<hollerith_t, CPU704BCDValue::size> HBCD::hollerithFromBcd_ =
-    hollerithFromBcdInit();
-
-const std::unordered_map<hollerith_t, bcd_t> &HBCD::getBcdFromHollerithMap() {
-  static bool initialized{false};
-  if (!initialized) {
-    std::vector<hollerith_t> hzones = {
-        hollerithFromRows({}), hollerithFromRows({0}), hollerithFromRows({11}),
-        hollerithFromRows({12})};
-    for (unsigned bzone = 0; bzone < hzones.size(); ++bzone) {
-      auto &hzone = hzones[bzone];
-      for (unsigned digit = 0; digit < 16; digit++) {
-      }
-    }
-  }
-  return bcdFromHollerith_;
-}
-
 bcd_t tapeBCDfromBCD(bcd_t bcd) {
   if (bcd == bcd_t(0)) {
     return bcd_t(0b001010);
   }
   if (bcd_t(0) != (bcd & bcd_t(0b010000))) {
     return bcd ^ bcd_t(0b100000);
-  }
-  return bcd;
-}
-
-bcd_t BCDFromColumn(hollerith_t column) {
-  bcd_t bcd{0};
-  if (column == 0) {
-    return 0b110000;
-  }
-  // Rows 9 to 1
-  for (int pos = 9; pos > 0; pos--) {
-    if (1 == (column & 0x1)) {
-      bcd |= pos;
-    }
-    column >>= 1;
-  }
-  bool hasZero = (1 == (column & 0x1));
-  column >>= 1;
-  if (column > 0) {
-    // Zone 11 or 12 is 1
-    if (hasZero) {
-      // Zero with a zone 11 or 12 is like a 10
-      bcd |= bcd_t(0b1010);
-    }
-    if (1 == (column & 0x1)) {
-      // Zone 11
-      bcd |= bcd_t(0b100000);
-    }
-    column >>= 1;
-    if (1 == (column & 0x1)) {
-      // Zone 12
-      bcd |= bcd_t(0b010000);
-    }
-  } else if (hasZero && bcd != bcd_t(0)) {
-    bcd |= bcd_t(0b110000);
   }
   return bcd;
 }
@@ -421,7 +360,7 @@ char ASCIIFromTapeBCD(bcd_t bcd) {
   static auto table = []() {
     std::array<char32_t, 128> table;
     for (auto cu : getFORTRANIVEncoding()) {
-      auto tapeBCD = tapeBCDfromBCD(BCDFromColumn(cu.hollerith));
+      auto tapeBCD = tapeBCDfromBCD(cpu704_bcd_t(cu.hollerith));
       table[tapeBCD.value()] = cu.unicode;
     }
     return table;

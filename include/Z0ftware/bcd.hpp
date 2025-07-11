@@ -20,53 +20,64 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// A character set associates a set of characters with a subset of BCD values.
-// In a few cases character sets a character is associated with more than one
-// BCD value. Most of the characters are in ASCII, some of the remaining are in
-// Unicode, and a few are not in Unicode.
-
-// C++ has poor Unicode support. If a program calls std::setlocale(LC_ALL, "")
-// string output will be interpreted as UTF-8, but means some individual
-// characters are a sequence of chars.
-
-// TODO:
-//
-// Zones 01 and 11 are switched, so check for 0x10 but ^= with 0x20.
-//
-// CharSet is 64-element char32_t array indexed by HBCD/CBCD and unordered map
-// char32_t -> BCD. Base is digits/alphabet/blank. Can extend to a new charset
-// by providing BCD->char overrides.
-//
-// bcd_t, hollerith_t are lower-level than *BCD and should be defined in a
-// header for lower-level types. Should be lower-level conversions between these
-// types, used by *BCD etc.
-//
-// Should not allow invalid hollerith->bcd conversions, but might need
-// hollerith_t for column view of a binary card.
-
-// There are 64 BCD values and 3 6-bit encodings for the values:
-// - 704
-// - Tape
-// - Card
-// In addition, there is a 12-bit Hollerith encoding.
-// The 704 encoding will serve as the canonic representation.
-//
-// A character set is encoded by BCD values. All character sets use the same BCD
-// values for digits, uppercase letters and blank. There is variability for
-// symbols. Unicoode will serve as the canonic character encoding for those
-// characters which appear in Unicode. Unicode symbols with similar appearance
-// will be used for other symbols.
+/**
+ * @file bcd.hpp
+ * @brief Classes and types for working with character encodings.
+ *
+ * Punched cards and printers use a sparse 12-bit Hollerith character encoding
+ * that can be converted to a less sparse 6-bit encoding with an even parity 7th
+ * bit. The character '1' through '9' were encoded with their BCD values, i.e.
+ * 0x01 through 0x09. Due to constraints imposed by the physical recording
+ * format, 0x00 could not be stored on tape, so '0', which already required
+ * special treatment, was relocated to '0x0A'. Likewise, blanks required their
+ * own special treatment since they would have been encoded as '0' if treated
+ * like other values.
+ *
+ * On the 704, conversion between 12-bit Hollerith and 6-bit BCDIC encodings was
+ * performed in software for card readers, punches and printers connected
+ * directly to the CPU. It was also possible to transfer card content to tape
+ * off-line or to print from tape off-line, in which case the conversion was
+ * done by hardware.
+ *
+ * The tape 6-bit encoding was not convenient for computation because the
+ * collation order differed from the binary order and the encoding for '0' was
+ * after '9', so on the scientific computing family (704, 709, 7090, 7094)
+ * values were rearranged to put the characters into collation order and move
+ * '0' to 0x00. The business family of CPUs (702, 705) used the tape encoding.
+ *
+ * Although the conversion between a particular 12-bit Hollerith value or 6-bit
+ * tape or 704 value depended only on the bits, there was variation in how
+ * glyphs other than digits and uppercase letters were associated with bits.
+ * This varied over time and whether the site was primarily commercial or
+ * scientific.
+ *
+ * The association of characters and one of the two BCD encodings or Hollerith
+ * will be called a character set. Character sets can be defined relative to a
+ * Hollerith, tape BCD or 704-style BCD encoding and can be converted to a
+ * character set relative to another encoding. Some programs, such as the SAP
+ * assembler, merged a few character sets so they could treat any of several
+ * possible encodings for a glyph as the same character.
+ *
+ * Most of the glyphs survived into ASCII, but a few are only in Unicode, and a
+ * few don't even have Unicode characters. C++ Unicode support is almost
+ * non-existent, but operating systems now support UTF-8 if
+ * std::setlocale(LC_ALL, "") is called. Character sets currently use 32-bit
+ * Unicode characters which are converted to UTF-8 during I/O, but this should
+ * be simplified to use UTF-8 strings. For the glyphs that are not in Unicode,
+ * an alternate Unicode character is used.
+ */
 
 #ifndef Z0FTWARE_BCD_HPP
 #define Z0FTWARE_BCD_HPP
 
-#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/parity.hpp"
 
 #include <Z0ftware/unicode.hpp>
 #include <array>
 #include <cstdint>
 #include <unordered_map>
+
+#include <iostream>
 
 // BCD values are 6 bits, but values are transformed between tape (which also
 // includes a 7th even parity bit) and scientific CPUs to make BCD order
@@ -78,91 +89,197 @@
 // cannot be used on tape. The 0 digit is moved to the "10" position, 0x0A. As a
 // result, 0x0A is not used as a character on the scientific CPUs.
 
-class TapeBCDValue;
-class CPU704BCDValue;
+class cpu704_bcd_t;
+class tape_bcd_t;
+class hollerith_t;
+class hollerith_bcd_t;
 
 /**
- * @brief six bit unsigned value
+ * @brief A punched card column
  */
+class hollerith_t : public UnsignedImp<hollerith_t, 12> {
+public:
+  // using UnsignedImp::UnsignedImp;
+
+  inline explicit constexpr hollerith_t(const hollerith_bcd_t &);
+  inline explicit constexpr hollerith_t(const tape_bcd_t &);
+  inline explicit constexpr hollerith_t(const cpu704_bcd_t &);
+
+  inline constexpr operator hollerith_bcd_t() const;
+  inline constexpr operator tape_bcd_t() const;
+  inline constexpr operator cpu704_bcd_t() const;
+
+  constexpr hollerith_t() : UnsignedImp(0) {}
+
+  template <typename Row> constexpr bool isSet(const Row &row) const {
+    return 0 != (value() & bitForRow(row));
+  }
+
+  template <typename Row, typename... MoreRows>
+  constexpr hollerith_t(Row row, MoreRows... moreRows)
+      : UnsignedImp(bitForRow(row) | hollerith_t(moreRows...).value()) {}
+
+  // Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
+  // Bit: 11 10    9 8 7 6 5 4 3 2 1 0
+  template <typename T>
+  static inline constexpr T positionFromRow(const T &row) {
+    return row < 10 ? 9 - row : row - 1;
+  }
+
+  template <typename T>
+  static inline constexpr hollerith_t::value_t bitForRow(const T &row) {
+    return hollerith_t::value_t(1) << positionFromRow(row);
+  }
+};
+
+namespace std {
+template <> struct hash<hollerith_t> {
+  std::size_t operator()(const hollerith_t &h) const { return h.value(); }
+};
+} // namespace std
+
+/**
+ * @brief A generic 6-bit unsigned value.
+ */
+// TODO: Make a template so UnsignedImp uses T as the op type, not bcd_t.
 class bcd_t : public UnsignedImp<bcd_t, 6> {
 public:
-  using UnsignedImp<bcd_t, 6>::UnsignedImp;
+  template <typename T> static inline constexpr T swapZeroBlank(const T &bcd) {
+    switch (value_t(bcd)) {
+    case 0:
+      return 0x10;
+    case 0x10:
+      return 0x0A;
+    default:
+      return value_t(bcd);
+    }
+  }
+
+  template <typename T> static inline constexpr T swapZone(const T &bcd) {
+    auto zone = bcd & 0x30;
+    return (0 == (bcd & 0x10)) ? T(bcd ^ 0x20) : bcd;
+  }
+
+  using UnsignedImp::UnsignedImp;
 };
 
 /**
- * @brief six bit unsigned value + even parity
+ * @brief A six bit encoding in tape format
+ */
+class tape_bcd_t : public bcd_t {
+public:
+  using bcd_t::bcd_t;
+
+  inline explicit constexpr tape_bcd_t(const hollerith_t &);
+  // inline explicit constexpr tape_bcd_t(const hollerith_bcd_t &);
+  inline explicit constexpr tape_bcd_t(const cpu704_bcd_t &);
+
+  inline constexpr operator hollerith_t() const;
+  // inline constexpr operator hollerith_bcd_t() const;
+  inline constexpr operator cpu704_bcd_t() const;
+
+  template <typename OS>
+  inline friend OS &operator<<(OS &os, tape_bcd_t &value) {
+    return os << value;
+  }
+};
+
+/**
+ * @brief six bit unsigned tape value + even parity
  */
 class parity_bcd_t : public UnsignedImp<parity_bcd_t, 7> {
 public:
-  using UnsignedImp<parity_bcd_t, 7>::UnsignedImp;
+  using UnsignedImp::UnsignedImp;
 };
 
-class TapeBCDValue {
+/**
+ * @brief six bit encoding in 704 format
+ */
+class cpu704_bcd_t : public bcd_t {
 public:
-  TapeBCDValue() = default;
-  TapeBCDValue(std::uint8_t value) : value_(value & 0x3F) {};
-  TapeBCDValue(const TapeBCDValue &) = default;
-  inline TapeBCDValue(const CPU704BCDValue &);
+  using bcd_t::bcd_t;
 
-  explicit operator bcd_t() const { return value_; }
-  explicit operator bcd_t::value_t() const { return bcd_t::value_t(value_); }
-  inline operator CPU704BCDValue() const;
+  inline explicit constexpr cpu704_bcd_t(const hollerith_t &);
+  // inline explicit constexpr cpu704_bcd_t(const hollerith_bcd_t &hollerith);
+  inline explicit constexpr cpu704_bcd_t(const tape_bcd_t &);
+
+  inline constexpr operator hollerith_t() const;
+  // inline constexpr operator hollerith_bcd_t() const;
+  inline constexpr operator tape_bcd_t() const;
 
   template <typename OS>
-  inline friend OS &operator<<(OS &os, TapeBCDValue &value) {
+  inline friend OS &operator<<(OS &os, cpu704_bcd_t &value) {
     return os << value;
   }
-
-protected:
-  bcd_t value_{0};
 };
 
-class CPU704BCDValue {
-public:
-  static constexpr size_t num_bits = 6;
-  static constexpr size_t size = 1 << num_bits;
+// constexpr hollerith_t::operator hollerith_bcd_t() const { return *this; }
+constexpr hollerith_t::operator tape_bcd_t() const { return *this; }
+constexpr hollerith_t::operator cpu704_bcd_t() const { return *this; };
 
-  CPU704BCDValue() = default;
-  CPU704BCDValue(std::uint8_t value) : value_(value & 0x3F) {};
-  CPU704BCDValue(const CPU704BCDValue &) = default;
-  inline CPU704BCDValue(const TapeBCDValue &);
-
-  explicit operator bcd_t() const { return value_; }
-  explicit operator bcd_t::value_t() const { return bcd_t::value_t(value_); }
-  inline operator TapeBCDValue() const;
-
-  template <typename OS>
-  inline friend OS &operator<<(OS &os, CPU704BCDValue &value) {
-    return os << value;
+constexpr tape_bcd_t::tape_bcd_t(const hollerith_t &hollerith) : bcd_t(0) {
+  if (hollerith == hollerith_t{}) {
+    // blank
+    value_ = 0x10;
+  } else if (hollerith == hollerith_t{0}) {
+    value_ = 0x0A;
+  } else {
+    int start_digit = 10;
+    for (int zone = 12; zone >= 10; zone--) {
+      if (hollerith.isSet(zone)) {
+        value_ |= (zone - 9) * 0x10;
+        start_digit = zone - 1;
+        break;
+      }
+    }
+    for (int digit = start_digit; digit >= 1; digit--) {
+      if (hollerith.isSet(digit)) {
+        value_ |= digit;
+      }
+    }
   }
-
-protected:
-  bcd_t value_{0};
-};
-
-TapeBCDValue::TapeBCDValue(const CPU704BCDValue &cpuValue) {
-  bcd_t bits = bcd_t(cpuValue);
-  if (bcd_t(0) != (bits & bcd_t(0x10))) {
-    bits ^= 0x20;
-  } else if (0x00 == bits) {
-    bits = 0x0A;
-  }
-  value_ = bits;
 }
 
-TapeBCDValue::operator CPU704BCDValue() const { return CPU704BCDValue(*this); }
-
-CPU704BCDValue::CPU704BCDValue(const TapeBCDValue &tapeValue) {
-  bcd_t bits = tapeValue;
-  if (bcd_t(0) != (bits & 0x10)) {
-    bits ^= 0x20;
-  } else if (0x0A == bits) {
-    bits = 0x00;
+constexpr tape_bcd_t::tape_bcd_t(const cpu704_bcd_t &cpu) {
+  value_ = cpu.value();
+  if ((value_ & 0x10) != 0) {
+    value_ ^= 0x20;
+  } else if (value_ == 0x00) {
+    value_ = 0x0A;
   }
-  value_ = bits;
 }
 
-CPU704BCDValue::operator TapeBCDValue() const { return TapeBCDValue(*this); }
+constexpr tape_bcd_t::operator hollerith_t() const { return *this; }
+// constexpr tape_bcd_t::operator hollerith_bcd_t() const { return *this; }
+constexpr tape_bcd_t::operator cpu704_bcd_t() const { return *this; }
+
+constexpr cpu704_bcd_t::cpu704_bcd_t(const hollerith_t &hollerith) {
+  if (hollerith == hollerith_t{}) {
+    // blank
+    value_ = 0x30;
+  } else if (hollerith == hollerith_t{0}) {
+    value_ = 0x00;
+  } else {
+    int start_digit = 10;
+    for (int zone = 12; zone >= 10; zone--) {
+      if (hollerith.isSet(zone)) {
+        value_ |= (13 - zone) * 0x10;
+        start_digit = zone - 1;
+        break;
+      }
+    }
+    for (int digit = start_digit; digit >= 1; digit--) {
+      if (hollerith.isSet(digit)) {
+        value_ |= digit;
+      }
+    }
+  }
+}
+
+constexpr cpu704_bcd_t::cpu704_bcd_t(const tape_bcd_t &tape)
+    : bcd_t(swapZeroBlank(swapZone(tape.value()))) {}
+
+constexpr cpu704_bcd_t::operator tape_bcd_t() const { return *this; }
 
 /**
  * @brief Information about the Unicode character to use for a BCD character.
@@ -283,194 +400,9 @@ extern const IBM704BCDCharSet BCDSherman;
 extern const TapeBCDCharSet BCDICFinal_A;
 extern const TapeBCDCharSet BCDICFinal_B;
 
-/*
- * The BCD character encoding is a six bit encoding for characters based on the
- * Hollerith encoding for cards. The encodings for digits and alphabetic
- * characters was fixed, but there was some variation for symbols
- *
- * There are three related six bit BCD encodings:
- * 1) Hollerith, where the high two bits specify the zone (0 digits, 1 zone 0
- * S-Z, 2 zone 11 J-R, 3 zone 12 A-I) and the low four bits the digit, ORed with
- * 0x08 if 8 is punched. Blank is mapped to 0x10.
- *
- * 2) Tape, like Hollerith, but 0x00 is moved to 0x0A since tape cannot store
- * 0x00.
- *
- * 3) CPU, like Hollerith, but 0x1* and 0x2* zone encodings are swapped so that
- * BCD ordering matches alphabetic
- *
- * We need to be able to go from any of the BCD variants to the appropriate
- * character in an encoding, and we need to be able to go from a supported
- * character to any of the BCD encodings. Some character sets are described
- * relative to a BCD encoding, some for Hollerith.
- *
- * Hollerith is a sparse 12-bit encoding.
- */
-
-// Hollerith
-class HBCD;
-// CPU
-class CBCD;
-// Tape
-class TBCD;
-
-// Hollerith BCD
-class HBCD {
-public:
-  HBCD(hollerith_t hollerith);
-  inline HBCD(bcd_t bcd) : bcd_(bcd) {}
-  inline HBCD(const HBCD &) = default;
-  inline HBCD(const CBCD &);
-  inline HBCD(const TBCD &);
-  inline HBCD &operator=(const HBCD &) = default;
-  inline HBCD &operator=(const CBCD &);
-  inline HBCD &operator=(const TBCD &);
-
-  inline operator CBCD() const;
-  inline operator TBCD() const;
-
-  inline bcd_t getBCD() const { return bcd_; }
-  inline hollerith_t getHollerith() const;
-
-  static const std::unordered_map<hollerith_t, bcd_t> &getBcdFromHollerithMap();
-
-protected:
-  bcd_t bcd_;
-
-  static std::unordered_map<hollerith_t, bcd_t> bcdFromHollerith_;
-  static std::array<hollerith_t, CPU704BCDValue::size> hollerithFromBcd_;
-};
-
-// CPU BCD
-class CBCD {
-public:
-  CBCD(bcd_t bcd) : bcd_(bcd) {}
-  inline CBCD(const CBCD &) = default;
-  // Swap 0x1* and 0x2*
-  inline CBCD(const HBCD &);
-  // Swap 0x1* and 0x2*
-  // 0A -> 00
-  inline CBCD(const TBCD &);
-  inline CBCD &operator=(const CBCD &) = default;
-  inline CBCD &operator=(const HBCD &);
-  inline CBCD &operator=(const TBCD &);
-  inline operator HBCD() const;
-  inline operator TBCD() const;
-
-  inline bcd_t getBCD() const { return bcd_; }
-
-  static inline bcd_t swapHi(bcd_t bcd) {
-    bcd_t hibits = bcd & bcd_t(0x30);
-    if (bcd_t(0x10) == hibits || bcd_t(0x20) == hibits) {
-      bcd ^= bcd_t(0x30);
-    }
-    return bcd;
-  }
-
-protected:
-  bcd_t bcd_;
-};
-
-// Tape BCD
-class TBCD {
-public:
-  inline TBCD(parity_bcd_t tbcd) : tbcd_(tbcd) {}
-  inline TBCD(const TBCD &) = default;
-  inline TBCD(const CBCD &);
-  inline TBCD(const HBCD &);
-  inline TBCD &operator=(const TBCD &) = default;
-  inline TBCD &operator=(const CBCD &);
-  inline TBCD &operator=(const HBCD &);
-
-  inline operator CBCD() const;
-  inline operator HBCD() const;
-
-  inline bcd_t getBCD() const { return tbcd_; }
-
-  static inline parity_bcd_t toTape(bcd_t bcd) {
-    if (bcd_t(0) == bcd) {
-      bcd = bcd_t(0x0A);
-    }
-    return evenParity(bcd);
-  }
-
-  static inline bcd_t fromTape(parity_bcd_t tbcd) {
-    bcd_t bcd = bcd_t((parity_bcd_t(0x3F) & tbcd));
-    if (bcd_t(0x0A) == bcd) {
-      bcd = bcd_t(0);
-    }
-    return bcd;
-  }
-
-protected:
-  parity_bcd_t tbcd_;
-};
-
-/* CPU */
-inline CBCD::CBCD(const HBCD &hbcd) {
-  bcd_ = hbcd.getBCD();
-  swapHi(bcd_);
-}
-
-inline CBCD::CBCD(const TBCD &tbcd)
-    : bcd_(TBCD::fromTape(swapHi(tbcd.getBCD()))) {}
-
-inline CBCD &CBCD::operator=(const HBCD &hbcd) {
-  bcd_ = swapHi(hbcd.getBCD());
-  return *this;
-}
-
-inline CBCD &CBCD::operator=(const TBCD &tbcd) {
-  bcd_ = TBCD::fromTape(swapHi(tbcd.getBCD()));
-  return *this;
-}
-
-inline CBCD::operator HBCD() const { return HBCD(*this); }
-
-inline CBCD::operator TBCD() const { return TBCD(*this); }
-
-/* Hollerith */
-inline HBCD::HBCD(const CBCD &cbcd) { bcd_ = CBCD::swapHi(cbcd.getBCD()); }
-
-inline HBCD::HBCD(const TBCD &tbcd) { bcd_ = TBCD::fromTape(tbcd.getBCD()); }
-
-inline HBCD &HBCD::operator=(const CBCD &cbcd) {
-  bcd_ = CBCD::swapHi(cbcd.getBCD());
-  return *this;
-}
-
-inline HBCD &HBCD::operator=(const TBCD &tbcd) {
-  bcd_ = TBCD::fromTape(tbcd.getBCD());
-  return *this;
-}
-
-inline HBCD::operator CBCD() const { return CBCD(*this); }
-inline HBCD::operator TBCD() const { return TBCD(*this); }
-
-/* Tape */
-inline TBCD::TBCD(const CBCD &cbcd)
-    : tbcd_(toTape(CBCD::swapHi(cbcd.getBCD()))) {}
-
-inline TBCD::TBCD(const HBCD &hbcd) : tbcd_(toTape(hbcd.getBCD())) {}
-
-inline TBCD &TBCD::operator=(const CBCD &cbcd) {
-  tbcd_ = toTape(CBCD::swapHi(cbcd.getBCD()));
-  return *this;
-}
-
-inline TBCD &TBCD::operator=(const HBCD &hbcd) {
-  tbcd_ = toTape(hbcd.getBCD());
-  return *this;
-}
-
-inline TBCD::operator CBCD() const { return CBCD(*this); }
-
-inline TBCD::operator HBCD() const { return HBCD(*this); }
-
 char ASCIIFromTapeBCD(bcd_t bcd);
 uint64_t bcd(utf8_string_view_t chars);
 
-bcd_t BCDFromColumn(hollerith_t column);
 bcd_t tapeBCDfromBCD(bcd_t bcd);
 
 void compareASCII();

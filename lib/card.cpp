@@ -206,7 +206,7 @@ const std::vector<HollerithChar> &getFORTRAN704Encoding4() {
 // Page 58
 const std::vector<HollerithChar> &getFAPEncoding() {
   static std::vector<HollerithChar> table = createBCDEncoding(
-      {{hollerithFromRows({}), ' '},
+      {{hollerith_t{}, ' '},
        {{12}, '+'},
        {{11}, '-'},
        {{0, 1}, '/'},
@@ -407,7 +407,7 @@ void BinaryColumnCard::readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
-    columns_[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
+    columns_[j++] = card_column_t(b0) << 6 | card_column_t(b1);
   }
 }
 
@@ -462,7 +462,8 @@ void CardImage::setWord(int position, word_t value) {
   word_t result{0};
   word_t mask = ~(1 << bitpos);
   for (auto column = endColumn - 1; column >= startColumn; --column) {
-    data_[column] = (data_[column] & mask) | ((value & 0x1) << bitpos);
+    data_[column].value() =
+        (data_[column].value() & mask) | ((value & 0x1) << bitpos);
     value >>= 1;
   }
 }
@@ -489,7 +490,7 @@ CardImage readCBN(std::istream &input) {
     uint8_t b1 = buffer[i++];
     assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
-    cardImage[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
+    cardImage[j++] = card_column_t(b0) << 6 | card_column_t(b1);
   }
   return cardImage;
 }

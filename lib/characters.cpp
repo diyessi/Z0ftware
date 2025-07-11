@@ -21,14 +21,9 @@
 // SOFTWARE.
 
 #include "Z0ftware/characters.hpp"
-#include "Z0ftware/parity.hpp"
 
-#include <iomanip>
-#include <ios>
-#include <sstream>
-
-HollerithChar::operator SerialChar() const {
-  SerialChar::bits_t bits{0};
+HollerithChar::operator bcd_t() const {
+  bcd_t bits{0};
   row_t digit;
   for (digit = 9; digit >= 1; digit--) {
     if (1 == bitFromRow(digit)) {
@@ -38,7 +33,7 @@ HollerithChar::operator SerialChar() const {
       }
     }
   }
-  if (0 == bits && bitFromRow(10)) {
+  if (0 == (bits & bitFromRow(10))) {
     digit = 10;
     bits |= digit;
   }
@@ -53,9 +48,5 @@ HollerithChar::operator SerialChar() const {
     bits = 0x10;
   }
 
-  return SerialChar(bits);
-}
-
-HollerithChar::operator BCDChar() const {
-  return BCDChar(this->operator ::SerialChar());
+  return bits;
 }

@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Z0ftware/characters.hpp"
+#include "Z0ftware/bcd.hpp"
 
 #include <gtest/gtest.h>
 
@@ -30,9 +30,9 @@
 // Also https://archive.org/details/mackenzie-coded-char-sets/page/24/mode/2up
 // Page 25
 struct CardTapePair {
-  std::uint8_t collate;
-  HollerithChar hc;
-  SerialChar sc;
+  size_t collate;
+  hollerith_t hc;
+  tape_bcd_t sc;
 };
 
 CardTapePair cardTapePairs[] = {
@@ -108,6 +108,6 @@ CardTapePair cardTapePairs[] = {
 
 TEST(characters, hollerith) {
   for (auto &ctp : cardTapePairs) {
-    EXPECT_EQ(SerialChar(ctp.hc), ctp.sc) << int(ctp.collate);
+    EXPECT_EQ(tape_bcd_t(ctp.hc), ctp.sc) << ctp.collate;
   }
 }
