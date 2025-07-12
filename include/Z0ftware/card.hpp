@@ -31,23 +31,6 @@
 #include <string>
 #include <vector>
 
-constexpr unsigned numCardColumns = 80;
-constexpr unsigned numCardRows = 12;
-constexpr unsigned cardColumnFirst = 1;
-constexpr unsigned cardColumnLast = 80;
-
-class card_row_t : public UnsignedImp<card_row_t, numCardColumns> {
-public:
-  using UnsignedImp::UnsignedImp;
-};
-
-class card_column_t : public UnsignedImp<card_column_t, numCardRows> {
-public:
-  using UnsignedImp::UnsignedImp;
-  card_column_t(const hollerith_t &hollerith)
-      : UnsignedImp(hollerith.value()) {}
-};
-
 // Pairs a Hollerith encoding with a unicode character
 struct HollerithChar {
 

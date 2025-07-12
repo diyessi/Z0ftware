@@ -187,8 +187,8 @@ public:
           std::cout << "Card " << std::dec << binaryCardNum_++ << "\n";
           CardImage card;
           for (int column = 1; column <= 80; ++column) {
-            hollerith_t high = record_[record_pos++];
-            hollerith_t low = record_[record_pos++];
+            card_column_t high = record_[record_pos++];
+            card_column_t low = record_[record_pos++];
             card[column] = ((high & 0x3F) << 6) | (low & 0x3F);
           }
           std::cout << "Columns\n";

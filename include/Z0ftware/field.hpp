@@ -343,7 +343,6 @@ template <typename T, bit_size_size_t bit_size_> class UnsignedImp {
 public:
   using value_t = unsigned_t<bit_size_>;
 
-  // These should return random-access iterators
   static constexpr T min() { return 0; }
   static constexpr T max() { return (1 << bit_size_) - 1; }
   static constexpr bit_size_size_t bit_size() { return bit_size_; };
