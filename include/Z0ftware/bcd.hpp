@@ -91,7 +91,6 @@
 
 class cpu704_bcd_t;
 class tape_bcd_t;
-class hollerith_t;
 
 constexpr unsigned numCardColumns = 80;
 constexpr unsigned cardColumnFirst = 1;
@@ -99,66 +98,61 @@ constexpr unsigned cardColumnLast = 80;
 
 constexpr unsigned numCardRows = 12;
 
-template <typename COLUMN_TYPE>
-class CardColumnImp : public UnsignedImp<COLUMN_TYPE, numCardRows> {
+/**
+ * @brief Card column implementation as 12-bit unsigned
+ *
+ */
+class card_column_t : public UnsignedImp<card_column_t, numCardRows> {
 public:
-  using UnsignedImp<COLUMN_TYPE, numCardRows>::UnsignedImp;
+  using UnsignedImp::UnsignedImp;
 
-  template <typename Row> constexpr bool isSet(const Row &row) const {
-    return 0 !=
-           (UnsignedImp<COLUMN_TYPE, numCardRows>::value() & bitForRow(row));
-  }
+  inline constexpr operator tape_bcd_t() const;
+  inline constexpr operator cpu704_bcd_t() const;
 
-  // Row: 12 11 10/0 1 2 3 4 5 6 7 8 9
-  // Bit: 11 10    9 8 7 6 5 4 3 2 1 0
+  /**
+   * @brief Convert a row number to a bit position
+   *
+   * Row: 12 11 10|0 1 2 3 4 5 6 7 8 9
+   * Bit: 11 10  9|9 8 7 6 5 4 3 2 1 0
+   */
   template <typename T>
   static inline constexpr T positionFromRow(const T &row) {
     return row < 10 ? 9 - row : row - 1;
   }
 
+  static constexpr card_column_t fromRows() { return card_column_t(); }
+
+  template <typename Row, typename... MoreRows>
+  static constexpr card_column_t fromRows(Row row, MoreRows... moreRows) {
+    return card_column_t((value_t(1) << positionFromRow(row)) |
+                         fromRows(moreRows...).value());
+  }
+
   template <typename T>
-  static inline constexpr UnsignedImp<COLUMN_TYPE, numCardRows>::value_t
-  bitForRow(const T &row) {
-    return typename COLUMN_TYPE::value_t(1) << positionFromRow(row);
+  static inline constexpr card_column_t bitForRow(const T &row) {
+    return card_column_t(1) << positionFromRow(row);
+  }
+
+  template <typename Row> constexpr bool isSet(const Row &row) const {
+    return 0 != (value() & bitForRow(row));
   }
 };
 
-/**
- * @brief Data on a card column, binary or text.
- */
-class card_column_t : public CardColumnImp<card_column_t> {
-public:
-  using CardColumnImp::CardColumnImp;
-  constexpr card_column_t(const hollerith_t &hollerith);
-};
+inline constexpr card_column_t hollerith() { return 0; }
+
+template <typename Row, typename... MoreRows>
+inline constexpr card_column_t hollerith(Row row, MoreRows... moreRows) {
+  return card_column_t::fromRows(row) | hollerith(moreRows...);
+}
 
 class card_row_t : public UnsignedImp<card_row_t, numCardColumns> {
 public:
   using UnsignedImp::UnsignedImp;
 };
 
-/**
- * @brief A punched card column for a character
- */
-class hollerith_t : public CardColumnImp<hollerith_t> {
-public:
-  inline explicit constexpr hollerith_t(const tape_bcd_t &);
-  inline explicit constexpr hollerith_t(const cpu704_bcd_t &);
-
-  inline constexpr operator card_column_t() const { return value_; }
-  inline constexpr operator tape_bcd_t() const;
-  inline constexpr operator cpu704_bcd_t() const;
-
-  constexpr hollerith_t() : CardColumnImp(0) {}
-
-  template <typename Row, typename... MoreRows>
-  constexpr hollerith_t(Row row, MoreRows... moreRows)
-      : CardColumnImp(bitForRow(row) | hollerith_t(moreRows...).value()) {}
-};
-
 namespace std {
-template <> struct hash<hollerith_t> {
-  std::size_t operator()(const hollerith_t &h) const { return h.value(); }
+template <> struct hash<card_column_t> {
+  std::size_t operator()(const card_column_t &h) const { return h.value(); }
 };
 } // namespace std
 
@@ -194,10 +188,10 @@ class tape_bcd_t : public bcd_t {
 public:
   using bcd_t::bcd_t;
 
-  inline explicit constexpr tape_bcd_t(const hollerith_t &);
+  inline explicit constexpr tape_bcd_t(const card_column_t &);
   inline explicit constexpr tape_bcd_t(const cpu704_bcd_t &);
 
-  inline constexpr operator hollerith_t() const;
+  inline constexpr operator card_column_t() const;
   inline constexpr operator cpu704_bcd_t() const;
 
   template <typename OS>
@@ -221,10 +215,10 @@ class cpu704_bcd_t : public bcd_t {
 public:
   using bcd_t::bcd_t;
 
-  inline explicit constexpr cpu704_bcd_t(const hollerith_t &);
+  inline explicit constexpr cpu704_bcd_t(const card_column_t &);
   inline explicit constexpr cpu704_bcd_t(const tape_bcd_t &);
 
-  inline constexpr operator hollerith_t() const;
+  inline constexpr operator card_column_t() const;
   inline constexpr operator tape_bcd_t() const;
 
   template <typename OS>
@@ -233,26 +227,26 @@ public:
   }
 };
 
-constexpr hollerith_t::operator tape_bcd_t() const { return *this; }
-constexpr hollerith_t::operator cpu704_bcd_t() const { return *this; };
+constexpr card_column_t::operator tape_bcd_t() const { return *this; }
+constexpr card_column_t::operator cpu704_bcd_t() const { return *this; };
 
-constexpr tape_bcd_t::tape_bcd_t(const hollerith_t &hollerith) : bcd_t(0) {
-  if (hollerith == hollerith_t{}) {
+constexpr tape_bcd_t::tape_bcd_t(const card_column_t &column) : bcd_t(0) {
+  if (column == hollerith()) {
     // blank
     value_ = 0x10;
-  } else if (hollerith == hollerith_t{0}) {
+  } else if (column == hollerith(0)) {
     value_ = 0x0A;
   } else {
     int start_digit = 10;
     for (int zone = 12; zone >= 10; zone--) {
-      if (hollerith.isSet(zone)) {
+      if (column.isSet(zone)) {
         value_ |= (zone - 9) * 0x10;
         start_digit = zone - 1;
         break;
       }
     }
     for (int digit = start_digit; digit >= 1; digit--) {
-      if (hollerith.isSet(digit)) {
+      if (column.isSet(digit)) {
         value_ |= digit;
       }
     }
@@ -268,29 +262,26 @@ constexpr tape_bcd_t::tape_bcd_t(const cpu704_bcd_t &cpu) {
   }
 }
 
-constexpr card_column_t::card_column_t(const hollerith_t &hollerith)
-    : CardColumnImp(hollerith.value()) {}
-
-constexpr tape_bcd_t::operator hollerith_t() const { return *this; }
+constexpr tape_bcd_t::operator card_column_t() const { return *this; }
 constexpr tape_bcd_t::operator cpu704_bcd_t() const { return *this; }
 
-constexpr cpu704_bcd_t::cpu704_bcd_t(const hollerith_t &hollerith) {
-  if (hollerith == hollerith_t{}) {
+constexpr cpu704_bcd_t::cpu704_bcd_t(const card_column_t &column) {
+  if (column == hollerith()) {
     // blank
     value_ = 0x30;
-  } else if (hollerith == hollerith_t{0}) {
+  } else if (column == hollerith(0)) {
     value_ = 0x00;
   } else {
     int start_digit = 10;
     for (int zone = 12; zone >= 10; zone--) {
-      if (hollerith.isSet(zone)) {
+      if (column.isSet(zone)) {
         value_ |= (13 - zone) * 0x10;
         start_digit = zone - 1;
         break;
       }
     }
     for (int digit = start_digit; digit >= 1; digit--) {
-      if (hollerith.isSet(digit)) {
+      if (column.isSet(digit)) {
         value_ |= digit;
       }
     }
@@ -421,10 +412,5 @@ extern const IBM704BCDCharSet BCDSherman;
 extern const TapeBCDCharSet BCDICFinal_A;
 extern const TapeBCDCharSet BCDICFinal_B;
 
-char ASCIIFromTapeBCD(bcd_t bcd);
 uint64_t bcd(utf8_string_view_t chars);
-
-bcd_t tapeBCDfromBCD(bcd_t bcd);
-
-void compareASCII();
 #endif

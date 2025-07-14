@@ -34,9 +34,9 @@
 // Pairs a Hollerith encoding with a unicode character
 struct HollerithChar {
 
-  HollerithChar(const hollerith_t &hollerith, char32_t unicode)
-      : hollerith(hollerith), unicode(unicode) {}
-  hollerith_t hollerith;
+  HollerithChar(const card_column_t &column, char32_t unicode)
+      : column(column), unicode(unicode) {}
+  card_column_t column;
   char32_t unicode;
 };
 

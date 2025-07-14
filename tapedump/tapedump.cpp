@@ -78,9 +78,9 @@ llvm::cl::opt<Encoding> encoding(
 class BCDHandler {
 public:
   // Use c as the character for in-memory bcd
-  void setChar(bcd_t bcd, char32_t c) {
+  void setChar(cpu704_bcd_t bcd, char32_t c) {
     static constexpr bcd_t relocatedZero{0b001010};
-    auto tapeBCD = evenParity(tapeBCDfromBCD(bcd));
+    auto tapeBCD = evenParity(tape_bcd_t(bcd));
     if (relocatedZero == bcd) {
       // Relocated zero can't be used
       return;
@@ -230,8 +230,8 @@ public:
           BinaryColumnCard card;
           auto &columns = card.getColumns();
           for (size_t col = 0; col < 80; col++) {
-            hollerith_t high = record_[record_pos++];
-            hollerith_t low = record_[record_pos++];
+            card_column_t high = record_[record_pos++];
+            card_column_t low = record_[record_pos++];
             columns[col] = ((high & 0x3F) << 6) | (low & 0x3F);
             if (0 == col % 6) {
               std::cout << "\n";
@@ -495,17 +495,17 @@ int main(int argc, const char **argv) {
     charEncoding = getFORTRAN704Encoding();
   }
   for (auto colUni : charEncoding) {
-    bcdHandler.setChar(cpu704_bcd_t(colUni.hollerith), colUni.unicode);
+    bcdHandler.setChar(cpu704_bcd_t(colUni.column), colUni.unicode);
   }
   // '+'
-  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{12}), '+');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith(12)), '+');
 
-  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{3, 8}), '=');
-  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{0, 4, 8}), '(');
-  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{12, 4, 8}), ')');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith(3, 8)), '=');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith(0, 4, 8)), '(');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith(12, 4, 8)), ')');
 
   // '0' overrides
-  bcdHandler.setChar(cpu704_bcd_t(hollerith_t{0}), '0');
+  bcdHandler.setChar(cpu704_bcd_t(hollerith(0)), '0');
   for (auto &inputFileName : inputFileNames) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);

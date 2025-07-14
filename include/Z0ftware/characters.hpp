@@ -40,8 +40,6 @@
 
 #include "Z0ftware/bcd.hpp"
 
-#include <initializer_list>
-
 // 12-bit
 class HollerithChar;
 
@@ -59,20 +57,12 @@ public:
   using row_t = unsigned;
 
   HollerithChar() = default;
-  HollerithChar(hollerith_t bits) : bits_(bits) {}
   HollerithChar(const HollerithChar &) = default;
-
-  HollerithChar(const std::initializer_list<row_t> &rows) {
-    for (auto row : rows) {
-      bits_ |= hollerith_t(1) << positionFromRow(row);
-    }
-  }
-
   ~HollerithChar() = default;
 
   bool operator==(const HollerithChar &c) { return getBits() == c.getBits(); }
 
-  hollerith_t getBits() const { return bits_; }
+  card_column_t getBits() const { return bits_; }
   operator bcd_t() const;
   // operator BCDChar() const;
 
@@ -82,12 +72,12 @@ public:
     return row < 10 ? 9 - row : row - 1;
   }
 
-  inline constexpr hollerith_t bitFromRow(row_t row) const {
+  inline constexpr card_column_t bitFromRow(row_t row) const {
     return (bits_ >> (positionFromRow(row))) & 1;
   }
 
 protected:
-  hollerith_t bits_{hollerith_t{}};
+  card_column_t bits_{hollerith()};
 };
 
 // Used on tape and character at a time computers such as 702, 705
