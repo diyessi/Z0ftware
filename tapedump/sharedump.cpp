@@ -24,9 +24,9 @@
 // https://www.piercefuller.com/library/magtape7.html
 
 #include "Z0ftware/bcd.hpp"
+#include "Z0ftware/charset.hpp"
 #include "Z0ftware/config.h"
 #include "Z0ftware/tape.hpp"
-#include "Z0ftware/unicode.hpp"
 
 #include "llvm/Support/CommandLine.h"
 

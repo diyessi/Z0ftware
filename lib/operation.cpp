@@ -22,7 +22,7 @@
 
 #include "Z0ftware/operation.hpp"
 #include "Z0ftware/asm.hpp"
-#include "Z0ftware/bcd.hpp"
+#include "Z0ftware/charset.hpp"
 #include "Z0ftware/disasm.hpp"
 #include "Z0ftware/op.hpp"
 #include "Z0ftware/parser.hpp"

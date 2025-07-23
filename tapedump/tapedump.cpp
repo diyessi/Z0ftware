@@ -25,6 +25,7 @@
 
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/card.hpp"
+#include "Z0ftware/charset.hpp"
 #include "Z0ftware/config.h"
 #include "Z0ftware/parity.hpp"
 #include "Z0ftware/tape.hpp"

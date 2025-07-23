@@ -31,23 +31,6 @@
 #include <string>
 #include <vector>
 
-// Pairs a Hollerith encoding with a unicode character
-struct HollerithChar {
-
-  HollerithChar(const card_column_t &column, char32_t unicode)
-      : column(column), unicode(unicode) {}
-  card_column_t column;
-  char32_t unicode;
-};
-
-const std::vector<HollerithChar> &get029Encoding();
-const std::vector<HollerithChar> &get026CommercialEncoding();
-const std::vector<HollerithChar> &getFAPEncoding();
-const std::vector<HollerithChar> &getFORTRAN704Encoding();
-const std::vector<HollerithChar> &getFORTRANIVEncoding();
-const std::vector<HollerithChar> &getFORTRAN704Encoding4();
-const std::vector<HollerithChar> &getBCDIC1();
-
 using CardTextField = TextField<cardColumnFirst, cardColumnLast>;
 
 class CardImage {
