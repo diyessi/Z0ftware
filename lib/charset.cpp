@@ -21,6 +21,9 @@
 // SOFTWARE.
 
 #include "Z0ftware/charset.hpp"
+#include "Z0ftware/unicode.hpp"
+
+Glyph BCDCharSet::invalid{utf8_replacement};
 
 // https://en.wikipedia.org/wiki/BCD_(character_encoding)#48-character_BCD_code
 const TapeBCDCharSet BCD{
@@ -51,7 +54,7 @@ const TapeBCDCharSet BCDIC_A{
      ",", "%", utf8_gamma, "\\", utf8_triple_plus,
      // 2
      "-", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "!",
-     BCDCharDef("#", false), "*", "]", ";", utf8_delta,
+     Glyph("#", false), "*", "]", ";", utf8_delta,
      // 3
      "&", "A", "B", "C", "D", "E", "F", "G", "H", "I", "?", ".", utf8_lozenge,
      "[", "<", utf8_group_mark}};
@@ -181,11 +184,11 @@ const TapeBCDCharSet BCDICFinal_B {
     }};
 
 void TapeBCDCharSet::initCPUChars(charmap_t &cpuChars) const {
-  std::fill(cpuChars.begin(), cpuChars.end(), Unicode(BCDCharSet::invalid));
+  std::fill(cpuChars.begin(), cpuChars.end(), BCDCharSet::invalid);
   for (tape_bcd_t tapeBCD = tape_bcd_t::min(); tapeBCD <= tape_bcd_t::max(); tapeBCD++) {
     cpu704_bcd_t cpuBCD = cpu704_bcd_t(tapeBCD);
     auto& c = charMap_[tapeBCD.value()];
-    if (c) {
+    if (c != utf8_replacement) {
         cpuChars[cpuBCD.value()] = c;
     }
   }
@@ -200,7 +203,7 @@ void IBM704BCDCharSet::initCPUChars(charmap_t &cpuChars) const {
 }
 
 void IBM704BCDCharSet::initTapeChars(charmap_t &tapeChars) const {
-  std::fill(tapeChars.begin(), tapeChars.end(), get_unicode_char(BCDCharSet::invalid));
+  std::fill(tapeChars.begin(), tapeChars.end(), utf8_replacement);
   for (cpu704_bcd_t cpuBCD = cpu704_bcd_t::min(); cpuBCD <= cpu704_bcd_t::max(); cpuBCD++) {
     if (cpuBCD.value() == 0x0A) {
         // Remapped to space
@@ -208,7 +211,7 @@ void IBM704BCDCharSet::initTapeChars(charmap_t &tapeChars) const {
     }
     tape_bcd_t tapeBCD = tape_bcd_t(cpuBCD);
     auto &c =charMap_[cpuBCD.value()];
-    if (c) { 
+    if (c != utf8_replacement) { 
         tapeChars[tapeBCD.value()] = c;
     }
   }
@@ -256,7 +259,7 @@ uint64_t bcd(utf8_string_view_t chars) {
   std::uint64_t result = 0;
   while (count < 6 && !chars.empty()) {
     result = (result << 6) |
-             BCDSherman.getCPUBCD(get_next_unicode_char(chars)).value();
+             BCDSherman.getCPUBCD(get_next_utf8_char(chars)).value();
     count++;
   }
   return result;

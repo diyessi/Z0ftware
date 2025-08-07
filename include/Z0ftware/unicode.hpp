@@ -32,105 +32,20 @@
 #include <string>
 #include <string_view>
 
-using utf8_t = std::string; //!< Single utf8 character or string
-using utf8_string_view_t = std::string_view;
-
 using unicode_char_t = char32_t;
 using unicode_string_t = std::u32string;
 using unicode_string_view_t = std::u32string_view;
 
-// Characters not in ASCII
-static const utf8_t utf8_blank{"␢"};
-static const utf8_t utf8_circle_dot{"⊙"};
-static const utf8_t utf8_delta{"Δ"};
-static const utf8_t utf8_gamma{"γ"};
-static const utf8_t utf8_group_mark{"⯒"};
-static const utf8_t utf8_lozenge{"⌑"};
-static const utf8_t utf8_minus_zero{"⦵"};
-static const utf8_t utf8_plus_minus{"±"};
-static const utf8_t utf8_plus_zero{"⨁"};
-static const utf8_t utf8_radical{"√"};
-static const utf8_t utf8_record_mark{"⧧"};
-static const utf8_t utf8_triple_plus{"⧻"};
+static constexpr unicode_char_t unicode_replacement_char{U'�'};
 
-/**
- * @brief Value indicating invalid utf-8
- */
-static constexpr unicode_char_t unicode_char_invalid{0xFFFD};
+using utf8_t = std::string; //!< Single utf8 character or string
+using utf8_string_view_t = std::string_view;
 
-/**
- * @brief Removes the next unicode char from the prefix of the utf-8 string
- * view.
- * @arg sv A utf-8 string view.
- * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
- * invalid.
- */
-static unicode_char_t get_next_unicode_char(utf8_string_view_t &sv) {
-  if (sv.empty()) {
-    return unicode_char_invalid;
-  }
-  unicode_char_t c0 = sv.at(0);
-  sv.remove_prefix(1);
+static const utf8_t utf8_replacement{"�"};
 
-  if (0 == (c0 & 0x80)) {
-    return c0;
-  } else if (0xC0 != (c0 & 0xC0)) {
-    // High two bits must be 1
-    return unicode_char_invalid;
-  }
-  if (sv.empty()) {
-    return unicode_char_invalid;
-  }
-  unicode_char_t c1 = sv.at(0);
-  sv.remove_prefix(1);
-  if (0x80 != (c1 & 0xC0)) {
-    // Missing 10
-    return unicode_char_invalid;
-  }
-  if (0xC0 == (c0 & 0xE0)) {
-    return ((c0 & 0x1F) << 6) | (c1 & 0x3F);
-  }
-  if (sv.empty()) {
-    return unicode_char_invalid;
-  }
-  unicode_char_t c2 = sv.at(0);
-  sv.remove_prefix(1);
-  if (0x80 != (c2 & 0xC0)) {
-    // Missing prefix
-    return unicode_char_invalid;
-  }
-  if (0xE0 == (c0 & 0xF0)) {
-    return ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
-  }
-  unicode_char_t c3 = sv.at(0);
-  sv.remove_prefix(1);
-  if (0x80 != (c2 & 0xC0)) {
-    // Missing prefix
-    return unicode_char_invalid;
-  }
-  if (0xF0 == (c0 & 0xF8)) {
-    return ((c0 & 0x7) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) |
-           (c3 & 0x3F);
-  }
-  return unicode_char_invalid;
-}
+static utf8_t get_utf8_char(const utf8_t &utf8);
 
-static unicode_char_t get_unicode_char(unicode_char_t c) { return c; }
-
-/**
- * @brief Unicode char32_t of the first utf-8 char prefix.
- * @arg s A utf-8 string.
- * @returns The Unicode character. Unicode::invalid if the utf-8 char is
- * invalid.
- */
-template <typename T> static unicode_char_t get_unicode_char(T s) {
-  utf8_string_view_t sv(s);
-  if (sv.empty()) {
-    return unicode_char_invalid;
-  }
-  unicode_char_t c = get_next_unicode_char(sv);
-  return sv.empty() ? c : unicode_char_invalid;
-}
+static utf8_t get_utf8_char(unicode_char_t c);
 
 /**
  * @brief Provides stream wrapper for unicode output as utf8
@@ -140,7 +55,7 @@ class Unicode {
 public:
   explicit Unicode(unicode_char_t unicode) : unicode_(unicode) {}
 
-  template <typename T> Unicode(T utf8) : unicode_(get_unicode_char(utf8)) {}
+  template <typename T> Unicode(T utf8) : utf8_(get_utf8_char(utf8)) {}
 
   /**
    * @returns The untagged char32_t value.
@@ -158,33 +73,177 @@ public:
     static constexpr char32_t uni_3{0x10000};
     static constexpr char32_t uni_4{0x110000};
 
-    if (unicode_char_invalid == unicode.unicode_) {
-      return os << 'x';
-    } else if (unicode.unicode_ < uni_1) {
-      return os << char(unicode.unicode_);
+    if (unicode.unicode_ < uni_1) {
+      return os.put(char(unicode.unicode_));
     } else if (unicode.unicode_ < uni_2) {
-      return os << char((unicode.unicode_ >> 6) | 0xC0)
-                << char((unicode.unicode_ & 0x3F) | 0x80);
+      return os.put(char((unicode.unicode_ >> 6) | 0xC0))
+          .put(char((unicode.unicode_ & 0x3F) | 0x80));
     } else if (unicode.unicode_ < uni_3) {
-      return os << char((unicode.unicode_ >> 12) | 0xE0)
-                << char(((unicode.unicode_ >> 6) & 0x3F) | 0x80)
-                << char((unicode.unicode_ & 0x3F) | 0x80);
+      return os.put(char((unicode.unicode_ >> 12) | 0xE0))
+          .put(char(((unicode.unicode_ >> 6) & 0x3F) | 0x80))
+          .put(char((unicode.unicode_ & 0x3F) | 0x80));
     } else if (unicode.unicode_ < uni_4) {
-      return os << char(((unicode.unicode_ >> 18) & 0x7) | 0xF0)
-                << char(((unicode.unicode_ >> 12) & 0x3F) | 0x80)
-                << char(((unicode.unicode_ >> 6) & 0x3F) | 0x80)
-                << char((unicode.unicode_ & 0x3F) | 0x80);
+      return os.put(char(((unicode.unicode_ >> 18) & 0x7) | 0xF0))
+          .put(char(((unicode.unicode_ >> 12) & 0x3F) | 0x80))
+          .put(char(((unicode.unicode_ >> 6) & 0x3F) | 0x80))
+          .put(char((unicode.unicode_ & 0x3F) | 0x80));
+    } else {
+      return os.put(char((unicode_replacement_char >> 12) | 0xE0))
+          .put(char(((unicode_replacement_char >> 6) & 0x3F) | 0x80))
+          .put(char((unicode_replacement_char & 0x3F) | 0x80));
     }
-    return os << 'x';
   }
 
   bool operator==(const Unicode &) const = default;
   bool operator!=(const Unicode &) const = default;
-  operator bool() const { return unicode_ == unicode_char_invalid; }
+  operator bool() const { return unicode_ == unicode_replacement_char; }
+
+  operator utf8_t() const {
+    std::ostringstream os;
+    os << *this;
+    return os.str();
+  }
 
 protected:
-  unicode_char_t unicode_{unicode_char_invalid};
+  unicode_char_t unicode_{unicode_replacement_char};
+  utf8_t utf8_{utf8_replacement};
 };
+
+/**
+ * @brief Value indicating invalid utf-8
+ */
+static const utf8_t utf8_invalid = Unicode(unicode_replacement_char);
+
+/**
+ * @brief Removes the next unicode char from the prefix of the utf-8 string
+ * view.
+ * @arg sv A utf-8 string view.
+ * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
+ * invalid.
+ */
+static utf8_string_view_t get_next_utf8_char(utf8_string_view_t &sv) {
+  if (sv.empty()) {
+    return utf8_invalid;
+  }
+  utf8_string_view_t base_sv = sv;
+  unicode_char_t c0 = sv.at(0);
+  sv.remove_prefix(1);
+
+  if (0 == (c0 & 0x80)) {
+    return base_sv.substr(0, 1);
+  } else if (0xC0 != (c0 & 0xC0)) {
+    // High two bits must be 1
+    return utf8_invalid;
+  }
+  if (sv.empty()) {
+    return utf8_invalid;
+  }
+  unicode_char_t c1 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c1 & 0xC0)) {
+    // Missing 10
+    return utf8_invalid;
+  }
+  if (0xC0 == (c0 & 0xE0)) {
+    return base_sv.substr(0, 2);
+  }
+  if (sv.empty()) {
+    return utf8_invalid;
+  }
+  unicode_char_t c2 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return utf8_invalid;
+  }
+  if (0xE0 == (c0 & 0xF0)) {
+    return base_sv.substr(0, 3);
+  }
+  unicode_char_t c3 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return utf8_invalid;
+  }
+  if (0xF0 == (c0 & 0xF8)) {
+    return base_sv.substr(0, 4);
+  }
+  return utf8_invalid;
+}
+
+/**
+ * @brief Removes the next unicode char from the prefix of the utf-8 string
+ * view.
+ * @arg sv A utf-8 string view.
+ * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
+ * invalid.
+ */
+static unicode_char_t get_next_unicode_char(utf8_string_view_t &sv) {
+  if (sv.empty()) {
+    return unicode_replacement_char;
+  }
+  unicode_char_t c0 = sv.at(0);
+  sv.remove_prefix(1);
+
+  if (0 == (c0 & 0x80)) {
+    return c0;
+  } else if (0xC0 != (c0 & 0xC0)) {
+    // High two bits must be 1
+    return unicode_replacement_char;
+  }
+  if (sv.empty()) {
+    return unicode_replacement_char;
+  }
+  unicode_char_t c1 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c1 & 0xC0)) {
+    // Missing 10
+    return unicode_replacement_char;
+  }
+  if (0xC0 == (c0 & 0xE0)) {
+    return ((c0 & 0x1F) << 6) | (c1 & 0x3F);
+  }
+  if (sv.empty()) {
+    return unicode_replacement_char;
+  }
+  unicode_char_t c2 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return unicode_replacement_char;
+  }
+  if (0xE0 == (c0 & 0xF0)) {
+    return ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
+  }
+  unicode_char_t c3 = sv.at(0);
+  sv.remove_prefix(1);
+  if (0x80 != (c2 & 0xC0)) {
+    // Missing prefix
+    return unicode_replacement_char;
+  }
+  if (0xF0 == (c0 & 0xF8)) {
+    return ((c0 & 0x7) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) |
+           (c3 & 0x3F);
+  }
+  return unicode_replacement_char;
+}
+
+static unicode_char_t get_unicode_char(unicode_char_t c) { return c; }
+
+/**
+ * @brief Unicode char32_t of the first utf-8 char prefix.
+ * @arg s A utf-8 string.
+ * @returns The Unicode character. Unicode::invalid if the utf-8 char is
+ * invalid.
+ */
+template <typename T> static unicode_char_t get_unicode_char(T s) {
+  utf8_string_view_t sv(s);
+  if (sv.empty()) {
+    return unicode_replacement_char;
+  }
+  unicode_char_t c = get_next_unicode_char(sv);
+  return sv.empty() ? c : unicode_replacement_char;
+}
 
 class UnicodeString {
 public:
@@ -210,5 +269,13 @@ public:
 
   std::u32string unicode_;
 };
+
+static utf8_t get_utf8_char(const utf8_t &utf8) { return utf8; }
+
+static utf8_t get_utf8_char(unicode_char_t c) {
+  std::ostringstream os;
+  os << Unicode(c);
+  return os.str();
+}
 
 #endif

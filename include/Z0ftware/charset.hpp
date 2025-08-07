@@ -26,6 +26,20 @@
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/unicode.hpp"
 
+// Characters not in ASCII
+static const utf8_t utf8_blank{"␢"};
+static const utf8_t utf8_circle_dot{"⊙"};
+static const utf8_t utf8_delta{"Δ"};
+static const utf8_t utf8_gamma{"γ"};
+static const utf8_t utf8_group_mark{"⯒"};
+static const utf8_t utf8_lozenge{"⌑"};
+static const utf8_t utf8_minus_zero{"⦵"};
+static const utf8_t utf8_plus_minus{"±"};
+static const utf8_t utf8_plus_zero{"⨁"};
+static const utf8_t utf8_radical{"√"};
+static const utf8_t utf8_record_mark{"⧧"};
+static const utf8_t utf8_triple_plus{"⧻"};
+
 // https://bitsavers.org/pdf/ibm/702/22-6173-1_702prelim_Feb56.pdf page 76
 // 11-0 -> 0- 2A (Prints &) (pg 79)
 // 12-0 -> 0+ 3A (Prints -) (pg 79)
@@ -36,29 +50,30 @@
 /**
  * @brief Information about the Unicode character to use for a BCD character.
  */
-class BCDCharDef {
+class Glyph {
 
 public:
   template <typename T>
-  BCDCharDef(T c, bool canonic = true)
-      : char_(get_unicode_char(c)), canonic_(canonic) {}
+  Glyph(T c, bool canonic = true)
+      : utf8_(get_utf8_char(c)), canonic_(canonic) {}
 
-  operator unicode_char_t() const { return char_; }
+  operator unicode_char_t() const { return get_unicode_char(utf8_); }
 
   /**
    * @brief Print using utf-8.
    */
-  friend inline std::ostream &operator<<(std::ostream &s,
-                                         const BCDCharDef &cs) {
-    return s << Unicode(cs.char_);
+  friend inline std::ostream &operator<<(std::ostream &s, const Glyph &cs) {
+    return s << cs.utf8_;
   }
 
-  const unicode_char_t getChar() const { return char_; }
+  unicode_char_t getUnicodeChar() const { return get_unicode_char(utf8_); }
+
+  utf8_t getUtf8Char() const { return utf8_; }
 
   bool isCanonic() const { return canonic_; }
 
 protected:
-  unicode_char_t char_;
+  utf8_t utf8_;
   bool canonic_;
 };
 
@@ -67,21 +82,20 @@ class IBM704BCDCharSet;
 
 class BCDCharSet {
 public:
-  static constexpr unicode_char_t invalid = unicode_char_invalid;
 
-  // TODO Switch these to utf-8 since about all they get used for is in utf-8
-  // contexts
-  using charmap_t = std::array<unicode_char_t, 64>;
-  using unicodeMap_t = std::unordered_map<unicode_char_t, bcd_t>;
+  using charmap_t = std::array<utf8_t, 64>;
+  using utf8_map_t = std::unordered_map<utf8_t, bcd_t>;
+
+  static Glyph invalid;
 
   BCDCharSet(std::string &&description,
-             const std::initializer_list<BCDCharDef> &chars)
+             const std::initializer_list<Glyph> &glyphs)
       : description_(std::move(description)) {
     int bcd = 0;
-    for (auto &c : chars) {
-      charMap_[bcd] = c.getChar();
-      if (c.getChar() != invalid && c.isCanonic()) {
-        unicodeMap_[c.getChar()] = bcd_t(bcd);
+    for (auto &glyph : glyphs) {
+      charMap_[bcd] = glyph.getUtf8Char();
+      if (glyph.getUtf8Char() != utf8_replacement && glyph.isCanonic()) {
+        utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
       }
       bcd++;
     }
@@ -91,7 +105,7 @@ public:
 
   BCDCharSet() = default;
 
-  const unicode_char_t &operator[](int index) const { return charMap_[index]; }
+  const utf8_t &operator[](int index) const { return charMap_[index]; }
 
   virtual void initCPUChars(charmap_t &) const = 0;
   virtual void initTapeChars(charmap_t &) const = 0;
@@ -99,15 +113,19 @@ public:
 
   const std::string &getDescription() const { return description_; }
 
-  bcd_t getCPUBCD(char32_t c) const {
-    auto it = unicodeMap_.find(c);
-    return it == unicodeMap_.end() ? bcd_t(0x7f) : it->second;
+  bcd_t getCPUBCD(const utf8_string_view_t &sv) const {
+    return getCPUBCD(utf8_t(sv));
+  }
+
+  bcd_t getCPUBCD(const utf8_t &c) const {
+    auto it = utf8_map_.find(c);
+    return it == utf8_map_.end() ? bcd_t(0x7f) : it->second;
   }
 
 protected:
   std::string description_;
-  charmap_t charMap_{get_unicode_char(BCDCharSet::invalid)};
-  unicodeMap_t unicodeMap_;
+  charmap_t charMap_{};
+  utf8_map_t utf8_map_;
 };
 
 class TapeBCDCharSet : public BCDCharSet {
