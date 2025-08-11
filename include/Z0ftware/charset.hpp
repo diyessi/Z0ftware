@@ -26,29 +26,11 @@
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/unicode.hpp"
 
-// Characters not in ASCII
-static const utf8_t utf8_blank{"␢"};
-static const utf8_t utf8_circle_dot{"⊙"};
-static const utf8_t utf8_delta{"Δ"};
-static const utf8_t utf8_gamma{"γ"};
-static const utf8_t utf8_group_mark{"⯒"};
-static const utf8_t utf8_lozenge{"⌑"};
-static const utf8_t utf8_minus_zero{"⦵"};
-static const utf8_t utf8_plus_minus{"±"};
-static const utf8_t utf8_plus_zero{"⨁"};
-static const utf8_t utf8_radical{"√"};
-static const utf8_t utf8_record_mark{"⧧"};
-static const utf8_t utf8_triple_plus{"⧻"};
-
-// https://bitsavers.org/pdf/ibm/702/22-6173-1_702prelim_Feb56.pdf page 76
-// 11-0 -> 0- 2A (Prints &) (pg 79)
-// 12-0 -> 0+ 3A (Prints -) (pg 79)
-// 0-2-8-> Record mark  (prints Z) (pg 79)
-// Pg 25: 0A used in memory for '0'
-//
-
 /**
- * @brief Information about the Unicode character to use for a BCD character.
+ * @brief Information about the UTF8 to use for a BCD or Hollerith character. In
+ * some character tables, the same encoding is used for more than one glyph. In
+ * this case, canonic is false for the secondary encodings. Only canonic glyphs
+ * are mapped to encodings in a character set.
  */
 class Glyph {
 
@@ -56,6 +38,8 @@ public:
   template <typename T>
   Glyph(T c, bool canonic = true)
       : utf8_(get_utf8_char(c)), canonic_(canonic) {}
+
+  Glyph() : utf8_(utf8_replacement), canonic_(false) {}
 
   operator unicode_char_t() const { return get_unicode_char(utf8_); }
 
@@ -72,21 +56,79 @@ public:
 
   bool isCanonic() const { return canonic_; }
 
+  bool isValid() const { return utf8_ != utf8_replacement; }
+
 protected:
   utf8_t utf8_;
   bool canonic_;
 };
+
+/**
+ * Most early IBM characters made their way into ASCII. Of the ones that did
+ * not, some made it into Unicode and some are approximated with other Unicode
+ * characters.
+ */
+
+// IBM Characters in Unicode but not in ASCII
+static const utf8_t utf8_blank{"␢"};
+static const utf8_t utf8_circle_dot{"⊙"};
+static const utf8_t utf8_delta{"Δ"};
+static const utf8_t utf8_gamma{"γ"};
+static const utf8_t utf8_lozenge{"⌑"};
+static const utf8_t utf8_radical{"√"};
+static const utf8_t utf8_cent{"¢"};
+static const utf8_t utf8_not{"¬"};
+
+// Approximations for IBM characters not in Unicode
+static const utf8_t utf8_minus_zero{"⦵"};
+static const utf8_t utf8_plus_minus{"±"};
+static const utf8_t utf8_plus_zero{"⨁"};
+static const utf8_t utf8_record_mark{"⧧"};
+static const utf8_t utf8_triple_plus{"⧻"};
+static const utf8_t utf8_group_mark{"⯒"};
 
 class TapeBCDCharSet;
 class IBM704BCDCharSet;
 
 class BCDCharSet {
 public:
-
   using charmap_t = std::array<utf8_t, 64>;
   using utf8_map_t = std::unordered_map<utf8_t, bcd_t>;
 
-  static Glyph invalid;
+  BCDCharSet(std::string &&description,
+             const std::initializer_list<Glyph> &glyphs0,
+             const std::initializer_list<Glyph> &glyphs1,
+             const std::initializer_list<Glyph> &glyphs2,
+             const std::initializer_list<Glyph> &glyphs3)
+      : description_(std::move(description)) {
+    bcd_t bcd = 0;
+    auto add_glyphs = [&bcd, this](const std::initializer_list<Glyph> &glyphs) {
+      for (auto &glyph : glyphs) {
+        charMap_[bcd.value()] = glyph.getUtf8Char();
+        if (glyph.isCanonic()) {
+          utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
+        }
+      };
+    };
+    add_glyphs(glyphs0);
+    add_glyphs(glyphs1);
+    add_glyphs(glyphs2);
+    add_glyphs(glyphs3);
+  }
+
+  BCDCharSet(std::string &&description, const Glyph glyphs[4][16])
+      : description_(std::move(description)) {
+    bcd_t bcd = 0;
+    for (int i = 0; i < 4; ++i) {
+      for (int j = 0; j < 16; ++j) {
+        auto &glyph = glyphs[i][j];
+        charMap_[bcd.value()] = glyph.getUtf8Char();
+        if (glyph.isCanonic()) {
+          utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
+        }
+      }
+    }
+  }
 
   BCDCharSet(std::string &&description,
              const std::initializer_list<Glyph> &glyphs)
@@ -177,8 +219,12 @@ struct HollerithChar {
 
   HollerithChar(const card_column_t &column, char32_t unicode)
       : column(column), unicode(unicode) {}
+  HollerithChar(const card_column_t &column, utf8_t utf8)
+      : column(column), utf8_(utf8) {}
+
   card_column_t column;
   char32_t unicode;
+  utf8_t utf8_;
 };
 
 const std::vector<HollerithChar> &get029Encoding();

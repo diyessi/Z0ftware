@@ -110,20 +110,15 @@ protected:
 };
 
 /**
- * @brief Value indicating invalid utf-8
- */
-static const utf8_t utf8_invalid = Unicode(unicode_replacement_char);
-
-/**
  * @brief Removes the next unicode char from the prefix of the utf-8 string
  * view.
  * @arg sv A utf-8 string view.
- * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
- * invalid.
+ * @returns The unicode char32_t. Replacement char is returned if utf-8 is
+ * not valid.
  */
 static utf8_string_view_t get_next_utf8_char(utf8_string_view_t &sv) {
   if (sv.empty()) {
-    return utf8_invalid;
+    return utf8_replacement;
   }
   utf8_string_view_t base_sv = sv;
   unicode_char_t c0 = sv.at(0);
@@ -133,28 +128,28 @@ static utf8_string_view_t get_next_utf8_char(utf8_string_view_t &sv) {
     return base_sv.substr(0, 1);
   } else if (0xC0 != (c0 & 0xC0)) {
     // High two bits must be 1
-    return utf8_invalid;
+    return utf8_replacement;
   }
   if (sv.empty()) {
-    return utf8_invalid;
+    return utf8_replacement;
   }
   unicode_char_t c1 = sv.at(0);
   sv.remove_prefix(1);
   if (0x80 != (c1 & 0xC0)) {
     // Missing 10
-    return utf8_invalid;
+    return utf8_replacement;
   }
   if (0xC0 == (c0 & 0xE0)) {
     return base_sv.substr(0, 2);
   }
   if (sv.empty()) {
-    return utf8_invalid;
+    return utf8_replacement;
   }
   unicode_char_t c2 = sv.at(0);
   sv.remove_prefix(1);
   if (0x80 != (c2 & 0xC0)) {
     // Missing prefix
-    return utf8_invalid;
+    return utf8_replacement;
   }
   if (0xE0 == (c0 & 0xF0)) {
     return base_sv.substr(0, 3);
@@ -163,20 +158,20 @@ static utf8_string_view_t get_next_utf8_char(utf8_string_view_t &sv) {
   sv.remove_prefix(1);
   if (0x80 != (c2 & 0xC0)) {
     // Missing prefix
-    return utf8_invalid;
+    return utf8_replacement;
   }
   if (0xF0 == (c0 & 0xF8)) {
     return base_sv.substr(0, 4);
   }
-  return utf8_invalid;
+  return utf8_replacement;
 }
 
 /**
  * @brief Removes the next unicode char from the prefix of the utf-8 string
  * view.
  * @arg sv A utf-8 string view.
- * @returns The unicode char32_t. Unicode::invalid is returned if utf-8 is
- * invalid.
+ * @returns The unicode char32_t. Replacement char is returned if utf-8 is
+ * not valid.
  */
 static unicode_char_t get_next_unicode_char(utf8_string_view_t &sv) {
   if (sv.empty()) {
@@ -233,8 +228,8 @@ static unicode_char_t get_unicode_char(unicode_char_t c) { return c; }
 /**
  * @brief Unicode char32_t of the first utf-8 char prefix.
  * @arg s A utf-8 string.
- * @returns The Unicode character. Unicode::invalid if the utf-8 char is
- * invalid.
+ * @returns The Unicode character. Replacement char if the utf-8 char is
+ * not valid.
  */
 template <typename T> static unicode_char_t get_unicode_char(T s) {
   utf8_string_view_t sv(s);
