@@ -108,39 +108,13 @@ public:
         if (glyph.isCanonic()) {
           utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
         }
+        bcd++;
       };
     };
     add_glyphs(glyphs0);
     add_glyphs(glyphs1);
     add_glyphs(glyphs2);
     add_glyphs(glyphs3);
-  }
-
-  BCDCharSet(std::string &&description, const Glyph glyphs[4][16])
-      : description_(std::move(description)) {
-    bcd_t bcd = 0;
-    for (int i = 0; i < 4; ++i) {
-      for (int j = 0; j < 16; ++j) {
-        auto &glyph = glyphs[i][j];
-        charMap_[bcd.value()] = glyph.getUtf8Char();
-        if (glyph.isCanonic()) {
-          utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
-        }
-      }
-    }
-  }
-
-  BCDCharSet(std::string &&description,
-             const std::initializer_list<Glyph> &glyphs)
-      : description_(std::move(description)) {
-    int bcd = 0;
-    for (auto &glyph : glyphs) {
-      charMap_[bcd] = glyph.getUtf8Char();
-      if (glyph.getUtf8Char() != utf8_replacement && glyph.isCanonic()) {
-        utf8_map_[glyph.getUtf8Char()] = bcd_t(bcd);
-      }
-      bcd++;
-    }
   }
 
   BCDCharSet(const std::string &description) : description_() {}
