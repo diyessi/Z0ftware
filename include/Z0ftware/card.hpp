@@ -23,15 +23,26 @@
 #ifndef Z0FTWARE_CARD
 #define Z0FTWARE_CARD
 
-#include "Z0ftware/bcd.hpp"
 #include "Z0ftware/field.hpp"
+#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/word.hpp"
 
 #include <array>
 #include <string>
 #include <vector>
 
+constexpr unsigned numCardColumns = 80;
+constexpr unsigned cardColumnFirst = 1;
+constexpr unsigned cardColumnLast = 80;
+
+constexpr unsigned numCardRows = 12;
+
 using CardTextField = TextField<cardColumnFirst, cardColumnLast>;
+
+class card_row_t : public UnsignedImp<card_row_t, numCardColumns> {
+public:
+  using UnsignedImp::UnsignedImp;
+};
 
 class CardImage {
 public:
@@ -39,11 +50,9 @@ public:
 
   // Row: 12 11  0  1  2  3  4  5  6  7  8  9
   // Bit: 11 10  9  8  7  6  5  4  3  2  1  0
-  using data_t = std::array<card_column_t, numCardColumns>;
-  card_column_t &operator[](int column) { return data_[column - 1]; }
-  const card_column_t &operator[](int column) const {
-    return data_[column - 1];
-  }
+  using data_t = std::array<hollerith_t, numCardColumns>;
+  hollerith_t &operator[](int column) { return data_[column - 1]; }
+  const hollerith_t &operator[](int column) const { return data_[column - 1]; }
   data_t &getData() { return data_; }
   const data_t &getData() const { return data_; }
 
@@ -86,7 +95,7 @@ private:
   // Initialize from card
   void fill(const BinaryRowCard &card);
 
-  std::array<card_column_t, numCardColumns> columns_{0};
+  std::array<hollerith_t, numCardColumns> columns_{0};
 };
 
 class BinaryRowCard {

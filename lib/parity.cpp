@@ -23,47 +23,47 @@
 #include "Z0ftware/parity.hpp"
 #include "Z0ftware/bcd.hpp"
 
-parity_bcd_t evenParity(bcd_t sixbit) {
+even_parity_bcd_t evenParity(bcd_t sixbit) {
   uint8_t result = sixbit.value();
   result ^= (result << 4);
   result ^= (result << 2);
   result ^= (result >> 1);
-  return (parity_bcd_t(0x40) & result) | sixbit;
+  return (even_parity_bcd_t(0x40) & result) | sixbit;
 }
 
-bool isEvenParity(parity_bcd_t sevenbit) {
+bool isEvenParity(even_parity_bcd_t sevenbit) {
   return sevenbit == evenParity(sevenbit);
 }
 
-const std::array<parity_bcd_t, 1 << 6> &getEvenParityTable() {
+const std::array<even_parity_bcd_t, 1 << 6> &getEvenParityTable() {
   static auto init = []() {
-    std::array<parity_bcd_t, 1 << 6> table;
+    std::array<even_parity_bcd_t, 1 << 6> table;
     for (int i = 0; i < 1 << 6; ++i) {
       table[i] = evenParity(bcd_t(i));
     }
     return table;
   };
-  static std::array<parity_bcd_t, 1 << 6> table = init();
+  static std::array<even_parity_bcd_t, 1 << 6> table = init();
   return table;
 }
 
-parity_bcd_t oddParity(bcd_t sixbit) {
+odd_parity_bcd_t oddParity(bcd_t sixbit) {
   sixbit &= bcd_t(0x3f);
-  parity_bcd_t result = parity_bcd_t(0x40) | sixbit;
+  odd_parity_bcd_t result = odd_parity_bcd_t(0x40) | sixbit;
   result = result ^ (result << 4);
   result ^= result << 2;
   result ^= result >> 1;
-  return sixbit | (result & parity_bcd_t(0x40));
+  return sixbit | (result & odd_parity_bcd_t(0x40));
 }
 
-const std::array<parity_bcd_t, 1 << 6> &getOddParityTable() {
+const std::array<odd_parity_bcd_t, 1 << 6> &getOddParityTable() {
   static auto init = []() {
-    std::array<parity_bcd_t, 1 << 6> table;
+    std::array<odd_parity_bcd_t, 1 << 6> table;
     for (int i = 0; i < 1 << 6; ++i) {
       table[i] = oddParity(bcd_t(i));
     }
     return table;
   };
-  static std::array<parity_bcd_t, 1 << 6> table = init();
+  static std::array<odd_parity_bcd_t, 1 << 6> table = init();
   return table;
 }

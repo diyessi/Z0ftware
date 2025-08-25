@@ -70,8 +70,7 @@
 #ifndef Z0FTWARE_BCD_HPP
 #define Z0FTWARE_BCD_HPP
 
-#include "Z0ftware/parity.hpp"
-
+#include <Z0ftware/field.hpp>
 #include <Z0ftware/unicode.hpp>
 
 // BCD values are 6 bits, but values are transformed between tape (which also
@@ -87,95 +86,27 @@
 class cpu704_bcd_t;
 class tape_bcd_t;
 
-constexpr unsigned numCardColumns = 80;
-constexpr unsigned cardColumnFirst = 1;
-constexpr unsigned cardColumnLast = 80;
-
-constexpr unsigned numCardRows = 12;
-
-/**
- * @brief Card column implementation as 12-bit unsigned
- *
- */
-class card_column_t : public UnsignedImp<card_column_t, numCardRows> {
-public:
-  using UnsignedImp::UnsignedImp;
-
-  inline constexpr operator tape_bcd_t() const;
-  inline constexpr operator cpu704_bcd_t() const;
-
-  /**
-   * @brief Convert a row number to a bit position
-   *
-   * Row: 12 11 10|0 1 2 3 4 5 6 7 8 9
-   * Bit: 11 10  9|9 8 7 6 5 4 3 2 1 0
-   */
-  template <typename T>
-  static inline constexpr T positionFromRow(const T &row) {
-    return row < 10 ? 9 - row : row - 1;
-  }
-
-  static constexpr card_column_t fromRows() { return card_column_t(); }
-
-  template <typename Row, typename... MoreRows>
-  static constexpr card_column_t fromRows(Row row, MoreRows... moreRows) {
-    return card_column_t((value_t(1) << positionFromRow(row)) |
-                         fromRows(moreRows...).value());
-  }
-
-  template <typename T>
-  static inline constexpr card_column_t bitForRow(const T &row) {
-    return card_column_t(1) << positionFromRow(row);
-  }
-
-  template <typename Row> constexpr bool isSet(const Row &row) const {
-    return 0 != (value() & bitForRow(row));
-  }
-};
-
-inline constexpr card_column_t hollerith() { return 0; }
-
-template <typename Row, typename... MoreRows>
-inline constexpr card_column_t hollerith(Row row, MoreRows... moreRows) {
-  return card_column_t::fromRows(row) | hollerith(moreRows...);
-}
-
-class card_row_t : public UnsignedImp<card_row_t, numCardColumns> {
-public:
-  using UnsignedImp::UnsignedImp;
-};
-
-namespace std {
-template <> struct hash<card_column_t> {
-  std::size_t operator()(const card_column_t &h) const { return h.value(); }
-};
-} // namespace std
-
 /**
  * @brief A generic 6-bit unsigned value.
  */
 // TODO: Make a template so UnsignedImp uses T as the op type, not bcd_t.
 class bcd_t : public UnsignedImp<bcd_t, 6> {
 public:
-  template <typename T> static inline constexpr T swapZeroBlank(const T &bcd) {
-    switch (value_t(bcd)) {
-    case 0:
-      return 0x10;
-    case 0x10:
+  using UnsignedImp::UnsignedImp;
+
+  inline constexpr bcd_t::value_t cpu_tape_swap() const {
+    bcd_t::value_t zone_swap =
+        (0x10 == (value() & 0x10)) ? (value() ^ 0x20) : value();
+    switch (zone_swap) {
+    case 0x00:
       return 0x0A;
+    case 0x0A:
+      return 0x00;
     default:
-      return value_t(bcd);
+      return zone_swap;
     }
   }
-
-  template <typename T> static inline constexpr T swapZone(const T &bcd) {
-    auto zone = bcd & 0x30;
-    return (0 == (bcd & 0x10)) ? T(bcd ^ 0x20) : bcd;
-  }
-
-  using UnsignedImp::UnsignedImp;
 };
-
 /**
  * @brief A six bit encoding in tape format
  */
@@ -183,24 +114,10 @@ class tape_bcd_t : public bcd_t {
 public:
   using bcd_t::bcd_t;
 
-  inline explicit constexpr tape_bcd_t(const card_column_t &);
-  inline explicit constexpr tape_bcd_t(const cpu704_bcd_t &);
-
-  inline constexpr operator card_column_t() const;
-  inline constexpr operator cpu704_bcd_t() const;
-
   template <typename OS>
   inline friend OS &operator<<(OS &os, tape_bcd_t &value) {
     return os << value;
   }
-};
-
-/**
- * @brief six bit unsigned tape value + even parity
- */
-class parity_bcd_t : public UnsignedImp<parity_bcd_t, 7> {
-public:
-  using UnsignedImp::UnsignedImp;
 };
 
 /**
@@ -210,81 +127,10 @@ class cpu704_bcd_t : public bcd_t {
 public:
   using bcd_t::bcd_t;
 
-  inline explicit constexpr cpu704_bcd_t(const card_column_t &);
-  inline explicit constexpr cpu704_bcd_t(const tape_bcd_t &);
-
-  inline constexpr operator card_column_t() const;
-  inline constexpr operator tape_bcd_t() const;
-
   template <typename OS>
   inline friend OS &operator<<(OS &os, cpu704_bcd_t &value) {
     return os << value;
   }
 };
 
-constexpr card_column_t::operator tape_bcd_t() const { return *this; }
-constexpr card_column_t::operator cpu704_bcd_t() const { return *this; };
-
-constexpr tape_bcd_t::tape_bcd_t(const card_column_t &column) : bcd_t(0) {
-  if (column == hollerith()) {
-    // blank
-    value_ = 0x10;
-  } else if (column == hollerith(0)) {
-    value_ = 0x0A;
-  } else {
-    int start_digit = 10;
-    for (int zone = 12; zone >= 10; zone--) {
-      if (column.isSet(zone)) {
-        value_ |= (zone - 9) * 0x10;
-        start_digit = zone - 1;
-        break;
-      }
-    }
-    for (int digit = start_digit; digit >= 1; digit--) {
-      if (column.isSet(digit)) {
-        value_ |= digit;
-      }
-    }
-  }
-}
-
-constexpr tape_bcd_t::tape_bcd_t(const cpu704_bcd_t &cpu) {
-  value_ = cpu.value();
-  if ((value_ & 0x10) != 0) {
-    value_ ^= 0x20;
-  } else if (value_ == 0x00) {
-    value_ = 0x0A;
-  }
-}
-
-constexpr tape_bcd_t::operator card_column_t() const { return *this; }
-constexpr tape_bcd_t::operator cpu704_bcd_t() const { return *this; }
-
-constexpr cpu704_bcd_t::cpu704_bcd_t(const card_column_t &column) {
-  if (column == hollerith()) {
-    // blank
-    value_ = 0x30;
-  } else if (column == hollerith(0)) {
-    value_ = 0x00;
-  } else {
-    int start_digit = 10;
-    for (int zone = 12; zone >= 10; zone--) {
-      if (column.isSet(zone)) {
-        value_ |= (13 - zone) * 0x10;
-        start_digit = zone - 1;
-        break;
-      }
-    }
-    for (int digit = start_digit; digit >= 1; digit--) {
-      if (column.isSet(digit)) {
-        value_ |= digit;
-      }
-    }
-  }
-}
-
-constexpr cpu704_bcd_t::cpu704_bcd_t(const tape_bcd_t &tape)
-    : bcd_t(swapZeroBlank(swapZone(tape.value()))) {}
-
-constexpr cpu704_bcd_t::operator tape_bcd_t() const { return *this; }
 #endif

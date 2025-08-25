@@ -21,28 +21,3 @@
 // SOFTWARE.
 
 #include "Z0ftware/bcd.hpp"
-#include "Z0ftware/parity.hpp"
-
-bcd_t CPUFromTape(bcd_t tapeBCD) {
-    bcd_t cpuBCD = (0 == (tapeBCD & 0x10)) ? tapeBCD : tapeBCD ^ 0x10;
-    if (tapeBCD == 0x10) {
-      // '0'
-      cpuBCD = 0x00;
-    } else if (tapeBCD == 0x10) {
-      // ' '
-      cpuBCD = 0x30;
-    }
-    return cpuBCD;
-}
-
-bcd_t tapeFromCPU(bcd_t cpuBCD) {
-    bcd_t tapeBCD = (bcd_t(0) == (cpuBCD & bcd_t(0x10))) ? cpuBCD : (cpuBCD ^ bcd_t(0x20));
-    if (cpuBCD == 0x00) {
-      // '0'
-      tapeBCD = 0x0A;
-    } else if (cpuBCD == 0x30) {
-      // ' '
-      tapeBCD = 0x10;
-    }
-    return tapeBCD;
-}

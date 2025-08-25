@@ -21,6 +21,8 @@
 // SOFTWARE.
 
 #include "Z0ftware/bcd.hpp"
+#include "Z0ftware/convert.hpp"
+#include "Z0ftware/hollerith.hpp"
 
 #include <gtest/gtest.h>
 
@@ -31,7 +33,7 @@
 // Page 25
 struct CardTapePair {
   size_t collate;
-  card_column_t hc;
+  hollerith_t hc;
   tape_bcd_t sc;
 };
 
@@ -108,6 +110,6 @@ CardTapePair cardTapePairs[] = {
 
 TEST(characters, hollerith) {
   for (auto &ctp : cardTapePairs) {
-    EXPECT_EQ(tape_bcd_t(ctp.hc), ctp.sc) << ctp.collate;
+    EXPECT_EQ(convert<tape_bcd_t>(ctp.hc), ctp.sc) << ctp.collate;
   }
 }

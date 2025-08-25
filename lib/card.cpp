@@ -66,12 +66,12 @@ void BinaryColumnCard::readCBN(std::istream &input) {
       assert((b0 & 0x80) != 0);
       b0 &= 0x7f;
     }
-    assert(parity_bcd_t(b0) == oddParity(bcd_t(b0)));
+    assert(odd_parity_bcd_t(b0) == oddParity(bcd_t(b0)));
     b0 &= 0x3f;
     uint8_t b1 = buffer[i++];
-    assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
+    assert(odd_parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
-    columns_[j++] = card_column_t(b0) << 6 | card_column_t(b1);
+    columns_[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
 }
 
@@ -148,12 +148,12 @@ CardImage readCBN(std::istream &input) {
       assert((b0 & 0x80) != 0);
       b0 &= 0x7f;
     }
-    assert(parity_bcd_t(b0) == oddParity(bcd_t(b0)));
+    assert(odd_parity_bcd_t(b0) == oddParity(bcd_t(b0)));
     b0 &= 0x3f;
     uint8_t b1 = buffer[i++];
-    assert(parity_bcd_t(b1) == oddParity(bcd_t(b1)));
+    assert(odd_parity_bcd_t(b1) == oddParity(bcd_t(b1)));
     b1 &= 0x3f;
-    cardImage[j++] = card_column_t(b0) << 6 | card_column_t(b1);
+    cardImage[j++] = hollerith_t(b0) << 6 | hollerith_t(b1);
   }
   return cardImage;
 }
@@ -166,7 +166,7 @@ void writeCBN(std::ostream &output, const CardImage &cardImage) {
     // First byte has bit 7 set
     auto high = bcd_t(ldb<6, 6>(column_value));
     if (column == 1) {
-      high = evenParity(high) | parity_bcd_t(0x80);
+      high = evenParity(high) | even_parity_bcd_t(0x80);
     } else {
       high = oddParity(high);
     }

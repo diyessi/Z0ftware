@@ -24,6 +24,7 @@
 #define Z0FTWARE_CHARSET_HPP
 
 #include "Z0ftware/bcd.hpp"
+#include "Z0ftware/hollerith.hpp"
 #include "Z0ftware/unicode.hpp"
 
 /**
@@ -191,12 +192,12 @@ uint64_t bcd(utf8_string_view_t chars);
 // Pairs a Hollerith encoding with a unicode character
 struct HollerithChar {
 
-  HollerithChar(const card_column_t &column, char32_t unicode)
+  HollerithChar(const hollerith_t &column, char32_t unicode)
       : column(column), unicode(unicode) {}
-  HollerithChar(const card_column_t &column, utf8_t utf8)
+  HollerithChar(const hollerith_t &column, utf8_t utf8)
       : column(column), utf8_(utf8) {}
 
-  card_column_t column;
+  hollerith_t column;
   char32_t unicode;
   utf8_t utf8_;
 };

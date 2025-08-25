@@ -23,20 +23,34 @@
 #ifndef Z0FTWARE_PARITY_HPP
 #define Z0FTWARE_PARITY_HPP
 
-#include "Z0ftware/word.hpp"
+#include "Z0ftware/bcd.hpp"
 
 #include <array>
-#include <cstdint>
 
 class bcd_t;
-class parity_bcd_t;
+
+/**
+ * @brief six bit unsigned tape value + even parity
+ */
+class even_parity_bcd_t : public UnsignedImp<even_parity_bcd_t, 7> {
+public:
+  using UnsignedImp::UnsignedImp;
+};
+
+/**
+ * @brief six bit unsigned tape value + even parity
+ */
+class odd_parity_bcd_t : public UnsignedImp<odd_parity_bcd_t, 7> {
+public:
+  using UnsignedImp::UnsignedImp;
+};
 
 // Return with bit 6 set to give bits 0-6 even parity
-parity_bcd_t evenParity(bcd_t bcd_t);
-bool isEvenParity(parity_bcd_t parity_bcd_t);
-const std::array<parity_bcd_t, 1 << 6> &getEvenParityTable();
+even_parity_bcd_t evenParity(bcd_t bcd_t);
+bool isEvenParity(even_parity_bcd_t parity_bcd_t);
+const std::array<even_parity_bcd_t, 1 << 6> &getEvenParityTable();
 // Return with bit 6 set to give bits 0-6 odd parity
-parity_bcd_t oddParity(bcd_t bcd_t);
-const std::array<parity_bcd_t, 1 << 6> &getOddParityTable();
+odd_parity_bcd_t oddParity(bcd_t bcd_t);
+const std::array<odd_parity_bcd_t, 1 << 6> &getOddParityTable();
 
 #endif

@@ -4,6 +4,7 @@ add_library(Z0ftware
     bcd.cpp
     card.cpp
     charset.cpp
+    convert.cpp
     disasm.cpp
     exprs.cpp
     op.cpp
