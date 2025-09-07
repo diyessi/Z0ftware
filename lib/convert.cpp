@@ -145,7 +145,7 @@ static tape_bcd_t tape_bcd_from_hollerith(hollerith_t h) {
       }
     }
     if (0x0A == value) {
-      value = 0x00;
+      value = 0x10;
     }
     return value;
   }
@@ -171,7 +171,14 @@ static const tape_bcd_from_hollerith_t &get_tape_from_hollerith() {
  */
 
 template <> cpu704_bcd_t convert(tape_bcd_t tape) {
-  return cpu704_bcd_t(tape.cpu_tape_swap());
+  auto bcd = tape.value();
+  bcd_t::value_t zone_swap = (0x10 == (bcd & 0x10)) ? (bcd ^ 0x20) : bcd;
+  switch (zone_swap) {
+  case 0x0A:
+    return 0x00;
+  default:
+    return zone_swap;
+  }
 }
 
 template <> hollerith_t convert(tape_bcd_t tape_bcd) {
@@ -180,7 +187,14 @@ template <> hollerith_t convert(tape_bcd_t tape_bcd) {
 }
 
 template <> tape_bcd_t convert(cpu704_bcd_t cpu) {
-  return tape_bcd_t(cpu.cpu_tape_swap());
+  auto bcd = cpu.value();
+  bcd_t::value_t zone_swap = (0x10 == (bcd & 0x10)) ? (bcd ^ 0x20) : bcd;
+  switch (zone_swap) {
+  case 0x00:
+    return 0x0A;
+  default:
+    return zone_swap;
+  }
 }
 
 template <> hollerith_t convert(cpu704_bcd_t cpu) {

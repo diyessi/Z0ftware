@@ -38,7 +38,7 @@ TEST(cards, bcd) {
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(7)), cpu704_bcd_t(0b000111));
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8)), cpu704_bcd_t(0b001000));
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(9)), cpu704_bcd_t(0b001001));
-  EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8, 2)), cpu704_bcd_t(0b001010));
+  EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8, 2)), cpu704_bcd_t(0b110000));
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8, 3)), cpu704_bcd_t(0b001011));
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8, 4)), cpu704_bcd_t(0b001100));
   EXPECT_EQ(convert<cpu704_bcd_t>(hollerith(8, 5)), cpu704_bcd_t(0b001101));

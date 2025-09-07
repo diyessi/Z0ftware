@@ -88,6 +88,15 @@ static const utf8_t utf8_record_mark{"⧧"};
 static const utf8_t utf8_triple_plus{"⧻"};
 static const utf8_t utf8_group_mark{"⯒"};
 
+struct CollateGlyphCardTape {
+  size_t collate;
+  std::vector<Glyph> glyphs;
+  hollerith_t hc;
+  tape_bcd_t sc;
+};
+
+extern CollateGlyphCardTape collateGlyphCardTape[64];
+
 class TapeBCDCharSet;
 class IBM704BCDCharSet;
 

@@ -93,20 +93,8 @@ class tape_bcd_t;
 class bcd_t : public UnsignedImp<bcd_t, 6> {
 public:
   using UnsignedImp::UnsignedImp;
-
-  inline constexpr bcd_t::value_t cpu_tape_swap() const {
-    bcd_t::value_t zone_swap =
-        (0x10 == (value() & 0x10)) ? (value() ^ 0x20) : value();
-    switch (zone_swap) {
-    case 0x00:
-      return 0x0A;
-    case 0x0A:
-      return 0x00;
-    default:
-      return zone_swap;
-    }
-  }
 };
+
 /**
  * @brief A six bit encoding in tape format
  */

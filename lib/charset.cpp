@@ -23,6 +23,79 @@
 #include "Z0ftware/charset.hpp"
 #include "Z0ftware/unicode.hpp"
 
+// https://bitsavers.org/pdf/ibm/magtape/A22-6589-1_magTapeReference_Jun62.pdf
+// Page 8
+
+// Also https://archive.org/details/mackenzie-coded-char-sets/page/24/mode/2up
+// Page 25
+
+CollateGlyphCardTape collateGlyphCardTape[] = {
+    //
+    {0, {" "}, hollerith(), 0x10},
+    {1, {"."}, hollerith(12, 3, 8), 0x3B},
+    {2, {utf8_lozenge, ")"}, hollerith(12, 4, 8), 0x3C},
+    {3, {"["}, hollerith(12, 5, 8), 0x3D},
+    {4, {"<"}, hollerith(12, 6, 8), 0x3E},
+    {5, {utf8_group_mark}, hollerith(12, 7, 8), 0x3F},
+    {6, {"&", "+"}, hollerith(12), 0x30},
+    {7, {"$"}, hollerith(11, 3, 8), 0x2B},
+    {8, {"*"}, hollerith(11, 4, 8), 0x2C},
+    {9, {"]"}, hollerith(11, 5, 8), 0x2D},
+    {10, {";"}, hollerith(11, 6, 8), 0x2E},
+    {11, {utf8_delta}, hollerith(11, 7, 8), 0x2F},
+    {12, {"-"}, hollerith(11), 0x20},
+    {13, {"/"}, hollerith(0, 1), 0x11},
+    {14, {","}, hollerith(0, 3, 8), 0x1B},
+    {15, {"%", "("}, hollerith(0, 4, 8), 0x1C},
+    {16, {utf8_gamma}, hollerith(0, 5, 8), 0x1D},
+    {17, {"\\"}, hollerith(0, 6, 8), 0x1E},
+    {18, {utf8_triple_plus}, hollerith(0, 7, 8), {0x1F}},
+    {19, {" "}, hollerith(2, 8), 0x10},
+    {20, {"#", "="}, hollerith(3, 8), 0x0B},
+    {21, {"@", "'"}, hollerith(4, 8), 0x0C},
+    {22, {":"}, hollerith(5, 8), 0x0D},
+    {23, {">"}, hollerith(6, 8), 0x0E},
+    {24, {utf8_radical}, hollerith(7, 8), 0x0F},
+    {25, {"?"}, hollerith(12, 0), 0x3A},
+    {26, {"A"}, hollerith(12, 1), 0x31},
+    {27, {"B"}, hollerith(12, 2), 0x32},
+    {28, {"C"}, hollerith(12, 3), 0x33},
+    {29, {"D"}, hollerith(12, 4), 0x34},
+    {30, {"E"}, hollerith(12, 5), 0x35},
+    {31, {"F"}, hollerith(12, 6), 0x36},
+    {32, {"G"}, hollerith(12, 7), 0x37},
+    {33, {"H"}, hollerith(12, 8), 0x38},
+    {34, {"I"}, hollerith(12, 9), 0x39},
+    {35, {"!"}, hollerith(11, 0), 0x2A},
+    {36, {"J"}, hollerith(11, 1), 0x21},
+    {37, {"K"}, hollerith(11, 2), 0x22},
+    {38, {"L"}, hollerith(11, 3), 0x23},
+    {39, {"M"}, hollerith(11, 4), 0x24},
+    {40, {"N"}, hollerith(11, 5), 0x25},
+    {41, {"O"}, hollerith(11, 6), 0x26},
+    {42, {"P"}, hollerith(11, 7), 0x27},
+    {43, {"Q"}, hollerith(11, 8), 0x28},
+    {44, {"R"}, hollerith(11, 9), 0x29},
+    {45, {utf8_record_mark}, hollerith(0, 2, 8), 0x1A},
+    {46, {"S"}, hollerith(0, 2), 0x12},
+    {47, {"T"}, hollerith(0, 3), 0x13},
+    {48, {"U"}, hollerith(0, 4), 0x14},
+    {49, {"V"}, hollerith(0, 5), 0x15},
+    {50, {"W"}, hollerith(0, 6), 0x16},
+    {51, {"X"}, hollerith(0, 7), 0x17},
+    {52, {"Y"}, hollerith(0, 8), 0x18},
+    {53, {"Z"}, hollerith(0, 9), 0x19},
+    {54, {"0"}, hollerith(0), 0x0A},
+    {55, {"1"}, hollerith(1), 0x01},
+    {56, {"2"}, hollerith(2), 0x02},
+    {57, {"3"}, hollerith(3), 0x03},
+    {58, {"4"}, hollerith(4), 0x04},
+    {59, {"5"}, hollerith(5), 0x05},
+    {60, {"6"}, hollerith(6), 0x06},
+    {61, {"7"}, hollerith(7), 0x07},
+    {62, {"8"}, hollerith(8), 0x08},
+    {63, {"9"}, hollerith(9), 0x09}};
+
 /**
  * Character tables appear for Hollerith, tape BCD and 704/9 CPU BCD encodings.
  * For BCD encodings, tables are shown as four groups of 16 glyphs, the group
