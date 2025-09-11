@@ -28,7 +28,14 @@
 #include <gtest/gtest.h>
 
 TEST(characters, hollerith) {
-  for (auto &ctp : collateGlyphCardTape) {
+  for (auto &ctp : collateGlyphCardTape.getItems()) {
     EXPECT_EQ(convert<tape_bcd_t>(ctp.hc), ctp.sc) << ctp.collate;
+  }
+}
+
+TEST(characters, tape_bcd) {
+    std::unique_ptr<even_glyphs_t> glyphs(collateGlyphCardTape.getTapeCharset(false));
+  for (auto &ctp : collateGlyphCardTape.getItems()) {
+    EXPECT_EQ(glyphs->at(evenParity(ctp.sc).value()), ctp.glyphs[0].getUtf8Char()) << ctp.collate;
   }
 }

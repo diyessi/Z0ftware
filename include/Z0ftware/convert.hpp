@@ -31,19 +31,6 @@
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/hollerith.hpp"
 
-static inline constexpr bcd_t::value_t
-cpu_tape_swap(const bcd_t::value_t &bcd) {
-  bcd_t::value_t zone_swap = (0x10 == (bcd & 0x10)) ? (bcd ^ 0x20) : bcd;
-  switch (zone_swap) {
-  case 0x00:
-    return 0x0A;
-  case 0x0A:
-    return 0x00;
-  default:
-    return zone_swap;
-  }
-}
-
 // From tape
 template <typename OUT> OUT convert(tape_bcd_t tape_bcd);
 

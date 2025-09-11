@@ -104,7 +104,7 @@ public:
 
   template <typename OS>
   inline friend OS &operator<<(OS &os, tape_bcd_t &value) {
-    return os << value;
+    return os << value.value();
   }
 };
 

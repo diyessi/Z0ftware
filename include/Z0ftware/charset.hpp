@@ -25,7 +25,10 @@
 
 #include "Z0ftware/bcd.hpp"
 #include "Z0ftware/hollerith.hpp"
+#include "Z0ftware/parity.hpp"
 #include "Z0ftware/unicode.hpp"
+
+#include <array>
 
 /**
  * @brief Information about the UTF8 to use for a BCD or Hollerith character. In
@@ -78,7 +81,7 @@ static const utf8_t utf8_gamma{"γ"};
 static const utf8_t utf8_lozenge{"⌑"};
 static const utf8_t utf8_radical{"√"};
 static const utf8_t utf8_cent{"¢"};
-static const utf8_t utf8_not{"¬"};
+static const utf8_t utf8_not_sign{"¬"};
 
 // Approximations for IBM characters not in Unicode
 static const utf8_t utf8_minus_zero{"⦵"};
@@ -88,14 +91,39 @@ static const utf8_t utf8_record_mark{"⧧"};
 static const utf8_t utf8_triple_plus{"⧻"};
 static const utf8_t utf8_group_mark{"⯒"};
 
-struct CollateGlyphCardTape {
+using even_glyphs_t = std::array<utf8_t, 1 << even_parity_bcd_t::bit_size()>;
+
+class CharsetForTape {
+public:
+  virtual ~CharsetForTape() = default;
+  virtual std::unique_ptr<even_glyphs_t> getTapeCharset(bool alternate) const = 0;
+};
+
+struct CollateGlyphCardTapeItem {
   size_t collate;
   std::vector<Glyph> glyphs;
   hollerith_t hc;
   tape_bcd_t sc;
 };
 
-extern CollateGlyphCardTape collateGlyphCardTape[64];
+class CollateGlyphCardTape : public CharsetForTape {
+public:
+  using items_t = std::array<CollateGlyphCardTapeItem, 64>;
+
+  CollateGlyphCardTape(items_t &&items) : items_(std::move(items)) {}
+  const items_t &getItems() const { return items_; }
+
+  std::unique_ptr<even_glyphs_t> getTapeCharset(bool alternate) const override;
+
+  items_t items_;
+};
+
+extern CollateGlyphCardTape collateGlyphCardTape;
+
+struct CardGlyph {
+  hollerith_t hollerith;
+  Glyph glyph;
+};
 
 class TapeBCDCharSet;
 class IBM704BCDCharSet;

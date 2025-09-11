@@ -24,11 +24,11 @@
 #include "Z0ftware/bcd.hpp"
 
 even_parity_bcd_t evenParity(bcd_t sixbit) {
-  uint8_t result = sixbit.value();
+  auto result = sixbit.value();
   result ^= (result << 4);
   result ^= (result << 2);
   result ^= (result >> 1);
-  return (even_parity_bcd_t(0x40) & result) | sixbit;
+  return (0x40 & result) | sixbit.value();
 }
 
 bool isEvenParity(even_parity_bcd_t sevenbit) {
@@ -48,12 +48,11 @@ const std::array<even_parity_bcd_t, 1 << 6> &getEvenParityTable() {
 }
 
 odd_parity_bcd_t oddParity(bcd_t sixbit) {
-  sixbit &= bcd_t(0x3f);
-  odd_parity_bcd_t result = odd_parity_bcd_t(0x40) | sixbit;
-  result = result ^ (result << 4);
+  auto result = sixbit.value();
+  result ^= result << 4;
   result ^= result << 2;
   result ^= result >> 1;
-  return sixbit | (result & odd_parity_bcd_t(0x40));
+  return (~result & 0x40) ^ sixbit.value();
 }
 
 const std::array<odd_parity_bcd_t, 1 << 6> &getOddParityTable() {
