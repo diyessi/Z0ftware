@@ -46,10 +46,11 @@ llvm::cl::opt<bool> list_files("list", llvm::cl::desc("list files on tape"),
 
 class ShareExtractor : public TapeReadAdapter {
 public:
-  ShareExtractor(TapeIRecordStream &tapeIStream, const BCDCharSet &charSet)
-      : TapeReadAdapter(tapeIStream), tapeChars_(charSet) {
+  ShareExtractor(TapeIRecordStream &tapeIStream, const CharsetForTape &charSet)
+      : TapeReadAdapter(tapeIStream),
+        tapeChars_(charSet.getTapeCharset(true)) {
     for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
-      std::cout << Unicode(tapeChars_[i.value()]);
+      std::cout << tapeChars_->at(evenParity(i.value()).value());
     }
     std::cout << std::endl;
   }
@@ -72,7 +73,7 @@ public:
 
     size_t pos = 0;
     for (auto it : record_) {
-      std::cout << Unicode(tapeChars_[it & 0x3F]);
+      std::cout << tapeChars_->at(it);
       if (++pos == line_size) {
         std::cout << "\n";
         pos = 0;
@@ -86,7 +87,7 @@ public:
   void onEndOfTape() override {}
 
 protected:
-  TapeBCDCharSet tapeChars_;
+  std::unique_ptr<even_glyphs_t> tapeChars_;
 };
 
 int main(int argc, const char **argv) {
@@ -110,7 +111,7 @@ int main(int argc, const char **argv) {
       continue;
     }
     P7BIStream reader(input);
-    ShareExtractor extractor(reader, BCDICFinal_B);
+    ShareExtractor extractor(reader, collateGlyphCardTape);
     extractor.read();
     input.close();
   }
