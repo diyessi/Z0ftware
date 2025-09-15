@@ -47,8 +47,7 @@ llvm::cl::opt<bool> list_files("list", llvm::cl::desc("list files on tape"),
 class ShareExtractor : public TapeReadAdapter {
 public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const CharsetForTape &charSet)
-      : TapeReadAdapter(tapeIStream),
-        tapeChars_(charSet.getTapeCharset(true)) {
+      : TapeReadAdapter(tapeIStream), tapeChars_(charSet.getTapeCharset(true)) {
     for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
       std::cout << tapeChars_->at(evenParity(i.value()).value());
     }
@@ -59,7 +58,9 @@ public:
   void onRecordData(char *buffer, size_t size) override {}
   void onBinaryRecordData() override { std::cout << "Binary\n"; }
   void onBCDRecordData() override {
-    std::cout << "BCD: " << record_.size() << "\n";
+    if (showHeaders_) {
+      std::cout << "BCD: " << record_.size() << "\n";
+    }
     size_t line_size;
     if (0 == (record_.size() % 80)) {
       line_size = 80;
@@ -72,14 +73,38 @@ public:
     }
 
     size_t pos = 0;
+    std::ostringstream ostream;
     for (auto it : record_) {
-      std::cout << tapeChars_->at(it);
+      ostream << tapeChars_->at(it);
       if (++pos == line_size) {
-        std::cout << "\n";
         pos = 0;
+        auto view = ostream.view();
+        if (view.end() != std::find_if(view.begin(), view.end(),
+                                       [](char c) { return c != ' '; })) {
+          if (record_.size() <= 84) {
+            // Identification for next library file
+            auto category = view.substr(0, 2);
+            auto company = view.substr(3, 2);
+            auto name = view.substr(6, view.find(' ', 6) - 6);
+            auto group = view.substr(20, 4);
+            auto format = view.substr(33, 2);
+            std::cout << "===========\n";
+            std::cout << view << "\n";
+            std::cout << "Category: '" << category << "' Company: '" << company
+                      << "' Name: '" << name << "' Group: '" << group
+                      << "' Format: '" << format << "'"
+                      << "\n";
+            std::cout << "===========\n";
+          } else {
+            std::cout << view << "\n";
+          }
+        }
+        ostream.str("");
       }
     }
-    std::cout << std::endl;
+    if (showHeaders_) {
+      std::cout << std::endl;
+    }
   }
   void onBeginOfRecord() override {}
   void onEndOfRecord() override {}
@@ -88,6 +113,7 @@ public:
 
 protected:
   std::unique_ptr<even_glyphs_t> tapeChars_;
+  bool showHeaders_{false};
 };
 
 int main(int argc, const char **argv) {
