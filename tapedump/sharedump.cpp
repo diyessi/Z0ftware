@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023 Scott Cyphers
+// Copyright (c) 202-2025 Scott Cyphers
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,8 +40,13 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
                                            llvm::cl::desc("<Input files>"),
                                            llvm::cl::OneOrMore);
 
-llvm::cl::opt<bool> list_files("list", llvm::cl::desc("list files on tape"),
-                               llvm::cl::init(false));
+llvm::cl::opt<bool> listFiles("list", llvm::cl::desc("list files on tape"),
+                              llvm::cl::init(false));
+
+llvm::cl::opt<bool> showHeaders("show-headers",
+                                llvm::cl::desc("Show record headers"),
+                                llvm::cl::init(false));
+
 } // namespace
 
 class ShareExtractor : public TapeReadAdapter {
@@ -54,12 +59,15 @@ public:
     std::cout << std::endl;
   }
 
+  size_t getCurrentDeck() { return nextDeck_ - 1; }
+
   void onRead(size_t pos, char *buffer, size_t size) override {}
   void onRecordData(char *buffer, size_t size) override {}
   void onBinaryRecordData() override { std::cout << "Binary\n"; }
   void onBCDRecordData() override {
     if (showHeaders_) {
-      std::cout << "BCD: " << record_.size() << "\n";
+      std::cout << "Record: " << getRecordNum() << " BCD: " << record_.size()
+                << "\n";
     }
     size_t line_size;
     if (0 == (record_.size() % 80)) {
@@ -69,6 +77,8 @@ public:
     } else if (record_.size() % 72) {
       line_size = 72;
     } else {
+      std::cout << "Record size: " << record_.size()
+                << " using line size of 80\n";
       line_size = 80;
     }
 
@@ -83,15 +93,32 @@ public:
                                        [](char c) { return c != ' '; })) {
           if (record_.size() <= 84) {
             // Identification for next library file
-            auto category = view.substr(0, 2);
-            auto company = view.substr(3, 2);
+            nextDeck_++;
+            auto classification = view.substr(0, view.find(' ', 0));
+            auto installation = view.substr(3, view.find(' ', 3) - 3);
             auto name = view.substr(6, view.find(' ', 6) - 6);
-            auto group = view.substr(20, 4);
+            auto id = view.substr(20, view.find(' ', 20) - 20);
             auto format = view.substr(33, 2);
             std::cout << "===========\n";
             std::cout << view << "\n";
-            std::cout << "Category: '" << category << "' Company: '" << company
-                      << "' Name: '" << name << "' Group: '" << group
+            std::ostringstream deckName;
+            deckName << std::setw(4) << std::setfill('0') << getCurrentDeck();
+            if (!classification.empty()) {
+              deckName << "-" << classification;
+            }
+            if (!installation.empty()) {
+              deckName << "-" << installation;
+            }
+            deckName << "-" << name;
+            if (!id.empty()) {
+              deckName << "-" << id;
+            }
+            deckName << "." << format;
+
+            std::cout << "Current deck: " << getCurrentDeck() << " '"
+                      << deckName.str() << "'\n";
+            std::cout << "Classification: '" << classification << "' Company: '"
+                      << installation << "' Name: '" << name << "' Id: '" << id
                       << "' Format: '" << format << "'"
                       << "\n";
             std::cout << "===========\n";
@@ -113,7 +140,8 @@ public:
 
 protected:
   std::unique_ptr<even_glyphs_t> tapeChars_;
-  bool showHeaders_{false};
+  bool showHeaders_{showHeaders};
+  size_t nextDeck_{0};
 };
 
 int main(int argc, const char **argv) {

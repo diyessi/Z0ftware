@@ -83,6 +83,7 @@ public:
   void stopReading() { reading_ = false; }
   size_t getRecordStartPos() const { return recordStartPos_; }
   size_t getTapePos() const { return tapePos_; }
+  size_t getRecordNum() const { return recordNum_; }
 
   // Events
 
@@ -102,6 +103,7 @@ protected:
   bool reading_{true};
   size_t recordStartPos_{0};
   size_t tapePos_{0};
+  size_t recordNum_{0};
   std::vector<char> record_;
 };
 

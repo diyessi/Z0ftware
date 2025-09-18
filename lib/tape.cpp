@@ -125,6 +125,7 @@ void TapeReadAdapter::read() {
     } else {
       if (tapeIStream_.nextRecord()) {
         onEndOfRecord();
+        recordNum_++;
         size_t evenParityCount =
             std::count_if(record_.begin(), record_.end(), [](char c) {
               return isEvenParity(even_parity_bcd_t(c));
