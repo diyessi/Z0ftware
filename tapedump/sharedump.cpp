@@ -72,9 +72,9 @@ public:
     size_t line_size;
     if (0 == (record_.size() % 80)) {
       line_size = 80;
-    } else if (record_.size() % 84) {
+    } else if (0 == (record_.size() % 84)) {
       line_size = 84;
-    } else if (record_.size() % 72) {
+    } else if (0 == (record_.size() % 72)) {
       line_size = 72;
     } else {
       std::cout << "Record size: " << record_.size()
