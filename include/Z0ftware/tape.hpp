@@ -25,10 +25,19 @@
 
 #include <array>
 #include <cstddef>
+#include <istream>
 #include <vector>
 
+// Interface for reading encodings of tapes.
 class TapeIRecordStream {
 public:
+  using stream_type = std::istream;
+  using char_type = stream_type::char_type;
+  using traits_type = stream_type::traits_type;
+  using int_type = stream_type::int_type;
+  using pos_type = stream_type::pos_type;
+  using off_type = stream_type::off_type;
+
   // Returns 0 at end of record
   virtual size_t read(char *buffer, size_t size) = 0;
   // Returns true if already at EOR and positions for next record
@@ -39,6 +48,13 @@ public:
   virtual bool isEOT() const = 0;
   // Problem reading input stream
   virtual bool isError() const = 0;
+
+  // Start of buffer
+  virtual pos_type tellg() const = 0;
+  // Start of record
+  virtual pos_type getRecordPos() const = 0;
+  // Record number
+  virtual pos_type getRecordNum() const = 0;
 };
 
 // Reads P7B format on PierceFuller IBM tapes
@@ -46,6 +62,7 @@ public:
 // Bit 7 is set for first byte of a record
 // Bit 6 is parity, odd for binary, even for BCD
 // Bits 5-0 are data
+//
 class P7BIStream : public TapeIRecordStream {
 
 public:
@@ -58,6 +75,10 @@ public:
   }
   bool isEOT() const override { return eot_; }
   bool isError() const override { return error_; }
+
+  pos_type tellg() const override { return bufferPos_; }
+  pos_type getRecordPos() const override { return recordPos_; }
+  pos_type getRecordNum() const override { return recordNum_; }
 
 protected:
   void fillTapeBuffer();
@@ -73,17 +94,38 @@ protected:
 
   bool eot_{false};
   bool error_{false};
+
+  pos_type bufferPos_{0};
+  pos_type recordPos_{0};
+  pos_type nextRecordPos_{0};
+  pos_type recordNum_{0};
 };
 
+class TapeEdit {
+public:
+  virtual ~TapeEdit() = default;
+  virtual void apply(size_t offset, std::vector<char> &record) const = 0;
+};
+
+// Forms full records and categorizes as binary/BCD.
+// TODO: Perform position-based edits to correct tape read errors here or in the
+// input stream.
 class TapeReadAdapter {
 public:
-  TapeReadAdapter(TapeIRecordStream &tapeIStream) : tapeIStream_(tapeIStream) {}
+  using stream_type = TapeIRecordStream;
+  using char_type = stream_type::char_type;
+  using traits_type = stream_type::traits_type;
+  using int_type = stream_type::int_type;
+  using pos_type = stream_type::pos_type;
+  using off_type = stream_type::off_type;
+
+  TapeReadAdapter(stream_type &tapeIStream) : tapeIStream_(tapeIStream) {}
 
   void read();
   void stopReading() { reading_ = false; }
-  size_t getRecordStartPos() const { return recordStartPos_; }
-  size_t getTapePos() const { return tapePos_; }
-  size_t getRecordNum() const { return recordNum_; }
+  pos_type getRecordPos() const { return tapeIStream_.getRecordPos(); }
+  pos_type tellg() const { return tapeIStream_.tellg(); }
+  size_t getRecordNum() const { return tapeIStream_.getRecordNum(); }
 
   // Events
 
@@ -101,9 +143,6 @@ public:
 protected:
   TapeIRecordStream &tapeIStream_;
   bool reading_{true};
-  size_t recordStartPos_{0};
-  size_t tapePos_{0};
-  size_t recordNum_{0};
   std::vector<char> record_;
 };
 

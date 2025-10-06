@@ -29,6 +29,7 @@ P7BIStream::P7BIStream(std::istream &input) : input_(input) {
   fillTapeBuffer();
   tapeBORPos_ = tapeBufferPos_;
   if (0x80 == (*tapeBORPos_ & 0x80)) {
+    nextRecordPos_ = bufferPos_;
     *tapeBORPos_ &= 0x7F;
     findNextBOR();
   }
@@ -37,6 +38,7 @@ P7BIStream::P7BIStream(std::istream &input) : input_(input) {
 void P7BIStream::fillTapeBuffer() {
   if (!(error_ || eot_) && tapeBufferPos_ == tapeBufferEnd_) {
     tapeBufferPos_ = tapeBuffer_.data();
+    bufferPos_ = input_.tellg();
     input_.read(tapeBufferPos_, tapeBuffer_.size());
     tapeBufferEnd_ = tapeBufferPos_ + input_.gcount();
     if (tapeBufferPos_ == tapeBufferEnd_) {
@@ -52,7 +54,10 @@ void P7BIStream::findNextBOR() {
   tapeBORPos_ = std::find_if(tapeBufferPos_, tapeBufferEnd_,
                              [](char c) { return 0x80 == (c & 0x80); });
   if (tapeBORPos_ < tapeBufferEnd_) {
+    recordPos_ = nextRecordPos_;
+    nextRecordPos_ = bufferPos_ + tapeBORPos_ - tapeBuffer_.data();
     *tapeBORPos_ &= 0x7F;
+    recordNum_ += 1;
   }
 }
 
@@ -125,7 +130,14 @@ void TapeReadAdapter::read() {
     } else {
       if (tapeIStream_.nextRecord()) {
         onEndOfRecord();
-        recordNum_++;
+        pos_type recordStartPos = getRecordPos();
+        // Experiment
+        pos_type pos = 211280;
+        if (recordStartPos <= pos &&
+            pos < recordStartPos + pos_type(record_.size())) {
+          record_.erase(record_.begin() + (pos - recordStartPos));
+        }
+        //
         size_t evenParityCount =
             std::count_if(record_.begin(), record_.end(), [](char c) {
               return isEvenParity(even_parity_bcd_t(c));
@@ -136,13 +148,11 @@ void TapeReadAdapter::read() {
           onBCDRecordData();
         }
         record_.clear();
-        recordStartPos_ = tapePos_;
         onBeginOfRecord();
       } else {
         onEndOfTape();
         break;
       }
     }
-    tapePos_ += size;
   }
 }
