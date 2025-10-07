@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 202-2025 Scott Cyphers
+// Copyright (c) 2025 Scott Cyphers
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
@@ -47,8 +48,38 @@ llvm::cl::opt<bool> showHeaders("show-headers",
                                 llvm::cl::desc("Show record headers"),
                                 llvm::cl::init(false));
 
+llvm::cl::opt<bool> showDeck("show-deck", llvm::cl::desc("Show deck number"),
+                             llvm::cl::init(false));
+
+llvm::cl::opt<bool>
+    showCardNumber("show-card-number",
+                   llvm::cl::desc("Show number card within deck"),
+                   llvm::cl::init(false));
+
+llvm::cl::list<unsigned>
+    deckNumbers("deck-number", llvm::cl::desc("Only show specified deck"));
+
+llvm::cl::opt<bool> showTapePos("show-tape-pos",
+                                llvm::cl::desc("Show tape position"));
+
 } // namespace
 
+// Share tapes encode card decks on IBM70x tapes.
+// Record lengths are multiples of:
+// - 72 if IBM704 was used, which could only read/write 72 characters/card.
+// - 80 if the full card is stored
+// - 84? Is this actually used?
+//
+// Each deck consists of a one-card record indicating brief information about
+// the deck and what format the deck is in.
+// The deck consists of one or more multi-card records in the format specified
+// in the header. Blank cards are used at the end if needed to pad to the record
+// length.
+// Interface for IBM 70x style tapes with decks encoded as 7-bit
+// odd-parity of 6-bit values and BCD (character) records encoded as 7-bit even
+// parity of 6-bit characters. An one card deck identifier record precedes each
+// deck, which consists of one or more records or multiple cards each. Blank
+// cards pad the record to uniform size.
 class ShareExtractor : public TapeReadAdapter {
 public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const CharsetForTape &charSet)
@@ -60,72 +91,118 @@ public:
   }
 
   size_t getCurrentDeck() { return nextDeck_ - 1; }
+  size_t getCardNumber() { return cardNumber_ - 1; }
 
   void onRead(size_t pos, char *buffer, size_t size) override {}
   void onRecordData(char *buffer, size_t size) override {}
-  void onBinaryRecordData() override { std::cout << "Binary\n"; }
+  void onBinaryRecordData() override {
+    if (showThisDeck_) {
+      if (showTapePos_) {
+        std::cout << std::setw(12) << std::setfill('0') << getRecordPos()
+                  << " ";
+      }
+      if (showCardNumber_) {
+        std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
+                  << " ";
+      }
+
+      std::cout << "Binary\n";
+    }
+  }
   void onBCDRecordData() override {
     if (showHeaders_) {
       std::cout << "Record: " << getRecordNum() << " BCD: " << record_.size()
                 << "\n";
     }
-    size_t line_size;
-    if (0 == (record_.size() % 80)) {
-      line_size = 80;
-    } else if (0 == (record_.size() % 84)) {
-      line_size = 84;
-    } else if (0 == (record_.size() % 72)) {
-      line_size = 72;
-    } else {
-      std::cout << "Record size: " << record_.size()
-                << " using line size of 80\n";
-      line_size = 80;
+    if (record_.size() <= 84) {
+      // Deck header
+      lineSize_ = record_.size();
+
+      std::ostringstream ostream;
+      for (auto &it : record_) {
+        ostream << tapeChars_->at(it);
+      }
+      auto view = ostream.view();
+
+      // Identification for next library file
+      nextDeck_++;
+      deckName_ = "";
+      showThisDeck_ = deckNumbers_.empty() ||
+                      std::find(deckNumbers_.begin(), deckNumbers_.end(),
+                                getCurrentDeck()) != deckNumbers_.end();
+      if (!showThisDeck_) {
+        return;
+      }
+      auto classification = view.substr(0, view.find(' ', 0));
+      auto installation = view.substr(3, view.find(' ', 3) - 3);
+      auto name = view.substr(6, view.find(' ', 6) - 6);
+      auto id = view.substr(20, view.find(' ', 20) - 20);
+      auto format = view.substr(33, 2);
+      std::cout << "===========\n";
+      if (showTapePos_) {
+        std::cout << std::setw(12) << std::setfill('0') << getRecordPos()
+                  << " ";
+      }
+      if (showCardNumber_) {
+        std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
+                  << " ";
+      }
+
+      std::cout << view << "\n";
+      std::ostringstream deckName;
+      deckName << std::setw(4) << std::setfill('0') << getCurrentDeck();
+      if (!classification.empty()) {
+        deckName << "-" << classification;
+      }
+      if (!installation.empty()) {
+        deckName << "-" << installation;
+      }
+      deckName << "-" << name;
+      if (!id.empty()) {
+        deckName << "-" << id;
+      }
+      deckName << "." << format;
+      deckName_ = deckName.str();
+
+      std::cout << "Current deck: " << getCurrentDeck() << " '" << deckName_
+                << "'\n";
+      std::cout << "Classification: '" << classification << "' Company: '"
+                << installation << "' Name: '" << name << "' Id: '" << id
+                << "' Format: '" << format << "'"
+                << "\n";
+      std::cout << "===========\n";
+      cardNumber_ = 0;
+
+      return;
     }
 
-    size_t pos = 0;
     std::ostringstream ostream;
-    for (auto it : record_) {
+    pos_type linePos = 0;
+    size_t pos = 0;
+
+    for (auto &it : record_) {
       ostream << tapeChars_->at(it);
-      if (++pos == line_size) {
-        pos = 0;
+      if (lineSize_ == ++pos) {
         auto view = ostream.view();
+        pos = 0;
         if (view.end() != std::find_if(view.begin(), view.end(),
                                        [](char c) { return c != ' '; })) {
-          if (record_.size() <= 84) {
-            // Identification for next library file
-            nextDeck_++;
-            auto classification = view.substr(0, view.find(' ', 0));
-            auto installation = view.substr(3, view.find(' ', 3) - 3);
-            auto name = view.substr(6, view.find(' ', 6) - 6);
-            auto id = view.substr(20, view.find(' ', 20) - 20);
-            auto format = view.substr(33, 2);
-            std::cout << "===========\n";
-            std::cout << view << "\n";
-            std::ostringstream deckName;
-            deckName << std::setw(4) << std::setfill('0') << getCurrentDeck();
-            if (!classification.empty()) {
-              deckName << "-" << classification;
-            }
-            if (!installation.empty()) {
-              deckName << "-" << installation;
-            }
-            deckName << "-" << name;
-            if (!id.empty()) {
-              deckName << "-" << id;
-            }
-            deckName << "." << format;
 
-            std::cout << "Current deck: " << getCurrentDeck() << " '"
-                      << deckName.str() << "'\n";
-            std::cout << "Classification: '" << classification << "' Company: '"
-                      << installation << "' Name: '" << name << "' Id: '" << id
-                      << "' Format: '" << format << "'"
-                      << "\n";
-            std::cout << "===========\n";
-          } else {
+          if (showThisDeck_) {
+            if (showTapePos_) {
+              std::cout << std::setw(12) << std::setfill('0')
+                        << getRecordPos() + linePos << " ";
+            }
+            if (showCardNumber_) {
+              std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
+                        << " ";
+            }
             std::cout << view << "\n";
           }
         }
+
+        cardNumber_++;
+        linePos += lineSize_;
         ostream.str("");
       }
     }
@@ -141,7 +218,15 @@ public:
 protected:
   std::unique_ptr<even_glyphs_t> tapeChars_;
   bool showHeaders_{showHeaders};
+  bool showCardNumber_{showCardNumber};
   size_t nextDeck_{0};
+  std::string deckName_;
+  bool showDeck_{showDeck};
+  bool showThisDeck_{true};
+  size_t cardNumber_{0};
+  bool showTapePos_{showTapePos};
+  std::vector<unsigned> deckNumbers_{deckNumbers};
+  size_t lineSize_{0};
 };
 
 int main(int argc, const char **argv) {

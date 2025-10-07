@@ -158,13 +158,13 @@ public:
 
   void onRecordData(char *buffer, size_t size) override {
     if (dump) {
-      for (size_t i = 0; i < size; ++i) {
+      for (pos_type i = 0; i < size; i = i + pos_type(1)) {
         if (0 == i % width_) {
           if (i > 0) {
             std::cout << '\n';
           }
           std::cout << std::dec << std::setw(7) << std::setfill(' ')
-                    << tapePos_ + i << ": ";
+                    << tellg() + i << ": ";
         } else if (i > 0 && grouping_ > 0 && (0 == (i % grouping_))) {
           std::cout << ' ';
         }
@@ -317,21 +317,21 @@ public:
 
   void onEndOfRecord() override {
     if (dump) {
-      size_t recordLength = tapePos_ - recordStartPos_;
+      off_type recordLength = tellg() - getRecordPos();
       std::cout << "EOR " << " record length: " << recordLength << "\n";
     }
   }
 
   void onEndOfFile() override {
     if (dump) {
-      std::cout << "EOF " << std::dec << tapePos_ << "\n";
+      std::cout << "EOF " << std::dec << tellg() << "\n";
       stopReading();
     }
   }
 
   void onEndOfTape() override {
     if (dump) {
-      std::cout << "EOT " << std::dec << tapePos_ << "\n";
+      std::cout << "EOT " << std::dec << tellg() << "\n";
     }
   }
 

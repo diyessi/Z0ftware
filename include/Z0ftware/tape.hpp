@@ -38,8 +38,6 @@ public:
   using pos_type = stream_type::pos_type;
   using off_type = stream_type::off_type;
 
-  // Returns 0 at end of record
-  virtual size_t read(char *buffer, size_t size) = 0;
   // Returns true if already at EOR and positions for next record
   virtual bool nextRecord() = 0;
   // At end of record
@@ -49,7 +47,9 @@ public:
   // Problem reading input stream
   virtual bool isError() const = 0;
 
-  // Start of buffer
+  // Returns 0 at end of record
+  virtual size_t read(char *buffer, size_t size) = 0;
+  // Position for next read
   virtual pos_type tellg() const = 0;
   // Start of record
   virtual pos_type getRecordPos() const = 0;
@@ -68,7 +68,6 @@ class P7BIStream : public TapeIRecordStream {
 public:
   P7BIStream(std::istream &input);
   bool nextRecord() override;
-  size_t read(char *buffer, size_t size) override;
 
   bool isEOR() const override {
     return tapeBufferPos_ == tapeBORPos_ && tapeBORPos_ != tapeBufferEnd_;
@@ -76,7 +75,8 @@ public:
   bool isEOT() const override { return eot_; }
   bool isError() const override { return error_; }
 
-  pos_type tellg() const override { return bufferPos_; }
+  size_t read(char *buffer, size_t size) override;
+  pos_type tellg() const override { return input_.tellg(); }
   pos_type getRecordPos() const override { return recordPos_; }
   pos_type getRecordNum() const override { return recordNum_; }
 
