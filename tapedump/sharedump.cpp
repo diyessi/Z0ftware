@@ -30,11 +30,15 @@
 
 #include "llvm/Support/CommandLine.h"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
+
+using json = nlohmann::json;
 
 namespace {
 llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
@@ -62,6 +66,9 @@ llvm::cl::list<unsigned>
 llvm::cl::opt<bool> showTapePos("show-tape-pos",
                                 llvm::cl::desc("Show tape position"));
 
+llvm::cl::opt<std::string> edits("edits",
+                                 llvm::cl::desc("Edits for tape file"));
+
 } // namespace
 
 // Share tapes encode card decks on IBM70x tapes.
@@ -80,10 +87,11 @@ llvm::cl::opt<bool> showTapePos("show-tape-pos",
 // parity of 6-bit characters. An one card deck identifier record precedes each
 // deck, which consists of one or more records or multiple cards each. Blank
 // cards pad the record to uniform size.
-class ShareExtractor : public TapeReadAdapter {
+class ShareExtractor : public LowLevelTapeParser {
 public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const CharsetForTape &charSet)
-      : TapeReadAdapter(tapeIStream), tapeChars_(charSet.getTapeCharset(true)) {
+      : LowLevelTapeParser(tapeIStream),
+        tapeChars_(charSet.getTapeCharset(true)) {
     for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
       std::cout << tapeChars_->at(evenParity(i.value()).value());
     }
@@ -91,14 +99,14 @@ public:
   }
 
   size_t getCurrentDeck() { return nextDeck_ - 1; }
-  size_t getCardNumber() { return cardNumber_ - 1; }
+  size_t getCardNumber() { return cardNumber_; }
 
-  void onRead(size_t pos, char *buffer, size_t size) override {}
+  void onRead(off_type pos, char *buffer, size_t size) override {}
   void onRecordData(char *buffer, size_t size) override {}
   void onBinaryRecordData() override {
     if (showThisDeck_) {
       if (showTapePos_) {
-        std::cout << std::setw(12) << std::setfill('0') << getRecordPos()
+        std::cout << std::setw(12) << std::setfill('0') << getRecordOffset()
                   << " ";
       }
       if (showCardNumber_) {
@@ -140,7 +148,7 @@ public:
       auto format = view.substr(33, 2);
       std::cout << "===========\n";
       if (showTapePos_) {
-        std::cout << std::setw(12) << std::setfill('0') << getRecordPos()
+        std::cout << std::setw(12) << std::setfill('0') << getRecordOffset()
                   << " ";
       }
       if (showCardNumber_) {
@@ -191,7 +199,7 @@ public:
           if (showThisDeck_) {
             if (showTapePos_) {
               std::cout << std::setw(12) << std::setfill('0')
-                        << getRecordPos() + linePos << " ";
+                        << getRecordOffset() + linePos << " ";
             }
             if (showCardNumber_) {
               std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
@@ -249,7 +257,21 @@ int main(int argc, const char **argv) {
       std::cerr << "Count not open " << inputFileName << "\n";
       continue;
     }
-    P7BIStream reader(input);
+    TapeEditStream<P7BIStream> reader(input);
+
+    if (!edits.empty()) {
+        std::ifstream editsFile(edits);
+        json editObj = json::parse(editsFile);
+        auto &filename = editObj["file"];
+        auto &editList = editObj["edits"];
+        for (auto& editItem : editList){
+            size_t start = editItem[0];
+            size_t end = editItem[1];
+            std::string replacement = editItem[2];
+            reader.addEdit(start, end, replacement);
+        }
+    }
+
     ShareExtractor extractor(reader, collateGlyphCardTape);
     extractor.read();
     input.close();

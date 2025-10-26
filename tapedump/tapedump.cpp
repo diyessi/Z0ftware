@@ -129,12 +129,12 @@ protected:
   std::unordered_map<char, char> unmapped_;
 };
 
-class DumpTapeAdapter : public TapeReadAdapter {
+class DumpTapeAdapter : public LowLevelTapeParser {
 public:
   DumpTapeAdapter(TapeIRecordStream &tapeIStream, BCDHandler &bcdHandler)
-      : TapeReadAdapter(tapeIStream), bcdHandler_(bcdHandler) {}
+      : LowLevelTapeParser(tapeIStream), bcdHandler_(bcdHandler) {}
 
-  void onRead(size_t pos, char *buffer, size_t numRead) override {
+  void onRead(off_type pos, char *buffer, size_t numRead) override {
     if (raw) {
       for (size_t i = 0; i < numRead; ++i) {
         if (0 == (pos + i) % width_) {

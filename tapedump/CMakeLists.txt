@@ -16,4 +16,5 @@ add_executable(sharedump
 target_link_libraries(sharedump
     Z0ftware
     ${llvm_libs}
+    nlohmann_json::nlohmann_json
 )

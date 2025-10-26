@@ -26,7 +26,10 @@
 #include <array>
 #include <cstddef>
 #include <istream>
+#include <set>
 #include <vector>
+
+#include <iostream>
 
 // Interface for reading encodings of tapes.
 class TapeIRecordStream {
@@ -51,13 +54,21 @@ public:
   virtual size_t read(char *buffer, size_t size) = 0;
   // Position for next read
   virtual pos_type tellg() const = 0;
-  // Start of record
+  // Start of tape
+  virtual pos_type getTapePos() const = 0;
+  // Start of record position
   virtual pos_type getRecordPos() const = 0;
+  // Record position relative to tape start
+  virtual off_type getRecordOffset() const {
+    return getRecordPos() - getTapePos();
+  }
+  // Offset for next read
+  virtual off_type getOffset() const { return tellg() - getTapePos(); }
   // Record number
-  virtual pos_type getRecordNum() const = 0;
+  virtual size_t getRecordNum() const = 0;
 };
 
-// Reads P7B format on PierceFuller IBM tapes
+// Reads P7B format as records on PierceFuller IBM tapes
 //
 // Bit 7 is set for first byte of a record
 // Bit 6 is parity, odd for binary, even for BCD
@@ -67,18 +78,29 @@ class P7BIStream : public TapeIRecordStream {
 
 public:
   P7BIStream(std::istream &input);
+
+  // Rrturns true if there is a next record, false if not
   bool nextRecord() override;
 
   bool isEOR() const override {
-    return tapeBufferPos_ == tapeBORPos_ && tapeBORPos_ != tapeBufferEnd_;
+    return bufferNext_ == recordEnd_ && recordEnd_ < bufferEnd_;
   }
   bool isEOT() const override { return eot_; }
   bool isError() const override { return error_; }
 
+  // Reads up to size bytes into buffer, not crossing a record boundary
   size_t read(char *buffer, size_t size) override;
-  pos_type tellg() const override { return input_.tellg(); }
+
+  // Position in underlying stream for next read
+  pos_type tellg() const override {
+    return bufferPos_ + off_type(bufferNext_ - tapeBuffer_.data());
+  }
+  // Position in underlying stream for tape start
+  pos_type getTapePos() const override { return tapePos_; }
+  // Position in underlying stream for start of record
   pos_type getRecordPos() const override { return recordPos_; }
-  pos_type getRecordNum() const override { return recordNum_; }
+  // 0-based record number
+  size_t getRecordNum() const override { return recordNum_; }
 
 protected:
   void fillTapeBuffer();
@@ -86,31 +108,129 @@ protected:
   // Scan for the next begin of record mark
   void findNextBOR();
 
+  static constexpr size_t bufferSize_ = 1024;
+
   std::istream &input_;
-  std::array<char, 1024> tapeBuffer_{0};
-  char *tapeBufferPos_{tapeBuffer_.data()};
-  char *tapeBufferEnd_{tapeBufferPos_};
-  char *tapeBORPos_{nullptr};
+  std::array<char, bufferSize_> tapeBuffer_{0};
+
+  // Position in underlying stream for start of tape
+  pos_type tapePos_;
+
+  // Next buffer char to use
+  char *bufferNext_{tapeBuffer_.data()};
+  // Pos of next buffer to use
+  pos_type bufferPos_;
+  // Last valid char in buffer
+  char *bufferEnd_{tapeBuffer_.data()};
+  // Last char in record if less than bufferEnd_;
+  char *recordEnd_;
+  pos_type recordPos_;
 
   bool eot_{false};
   bool error_{false};
-
-  pos_type bufferPos_{0};
-  pos_type recordPos_{0};
-  pos_type nextRecordPos_{0};
-  pos_type recordNum_{0};
+  size_t recordNum_{0};
 };
 
-class TapeEdit {
+template <typename TapeStream> class TapeEditStream : public TapeStream {
 public:
-  virtual ~TapeEdit() = default;
-  virtual void apply(size_t offset, std::vector<char> &record) const = 0;
+  using TapeStream::TapeStream;
+  using typename TapeStream::off_type;
+  using typename TapeStream::pos_type;
+
+  // Replace chars in [first, last) with replacement
+  void addEdit(TapeStream::pos_type first, TapeStream::pos_type last,
+               std::string replacement) {
+    edits_.insert({first, last, replacement});
+  }
+
+  typename TapeStream::pos_type tellg() const override { return tellg_; }
+
+  typename TapeStream::pos_type tellgBase() const {
+    return TapeStream::tellg();
+  }
+
+  size_t read(char *buffer, size_t size) override {
+
+    if (!initialized_) {
+      editIt_ = edits_.begin();
+      nextEdit_ = Edit{0, 0, ""};
+      initialized_ = true;
+      if (editIt_ == edits_.end()) {
+        nextEdit_.begin = std::numeric_limits<off_type>::max();
+        nextEdit_.end = std::numeric_limits<off_type>::max();
+        nextEdit_.replacement = "";
+      }
+    }
+
+    if (TapeStream::isEOT() || TapeStream::isError()) {
+      return 0;
+    }
+
+    while (true) {
+      while (nextEdit_.begin == nextEdit_.end &&
+             nextEdit_.replacement.empty()) {
+        if (editIt_ == edits_.end()) {
+          nextEdit_.begin = std::numeric_limits<off_type>::max();
+          nextEdit_.end = std::numeric_limits<off_type>::max();
+          nextEdit_.replacement = "";
+          break;
+        } else {
+          nextEdit_ = *editIt_++;
+        }
+      }
+
+      off_type pos = tellgBase();
+      if (pos < nextEdit_.begin) {
+        // Read up to next edit position
+        auto readSize = TapeStream::read(
+            buffer, std::min(size, size_t(nextEdit_.begin - pos)));
+        tellg_ = tellg_ + readSize;
+        return readSize;
+      }
+      if (pos > nextEdit_.begin) {
+        std::cerr << "Wrong\n";
+      }
+      while (pos < nextEdit_.end) {
+        // Skip over deletion
+        auto readSize = TapeStream::read(
+            buffer, std::min(size, size_t(nextEdit_.end - pos)));
+        pos = tellgBase();
+        nextEdit_.begin = pos;
+      }
+      if (!nextEdit_.replacement.empty()) {
+        auto copySize = std::min(size, nextEdit_.replacement.size());
+        std::copy(nextEdit_.replacement.begin(),
+                  nextEdit_.replacement.begin() + copySize, &buffer[0]);
+        tellg_ = tellg_ + pos_type(copySize);
+        nextEdit_.replacement = nextEdit_.replacement.substr(copySize);
+        return copySize;
+      }
+    }
+  }
+
+protected:
+  struct Edit {
+    TapeStream::off_type begin;
+    TapeStream::off_type end;
+    std::string replacement;
+
+    friend auto operator<=>(const Edit &e1, const Edit &e2) {
+      auto high = (e1.begin <=> e2.begin);
+      return 0 == high ? (e1.end <=> e2.end) : high;
+    }
+  };
+
+  std::set<Edit> edits_;
+  std::set<Edit>::iterator editIt_;
+  Edit nextEdit_{0, 0, ""};
+  bool initialized_{false};
+  typename TapeStream::off_type tellg_{0};
 };
 
-// Forms full records and categorizes as binary/BCD.
+// Reads a 7-bit tape stream generating events for records
 // TODO: Perform position-based edits to correct tape read errors here or in the
 // input stream.
-class TapeReadAdapter {
+class LowLevelTapeParser {
 public:
   using stream_type = TapeIRecordStream;
   using char_type = stream_type::char_type;
@@ -119,19 +239,21 @@ public:
   using pos_type = stream_type::pos_type;
   using off_type = stream_type::off_type;
 
-  TapeReadAdapter(stream_type &tapeIStream) : tapeIStream_(tapeIStream) {}
+  LowLevelTapeParser(stream_type &tapeIStream) : tapeIStream_(tapeIStream) {}
 
   void read();
   void stopReading() { reading_ = false; }
   pos_type getRecordPos() const { return tapeIStream_.getRecordPos(); }
+  off_type getRecordOffset() const { return tapeIStream_.getRecordOffset(); }
   pos_type tellg() const { return tapeIStream_.tellg(); }
   size_t getRecordNum() const { return tapeIStream_.getRecordNum(); }
+  off_type getOffset() const { return tapeIStream_.getOffset(); }
 
   // Events
 
   // Buffer read from input
   // pos is file position
-  virtual void onRead(size_t pos, char *buffer, size_t size) {}
+  virtual void onRead(off_type pos, char *buffer, size_t size) {}
   virtual void onRecordData(char *buffer, size_t size) {}
   virtual void onBinaryRecordData() {}
   virtual void onBCDRecordData() {}
