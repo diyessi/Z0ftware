@@ -41,6 +41,8 @@ public:
   using pos_type = stream_type::pos_type;
   using off_type = stream_type::off_type;
 
+  virtual ~TapeIRecordStream() = default;
+
   // Returns true if already at EOR and positions for next record
   virtual bool nextRecord() = 0;
   // At end of record
@@ -66,6 +68,42 @@ public:
   virtual off_type getOffset() const { return tellg() - getTapePos(); }
   // Record number
   virtual size_t getRecordNum() const = 0;
+};
+
+class DelegateTapeIRecordStream : public TapeIRecordStream {
+public:
+  template <typename T>
+  DelegateTapeIRecordStream(T &&input) : input_(std::move(input)) {}
+
+  bool nextRecord() override { return input_->nextRecord(); };
+  // At end of record
+  bool isEOR() const override { return input_->isEOR(); };
+  // At end of tape
+  bool isEOT() const override { return input_->isEOT(); };
+  // Problem reading input stream
+  bool isError() const override { return input_->isError(); };
+
+  // Returns 0 at end of record
+  size_t read(char *buffer, size_t size) override {
+    return input_->read(buffer, size);
+  };
+  // Position for next read
+  pos_type tellg() const override { return input_->tellg(); };
+  // Start of tape
+  pos_type getTapePos() const override { return input_->getTapePos(); };
+  // Start of record position
+  pos_type getRecordPos() const override { return input_->getRecordPos(); };
+  // Record position relative to tape start
+  off_type getRecordOffset() const override {
+    return input_->getRecordOffset();
+  }
+  // Offset for next read
+  off_type getOffset() const override { return input_->getOffset(); }
+  // Record number
+  size_t getRecordNum() const override { return input_->getRecordNum(); }
+
+protected:
+  std::unique_ptr<TapeIRecordStream> input_;
 };
 
 // Reads P7B format as records on PierceFuller IBM tapes
@@ -131,23 +169,18 @@ protected:
   size_t recordNum_{0};
 };
 
-template <typename TapeStream> class TapeEditStream : public TapeStream {
+class TapeEditStream : public DelegateTapeIRecordStream {
 public:
-  using TapeStream::TapeStream;
-  using typename TapeStream::off_type;
-  using typename TapeStream::pos_type;
+  using DelegateTapeIRecordStream::DelegateTapeIRecordStream;
 
   // Replace chars in [first, last) with replacement
-  void addEdit(TapeStream::pos_type first, TapeStream::pos_type last,
-               std::string replacement) {
+  void addEdit(pos_type first, pos_type last, std::string replacement) {
     edits_.insert({first, last, replacement});
   }
 
-  typename TapeStream::pos_type tellg() const override { return tellg_; }
+  pos_type tellg() const override { return tellg_; }
 
-  typename TapeStream::pos_type tellgBase() const {
-    return TapeStream::tellg();
-  }
+  pos_type tellgBase() const { return input_->tellg(); }
 
   size_t read(char *buffer, size_t size) override {
 
@@ -162,7 +195,7 @@ public:
       }
     }
 
-    if (TapeStream::isEOT() || TapeStream::isError()) {
+    if (input_->isEOT() || input_->isError()) {
       return 0;
     }
 
@@ -182,8 +215,8 @@ public:
       off_type pos = tellgBase();
       if (pos < nextEdit_.begin) {
         // Read up to next edit position
-        auto readSize = TapeStream::read(
-            buffer, std::min(size, size_t(nextEdit_.begin - pos)));
+        auto readSize =
+            input_->read(buffer, std::min(size, size_t(nextEdit_.begin - pos)));
         tellg_ = tellg_ + readSize;
         return readSize;
       }
@@ -192,8 +225,8 @@ public:
       }
       while (pos < nextEdit_.end) {
         // Skip over deletion
-        auto readSize = TapeStream::read(
-            buffer, std::min(size, size_t(nextEdit_.end - pos)));
+        auto readSize =
+            input_->read(buffer, std::min(size, size_t(nextEdit_.end - pos)));
         pos = tellgBase();
         nextEdit_.begin = pos;
       }
@@ -210,8 +243,8 @@ public:
 
 protected:
   struct Edit {
-    TapeStream::off_type begin;
-    TapeStream::off_type end;
+    off_type begin;
+    off_type end;
     std::string replacement;
 
     friend auto operator<=>(const Edit &e1, const Edit &e2) {
@@ -224,7 +257,7 @@ protected:
   std::set<Edit>::iterator editIt_;
   Edit nextEdit_{0, 0, ""};
   bool initialized_{false};
-  typename TapeStream::off_type tellg_{0};
+  off_type tellg_{0};
 };
 
 // Reads a 7-bit tape stream generating events for records

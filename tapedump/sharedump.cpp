@@ -257,22 +257,23 @@ int main(int argc, const char **argv) {
       std::cerr << "Count not open " << inputFileName << "\n";
       continue;
     }
-    TapeEditStream<P7BIStream> reader(input);
-
+    std::unique_ptr<TapeIRecordStream> reader(
+        std::make_unique<P7BIStream>(input));
     if (!edits.empty()) {
-        std::ifstream editsFile(edits);
-        json editObj = json::parse(editsFile);
-        auto &filename = editObj["file"];
-        auto &editList = editObj["edits"];
-        for (auto& editItem : editList){
-            size_t start = editItem[0];
-            size_t end = editItem[1];
-            std::string replacement = editItem[2];
-            reader.addEdit(start, end, replacement);
-        }
+      std::ifstream editsFile(edits);
+      json editObj = json::parse(editsFile);
+      auto editStream = std::make_unique<TapeEditStream>(std::move(reader));
+      auto &editList = editObj["edits"];
+      for (auto &editItem : editList) {
+        size_t start = editItem[0];
+        size_t end = editItem[1];
+        std::string replacement = editItem[2];
+        editStream->addEdit(start, end, replacement);
+      }
+      reader = std::move(editStream);
     }
 
-    ShareExtractor extractor(reader, collateGlyphCardTape);
+    ShareExtractor extractor(*reader, collateGlyphCardTape);
     extractor.read();
     input.close();
   }
