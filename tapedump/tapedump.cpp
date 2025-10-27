@@ -131,10 +131,15 @@ protected:
 
 class DumpTapeAdapter : public LowLevelTapeParser {
 public:
-  DumpTapeAdapter(TapeIRecordStream &tapeIStream, BCDHandler &bcdHandler)
-      : LowLevelTapeParser(tapeIStream), bcdHandler_(bcdHandler) {}
+  DumpTapeAdapter(P7BIStream &tapeIStream, BCDHandler &bcdHandler)
+      : LowLevelTapeParser(tapeIStream), bcdHandler_(bcdHandler) {
+    tapeIStream.addOutputReadEventListener(
+        [this](off_type offset, char *buffer, size_t size) {
+          onRead(offset, buffer, size);
+        });
+  }
 
-  void onRead(off_type pos, char *buffer, size_t numRead) override {
+  void onRead(off_type pos, char *buffer, size_t numRead) {
     if (raw) {
       for (size_t i = 0; i < numRead; ++i) {
         if (0 == (pos + i) % width_) {
@@ -227,42 +232,6 @@ public:
           }
           card.clear();
           std::cout << "\n";
-#if 0
-          BinaryColumnCard card;
-          auto &columns = card.getColumns();
-          for (size_t col = 0; col < 80; col++) {
-            hollerith_t high = record_[record_pos++];
-            hollerith_t low = record_[record_pos++];
-            columns[col] = ((high & 0x3F) << 6) | (low & 0x3F);
-            if (0 == col % 6) {
-              std::cout << "\n";
-            } else if (0 == col % 3) {
-              std::cout << " ";
-            }
-            std::cout << std::oct << std::setw(4) << std::setfill('0')
-                      << columns[col] << ' ';
-          }
-          std::cout << "\n";
-
-          BinaryRowCard rowCard(card);
-
-          static size_t row_trans[] = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 11, 12};
-          for (int row = 11; row >= 0; --row) {
-            std::cout << std::dec << ::std::setw(2) << row_trans[row] << " "
-                      << std::oct << std::setw(12) << std::setfill('0')
-                      << rowCard.getRowWords()[0][row] << " " << std::setw(12)
-                      << std::setfill('0') << rowCard.getRowWords()[1][row]
-                      << " " << std::setw(3) << std::setfill('0')
-                      << rowCard.getRowWords()[2][row] << std::endl;
-          }
-          std::cout << std::endl;
-          uint64_t checksum{0};
-          for (size_t row = 0; row < 11; row++) {
-            checksum += rowCard.getRowWords()[0][row];
-            checksum += rowCard.getRowWords()[1][row];
-          }
-          std::cout << "Checksum: " << std::oct << checksum << "\n";
-#endif
         }
       } else {
         std::cout << "Unhandled record size\n";

@@ -25,11 +25,53 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <istream>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include <iostream>
+
+class InputReadEventGenerator {
+public:
+  using off_type = std::istream::off_type;
+  using read_event_listener_t =
+      std::function<void(off_type offset, char *buffer, size_t size)>;
+
+  void addInputReadEventListener(read_event_listener_t listener) {
+    listeners_.push_back(listener);
+  }
+
+protected:
+  void onInputRead(off_type offset, char *buffer, size_t size) {
+    for (auto listener : listeners_) {
+      listener(offset, buffer, size);
+    }
+  }
+
+  std::vector<read_event_listener_t> listeners_;
+};
+
+class OutputReadEventGenerator {
+public:
+  using off_type = std::istream::off_type;
+  using read_event_listener_t =
+      std::function<void(off_type offset, char *buffer, size_t size)>;
+
+  void addOutputReadEventListener(read_event_listener_t listener) {
+    listeners_.push_back(listener);
+  }
+
+protected:
+  void onOutputRead(off_type offset, char *buffer, size_t size) {
+    for (auto listener : listeners_) {
+      listener(offset, buffer, size);
+    }
+  }
+
+  std::vector<read_event_listener_t> listeners_;
+};
 
 // Interface for reading encodings of tapes.
 class TapeIRecordStream {
@@ -112,7 +154,9 @@ protected:
 // Bit 6 is parity, odd for binary, even for BCD
 // Bits 5-0 are data
 //
-class P7BIStream : public TapeIRecordStream {
+class P7BIStream : public TapeIRecordStream,
+                   public InputReadEventGenerator,
+                   public OutputReadEventGenerator {
 
 public:
   P7BIStream(std::istream &input);
@@ -127,7 +171,12 @@ public:
   bool isError() const override { return error_; }
 
   // Reads up to size bytes into buffer, not crossing a record boundary
-  size_t read(char *buffer, size_t size) override;
+  size_t read(char *buffer, size_t size) override {
+    off_type offset = getOffset();
+    size_t readSize = readInternal(buffer, size);
+    onOutputRead(offset, buffer, readSize);
+    return readSize;
+  }
 
   // Position in underlying stream for next read
   pos_type tellg() const override {
@@ -141,6 +190,16 @@ public:
   size_t getRecordNum() const override { return recordNum_; }
 
 protected:
+  inline size_t inputRead(char *buffer, size_t size) {
+    off_type offset = getOffset();
+    input_.read(buffer, size);
+    size_t readSize = input_.gcount();
+    onInputRead(offset, buffer, readSize);
+    return readSize;
+  }
+
+  size_t readInternal(char *buffer, size_t size);
+
   void fillTapeBuffer();
 
   // Scan for the next begin of record mark
@@ -148,6 +207,7 @@ protected:
 
   static constexpr size_t bufferSize_ = 1024;
 
+  bool initialized_ = false;
   std::istream &input_;
   std::array<char, bufferSize_> tapeBuffer_{0};
 
@@ -169,7 +229,9 @@ protected:
   size_t recordNum_{0};
 };
 
-class TapeEditStream : public DelegateTapeIRecordStream {
+class TapeEditStream : public DelegateTapeIRecordStream,
+                       public InputReadEventGenerator,
+                       public OutputReadEventGenerator {
 public:
   using DelegateTapeIRecordStream::DelegateTapeIRecordStream;
 
@@ -178,13 +240,28 @@ public:
     edits_.insert({first, last, replacement});
   }
 
+  size_t read(char *buffer, size_t size) override {
+    off_type offset = getOffset();
+    size_t readSize = readInternal(buffer, size);
+    onOutputRead(offset, buffer, readSize);
+    return readSize;
+  }
+
   pos_type tellg() const override { return tellg_; }
 
   pos_type tellgBase() const { return input_->tellg(); }
 
-  size_t read(char *buffer, size_t size) override {
+protected:
+  size_t inputRead(char *buffer, size_t size) {
+    off_type offset = input_->getOffset();
+    size_t readSize = input_->read(buffer, size);
+    onInputRead(offset, buffer, readSize);
+    return readSize;
+  }
 
+  inline size_t readInternal(char *buffer, size_t size) {
     if (!initialized_) {
+      tellg_ = input_->tellg();
       editIt_ = edits_.begin();
       nextEdit_ = Edit{0, 0, ""};
       initialized_ = true;
@@ -216,17 +293,14 @@ public:
       if (pos < nextEdit_.begin) {
         // Read up to next edit position
         auto readSize =
-            input_->read(buffer, std::min(size, size_t(nextEdit_.begin - pos)));
+            inputRead(buffer, std::min(size, size_t(nextEdit_.begin - pos)));
         tellg_ = tellg_ + readSize;
         return readSize;
-      }
-      if (pos > nextEdit_.begin) {
-        std::cerr << "Wrong\n";
       }
       while (pos < nextEdit_.end) {
         // Skip over deletion
         auto readSize =
-            input_->read(buffer, std::min(size, size_t(nextEdit_.end - pos)));
+            inputRead(buffer, std::min(size, size_t(nextEdit_.end - pos)));
         pos = tellgBase();
         nextEdit_.begin = pos;
       }
@@ -241,7 +315,6 @@ public:
     }
   }
 
-protected:
   struct Edit {
     off_type begin;
     off_type end;
@@ -261,8 +334,6 @@ protected:
 };
 
 // Reads a 7-bit tape stream generating events for records
-// TODO: Perform position-based edits to correct tape read errors here or in the
-// input stream.
 class LowLevelTapeParser {
 public:
   using stream_type = TapeIRecordStream;
@@ -286,7 +357,6 @@ public:
 
   // Buffer read from input
   // pos is file position
-  virtual void onRead(off_type pos, char *buffer, size_t size) {}
   virtual void onRecordData(char *buffer, size_t size) {}
   virtual void onBinaryRecordData() {}
   virtual void onBCDRecordData() {}

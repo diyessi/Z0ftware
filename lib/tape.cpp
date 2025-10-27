@@ -26,20 +26,18 @@
 #include <istream>
 
 P7BIStream::P7BIStream(std::istream &input) : input_(input) {
-  bufferNext_ = nullptr;
-  bufferEnd_ = nullptr;
-  recordEnd_ = nullptr;
-  tapePos_ = input_.tellg();
-  nextRecord();
-  recordNum_ = 0;
+  bufferNext_ = tapeBuffer_.data();
+  bufferEnd_ = tapeBuffer_.data();
+  recordEnd_ = tapeBuffer_.data();
+  initialized_ = false;
 }
 
 void P7BIStream::fillTapeBuffer() {
   if (!(error_ || eot_) && bufferNext_ == bufferEnd_) {
     bufferPos_ = input_.tellg();
-    input_.read(tapeBuffer_.data(), tapeBuffer_.size());
+    size_t readSize = inputRead(tapeBuffer_.data(), tapeBuffer_.size());
     bufferNext_ = tapeBuffer_.data();
-    bufferEnd_ = bufferNext_ + input_.gcount();
+    bufferEnd_ = bufferNext_ + readSize;
 
     if (bufferNext_ == bufferEnd_) {
       // End of input before EOF marker
@@ -77,7 +75,13 @@ bool P7BIStream::nextRecord() {
   return true;
 }
 
-size_t P7BIStream::read(char *buffer, size_t size) {
+size_t P7BIStream::readInternal(char *buffer, size_t size) {
+  if (!initialized_) {
+    tapePos_ = input_.tellg();
+    nextRecord();
+    recordNum_ = 0;
+    initialized_ = true;
+  }
   while (true) {
     if (error_ || eot_) {
       return 0;
@@ -100,7 +104,6 @@ void LowLevelTapeParser::read() {
   while (reading_) {
     auto pos = getOffset();
     size_t size = tapeIStream_.read(buffer, sizeof(buffer));
-    onRead(pos, buffer, size);
     if (1 == size) {
       // Marker
       char mark = buffer[0] & 0x0F;

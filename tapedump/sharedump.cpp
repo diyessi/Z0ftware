@@ -45,6 +45,22 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
                                            llvm::cl::desc("<Input files>"),
                                            llvm::cl::OneOrMore);
 
+llvm::cl::opt<bool> dumpP7BInput("dump-p7b-inputs",
+                                 llvm::cl::desc("dump read p7b inputs"),
+                                 llvm::cl::init(false));
+
+llvm::cl::opt<bool> dumpP7BOutput("dump-p7b-outputs",
+                                  llvm::cl::desc("dump p7b read outputs"),
+                                  llvm::cl::init(false));
+
+llvm::cl::opt<bool> dumpEditInputs("dump-edit-inputs",
+                                   llvm::cl::desc("dump edit read inputs"),
+                                   llvm::cl::init(false));
+
+llvm::cl::opt<bool> dumpEditOutputs("dump-edit-outputs",
+                                    llvm::cl::desc("dump edit read outputs"),
+                                    llvm::cl::init(false));
+
 llvm::cl::opt<bool> listFiles("list", llvm::cl::desc("list files on tape"),
                               llvm::cl::init(false));
 
@@ -101,7 +117,6 @@ public:
   size_t getCurrentDeck() { return nextDeck_ - 1; }
   size_t getCardNumber() { return cardNumber_; }
 
-  void onRead(off_type pos, char *buffer, size_t size) override {}
   void onRecordData(char *buffer, size_t size) override {}
   void onBinaryRecordData() override {
     if (showThisDeck_) {
@@ -254,11 +269,25 @@ int main(int argc, const char **argv) {
     std::ifstream input(inputFileName,
                         std::ifstream::binary | std::ifstream::in);
     if (!input.is_open()) {
-      std::cerr << "Count not open " << inputFileName << "\n";
+      std::cerr << "Could not open " << inputFileName << "\n";
       continue;
     }
-    std::unique_ptr<TapeIRecordStream> reader(
-        std::make_unique<P7BIStream>(input));
+    std::unique_ptr<P7BIStream> p7biStream =
+        std::make_unique<P7BIStream>(input);
+    if (dumpP7BInput) {
+      p7biStream->addInputReadEventListener(
+          [](P7BIStream::pos_type pos, char *buffer, size_t size) {
+            std::cout << "*** P7B Input: " << pos << ":" << size << std::endl;
+          });
+    }
+    if (dumpP7BOutput) {
+      p7biStream->addOutputReadEventListener(
+          [](P7BIStream::pos_type pos, char *buffer, size_t size) {
+            std::cout << "*** P7B Output: " << pos << ":" << size << std::endl;
+          });
+    }
+
+    std::unique_ptr<TapeIRecordStream> reader(std::move(p7biStream));
     if (!edits.empty()) {
       std::ifstream editsFile(edits);
       json editObj = json::parse(editsFile);
@@ -269,6 +298,19 @@ int main(int argc, const char **argv) {
         size_t end = editItem[1];
         std::string replacement = editItem[2];
         editStream->addEdit(start, end, replacement);
+      }
+      if (dumpEditInputs) {
+        editStream->addInputReadEventListener(
+            [](P7BIStream::pos_type pos, char *buffer, size_t size) {
+              std::cout << "*** EditInput: " << pos << ":" << size << std::endl;
+            });
+      }
+
+      if (dumpEditOutputs) {
+        editStream->addOutputReadEventListener([](P7BIStream::pos_type pos,
+                                                  char *buffer, size_t size) {
+          std::cout << "*** EditOutput: " << pos << ":" << size << std::endl;
+        });
       }
       reader = std::move(editStream);
     }
