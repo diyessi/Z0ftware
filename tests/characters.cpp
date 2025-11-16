@@ -34,7 +34,7 @@ TEST(characters, hollerith) {
 }
 
 TEST(characters, tape_bcd) {
-    std::unique_ptr<even_glyphs_t> glyphs(collateGlyphCardTape.getTapeCharset(false));
+    std::unique_ptr<parity_glyphs_t> glyphs(collateGlyphCardTape.getTapeCharset(false));
   for (auto &ctp : collateGlyphCardTape.getItems()) {
     EXPECT_EQ(glyphs->at(evenParity(ctp.sc).value()), ctp.glyphs[0].getUtf8Char()) << ctp.collate;
   }

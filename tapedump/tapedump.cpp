@@ -132,8 +132,8 @@ protected:
 class DumpTapeAdapter : public LowLevelTapeParser {
 public:
   DumpTapeAdapter(P7BIStream &tapeIStream, BCDHandler &bcdHandler)
-      : LowLevelTapeParser(tapeIStream), bcdHandler_(bcdHandler) {
-    tapeIStream.addOutputReadEventListener(
+      : LowLevelTapeParser(tapeIStream), readerMonitor_(tapeIStream), bcdHandler_(bcdHandler) {
+    readerMonitor_.addReadEventListener(
         [this](off_type offset, char *buffer, size_t size) {
           onRead(offset, buffer, size);
         });
@@ -305,6 +305,7 @@ public:
   }
 
 protected:
+  ReaderMonitor readerMonitor_;
   BCDHandler bcdHandler_;
   size_t width_{width};
   size_t grouping_{grouping};
@@ -314,7 +315,9 @@ protected:
 };
 
 void dumpTape(BCDHandler &bcdHandler, std::istream &input) {
-  P7BIStream reader(input);
+  IStreamReader byteReader(input);
+
+  P7BIStream reader(byteReader);
   DumpTapeAdapter dumper(reader, bcdHandler);
   dumper.read();
 }

@@ -45,21 +45,27 @@ llvm::cl::list<std::string> inputFileNames(llvm::cl::Positional,
                                            llvm::cl::desc("<Input files>"),
                                            llvm::cl::OneOrMore);
 
-llvm::cl::opt<bool> dumpP7BInput("dump-p7b-inputs",
-                                 llvm::cl::desc("dump read p7b inputs"),
-                                 llvm::cl::init(false));
-
-llvm::cl::opt<bool> dumpP7BOutput("dump-p7b-outputs",
-                                  llvm::cl::desc("dump p7b read outputs"),
-                                  llvm::cl::init(false));
-
-llvm::cl::opt<bool> dumpEditInputs("dump-edit-inputs",
-                                   llvm::cl::desc("dump edit read inputs"),
+llvm::cl::opt<bool> dumpInputReads("dump-input-reads",
+                                   llvm::cl::desc("dump file reads"),
                                    llvm::cl::init(false));
 
-llvm::cl::opt<bool> dumpEditOutputs("dump-edit-outputs",
-                                    llvm::cl::desc("dump edit read outputs"),
-                                    llvm::cl::init(false));
+llvm::cl::opt<bool> dumpEditInputReads("dump-edit-input-reads",
+                                       llvm::cl::desc("dump edit input reads"),
+                                       llvm::cl::init(false));
+
+llvm::cl::opt<bool>
+    dumpEditOutputReads("dump-edit-output-reads",
+                        llvm::cl::desc("dump edit output reads"),
+                        llvm::cl::init(false));
+
+llvm::cl::opt<bool>
+    dumpP7BInputReads("dump-p7b-input-reads",
+                      llvm::cl::desc("dump read p7b input reads"),
+                      llvm::cl::init(false));
+
+llvm::cl::opt<bool> dumpP7BOutputReads("dump-p7b-output-reads",
+                                       llvm::cl::desc("dump p7b output reads"),
+                                       llvm::cl::init(false));
 
 llvm::cl::opt<bool> listFiles("list", llvm::cl::desc("list files on tape"),
                               llvm::cl::init(false));
@@ -108,8 +114,13 @@ public:
   ShareExtractor(TapeIRecordStream &tapeIStream, const CharsetForTape &charSet)
       : LowLevelTapeParser(tapeIStream),
         tapeChars_(charSet.getTapeCharset(true)) {
+    // Show character set
     for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
-      std::cout << tapeChars_->at(evenParity(i.value()).value());
+      std::cout << std::setw(2) << std::setfill('0') << i.value() << " "
+                << std::oct << std::setw(3) << std::setfill('0')
+                << evenParity(i.value()).value() << " " << std::setw(1)
+                << std::dec << tapeChars_->at(evenParity(i.value()).value())
+                << " " << tapeChars_->at(oddParity(i.value()).value()) << "\n";
     }
     std::cout << std::endl;
   }
@@ -120,15 +131,7 @@ public:
   void onRecordData(char *buffer, size_t size) override {}
   void onBinaryRecordData() override {
     if (showThisDeck_) {
-      if (showTapePos_) {
-        std::cout << std::setw(12) << std::setfill('0') << getRecordOffset()
-                  << " ";
-      }
-      if (showCardNumber_) {
-        std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
-                  << " ";
-      }
-
+      showPosition();
       std::cout << "Binary\n";
     }
   }
@@ -162,14 +165,7 @@ public:
       auto id = view.substr(20, view.find(' ', 20) - 20);
       auto format = view.substr(33, 2);
       std::cout << "===========\n";
-      if (showTapePos_) {
-        std::cout << std::setw(12) << std::setfill('0') << getRecordOffset()
-                  << " ";
-      }
-      if (showCardNumber_) {
-        std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
-                  << " ";
-      }
+      showPosition();
 
       std::cout << view << "\n";
       std::ostringstream deckName;
@@ -212,14 +208,7 @@ public:
                                        [](char c) { return c != ' '; })) {
 
           if (showThisDeck_) {
-            if (showTapePos_) {
-              std::cout << std::setw(12) << std::setfill('0')
-                        << getRecordOffset() + linePos << " ";
-            }
-            if (showCardNumber_) {
-              std::cout << std::setw(4) << std::setfill('0') << getCardNumber()
-                        << " ";
-            }
+            showPosition();
             std::cout << view << "\n";
           }
         }
@@ -239,7 +228,16 @@ public:
   void onEndOfTape() override {}
 
 protected:
-  std::unique_ptr<even_glyphs_t> tapeChars_;
+  void showPosition() {
+    if (showTapePos_) {
+      std::cout << std::setw(12) << std::setfill('0') << getRecordPos() << " ";
+    }
+    if (showCardNumber_) {
+      std::cout << std::setw(4) << std::setfill('0') << getCardNumber() << " ";
+    }
+  }
+
+  std::unique_ptr<parity_glyphs_t> tapeChars_;
   bool showHeaders_{showHeaders};
   bool showCardNumber_{showCardNumber};
   size_t nextDeck_{0};
@@ -272,50 +270,114 @@ int main(int argc, const char **argv) {
       std::cerr << "Could not open " << inputFileName << "\n";
       continue;
     }
-    std::unique_ptr<P7BIStream> p7biStream =
-        std::make_unique<P7BIStream>(input);
-    if (dumpP7BInput) {
-      p7biStream->addInputReadEventListener(
-          [](P7BIStream::pos_type pos, char *buffer, size_t size) {
-            std::cout << "*** P7B Input: " << pos << ":" << size << std::endl;
-          });
-    }
-    if (dumpP7BOutput) {
-      p7biStream->addOutputReadEventListener(
-          [](P7BIStream::pos_type pos, char *buffer, size_t size) {
-            std::cout << "*** P7B Output: " << pos << ":" << size << std::endl;
-          });
+
+    auto hexDump = [](std::string title, size_t byteGroupSize,
+                      size_t lineSize) {
+      return [title, lineSize, byteGroupSize](
+                 Reader::pos_type pos, char *buffer, std::streamsize count) {
+        std::cout << "*** " << title << ": " << pos << ":" << count
+                  << std::endl;
+        for (size_t i = 0; i < count; ++i) {
+          if (i > 0) {
+            if (0 == i % lineSize) {
+              std::cout << '\n';
+            } else if (0 == i % byteGroupSize) {
+              std::cout << ' ';
+            }
+          }
+          std::cout << std::hex << std::setw(2) << std::setfill('0')
+                    << uint16_t(uint8_t(buffer[i]));
+        }
+        std::cout << "\n";
+      };
+    };
+
+    auto octDump = [](std::string title, size_t charGroupSize,
+                      size_t lineSize) {
+      return [title, charGroupSize, lineSize](P7BIStream::pos_type pos,
+                                              char *buffer, size_t size) {
+        std::cout << "*** " << title << ": " << pos << ":" << size << std::endl;
+        for (size_t i = 0; i < size; ++i) {
+          if (i > 0) {
+            if (0 == i % lineSize) {
+              std::cout << '\n';
+            } else if (0 == i % charGroupSize) {
+              std::cout << ' ';
+            }
+          }
+          std::cout << std::oct << std::setw(2) << std::setfill('0')
+                    << uint16_t(buffer[i] & 0x3F);
+        }
+        std::cout << "\n";
+      };
+    };
+
+    auto noteRead = [](std::string title) {
+      return [title](P7BIStream::pos_type pos, char *buffer, size_t size) {
+        std::cout << "*** " << title << "t: " << pos << ":" << size
+                  << std::endl;
+      };
+    };
+
+    IStreamReader iStreamReader(input);
+    Reader *reader = &iStreamReader;
+
+    std::unique_ptr<ReaderMonitor> inputReadMonitor;
+    if (dumpInputReads) {
+      inputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
+      reader = inputReadMonitor.get();
+      inputReadMonitor->addReadEventListener(hexDump("Input", 4, 64));
     }
 
-    std::unique_ptr<TapeIRecordStream> reader(std::move(p7biStream));
+    std::unique_ptr<ReaderMonitor> editInputReadMonitor;
+    std::unique_ptr<ReaderMonitor> editOutputReadMonitor;
+    std::unique_ptr<TapeEditStream> editReader;
     if (!edits.empty()) {
+      if (dumpEditInputReads) {
+        editInputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
+        reader = editInputReadMonitor.get();
+        editInputReadMonitor->addReadEventListener(noteRead("EditInput"));
+      }
+
       std::ifstream editsFile(edits);
       json editObj = json::parse(editsFile);
-      auto editStream = std::make_unique<TapeEditStream>(std::move(reader));
+      editReader = std::make_unique<TapeEditStream>(*reader);
+      reader = editReader.get();
       auto &editList = editObj["edits"];
       for (auto &editItem : editList) {
         size_t start = editItem[0];
         size_t end = editItem[1];
         std::string replacement = editItem[2];
-        editStream->addEdit(start, end, replacement);
-      }
-      if (dumpEditInputs) {
-        editStream->addInputReadEventListener(
-            [](P7BIStream::pos_type pos, char *buffer, size_t size) {
-              std::cout << "*** EditInput: " << pos << ":" << size << std::endl;
-            });
+        editReader->addEdit(start, end, replacement);
       }
 
-      if (dumpEditOutputs) {
-        editStream->addOutputReadEventListener([](P7BIStream::pos_type pos,
-                                                  char *buffer, size_t size) {
-          std::cout << "*** EditOutput: " << pos << ":" << size << std::endl;
-        });
+      if (dumpEditOutputReads) {
+        editOutputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
+        reader = editOutputReadMonitor.get();
+        editOutputReadMonitor->addReadEventListener(noteRead("EditOutput"));
       }
-      reader = std::move(editStream);
     }
 
-    ShareExtractor extractor(*reader, collateGlyphCardTape);
+    std::unique_ptr<ReaderMonitor> p7BInputReadMonitor;
+    std::unique_ptr<ReaderMonitor> p7BOutputReadMonitor;
+
+    if (dumpP7BInputReads) {
+      p7BInputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
+      reader = p7BInputReadMonitor.get();
+      p7BInputReadMonitor->addReadEventListener(octDump("P7B Input", 6, 72));
+    }
+
+    std::unique_ptr<P7BIStream> p7biStream =
+        std::make_unique<P7BIStream>(*reader);
+    reader = p7biStream.get();
+
+    if (dumpP7BOutputReads) {
+      p7BOutputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
+      reader = p7BOutputReadMonitor.get();
+      p7BOutputReadMonitor->addReadEventListener(octDump("P7B Output", 6, 72));
+    }
+
+    ShareExtractor extractor(*p7biStream, collateGlyphCardTape);
     extractor.read();
     input.close();
   }

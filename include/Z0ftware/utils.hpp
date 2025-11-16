@@ -47,4 +47,15 @@ private:
   handler_type handler_;
 };
 
+template <typename InputIt, typename OutputIt, typename Translation>
+void translate(InputIt first, InputIt last, OutputIt d_first,
+               Translation translation) {
+  while (first < last) {
+    auto s = translation[*first++];
+    for (auto c : s) {
+      *d_first++ = c;
+    }
+  }
+}
+
 #endif

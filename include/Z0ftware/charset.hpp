@@ -91,12 +91,18 @@ static const utf8_t utf8_record_mark{"⧧"};
 static const utf8_t utf8_triple_plus{"⧻"};
 static const utf8_t utf8_group_mark{"⯒"};
 
-using even_glyphs_t = std::array<utf8_t, 1 << even_parity_bcd_t::bit_size()>;
+template<typename T>
+using glyphs_t = std::array<utf8_t, 1 << T::bit_size()>;
+
+using parity_glyphs_t = glyphs_t<parity_bcd_t>;
+
+std::unique_ptr<parity_glyphs_t> getOctalLowGlyphs();
+std::unique_ptr<parity_glyphs_t> getOctalHighGlyphs();
 
 class CharsetForTape {
 public:
   virtual ~CharsetForTape() = default;
-  virtual std::unique_ptr<even_glyphs_t> getTapeCharset(bool alternate) const = 0;
+  virtual std::unique_ptr<parity_glyphs_t> getTapeCharset(bool alternate) const = 0;
 };
 
 struct CollateGlyphCardTapeItem {
@@ -113,7 +119,7 @@ public:
   CollateGlyphCardTape(items_t &&items) : items_(std::move(items)) {}
   const items_t &getItems() const { return items_; }
 
-  std::unique_ptr<even_glyphs_t> getTapeCharset(bool alternate) const override;
+  std::unique_ptr<parity_glyphs_t> getTapeCharset(bool alternate) const override;
 
   items_t items_;
 };

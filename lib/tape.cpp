@@ -23,9 +23,7 @@
 #include "Z0ftware/tape.hpp"
 #include "Z0ftware/parity.hpp"
 
-#include <istream>
-
-P7BIStream::P7BIStream(std::istream &input) : input_(input) {
+P7BIStream::P7BIStream(Reader &input) : input_(input) {
   bufferNext_ = tapeBuffer_.data();
   bufferEnd_ = tapeBuffer_.data();
   recordEnd_ = tapeBuffer_.data();
@@ -77,7 +75,6 @@ bool P7BIStream::nextRecord() {
 
 size_t P7BIStream::readInternal(char *buffer, size_t size) {
   if (!initialized_) {
-    tapePos_ = input_.tellg();
     nextRecord();
     recordNum_ = 0;
     initialized_ = true;
@@ -102,7 +99,7 @@ void LowLevelTapeParser::read() {
   reading_ = true;
   onBeginOfRecord();
   while (reading_) {
-    auto pos = getOffset();
+    auto pos = tellg();
     size_t size = tapeIStream_.read(buffer, sizeof(buffer));
     if (1 == size) {
       // Marker

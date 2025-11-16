@@ -32,9 +32,18 @@ class bcd_t;
 /**
  * @brief six bit unsigned tape value + even parity
  */
+class parity_bcd_t : public UnsignedImp<parity_bcd_t, 7> {
+public:
+  using UnsignedImp::UnsignedImp;
+};
+
+/**
+ * @brief six bit unsigned tape value + even parity
+ */
 class even_parity_bcd_t : public UnsignedImp<even_parity_bcd_t, 7> {
 public:
   using UnsignedImp::UnsignedImp;
+  operator parity_bcd_t() const { return parity_bcd_t(value()); }
 };
 
 /**
@@ -43,6 +52,7 @@ public:
 class odd_parity_bcd_t : public UnsignedImp<odd_parity_bcd_t, 7> {
 public:
   using UnsignedImp::UnsignedImp;
+  operator parity_bcd_t() const { return parity_bcd_t(value()); }
 };
 
 // Return with bit 6 set to give bits 0-6 even parity
