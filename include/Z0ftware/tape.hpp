@@ -42,6 +42,11 @@ public:
   using off_type = stream_type::off_type;
 };
 
+// Delegates methods for DELEGATES (extending INTERFACE) to INPUT (extends
+// DELEGATES)
+template <typename DELEGATES, typename INPUT, typename INTERFACE>
+class Delegate;
+
 class Reader : public CharStreamTypes {
 public:
   virtual ~Reader() = default;
@@ -50,6 +55,23 @@ public:
   virtual pos_type tellg() const = 0;
   virtual bool eof() const = 0;
   virtual bool fail() const = 0;
+};
+
+template <typename INPUT, typename INTERFACE>
+class Delegate<Reader, INPUT, INTERFACE> : public INTERFACE {
+public:
+  Delegate(INPUT &input) : input_(input) {}
+
+  std::streamsize read(typename INPUT::char_type *s,
+                       std::streamsize count) override {
+    return input_.read(s, count);
+  }
+  typename INPUT::pos_type tellg() const override { return input_.tellg(); }
+  bool eof() const override { return input_.eof(); }
+  bool fail() const override { return input_.fail(); }
+
+protected:
+  INPUT &input_;
 };
 
 class IStreamReader : public Reader {
@@ -71,53 +93,52 @@ protected:
   stream_type &input_;
 };
 
-class ReaderMonitor : public Reader {
-public:
-  ReaderMonitor(Reader &input) : input_(input), base_(input.tellg()) {}
+template <typename INTERFACE>
+class Observer : public Delegate<INTERFACE, INTERFACE, INTERFACE> {
+  using delgate_t = Delegate<INTERFACE, INTERFACE, INTERFACE>;
 
-  using read_event_listener_t = std::function<void(
-      off_type offset, char *buffer, std::streamsize numRead)>;
+public:
+  Observer(INTERFACE &input) : delgate_t(input), base_(input.tellg()) {}
+
+  using read_event_listener_t =
+      std::function<void(typename delgate_t::off_type offset, char *buffer,
+                         std::streamsize numRead)>;
 
   void addReadEventListener(read_event_listener_t listener) {
     listeners_.push_back(listener);
   }
 
   std::streamsize read(char *buffer, std::streamsize count) override {
-    off_type offset = input_.tellg() - base_;
-    std::streamsize numRead = input_.read(buffer, count);
+    typename delgate_t ::off_type offset = delgate_t::tellg() - base_;
+    std::streamsize numRead = delgate_t::read(buffer, count);
     onInputRead(offset, buffer, numRead);
     return numRead;
   }
 
-  pos_type tellg() const override { return input_.tellg(); }
-
-  bool eof() const override { return input_.eof(); }
-  bool fail() const override { return input_.fail(); }
-
 protected:
-  void onInputRead(off_type offset, char *buffer, std::streamsize numRead) {
+  void onInputRead(delgate_t::off_type offset, char *buffer,
+                   std::streamsize numRead) {
     for (auto listener : listeners_) {
       listener(offset, buffer, numRead);
     }
   }
 
-  Reader &input_;
-  pos_type base_;
+  delgate_t::pos_type base_;
   std::vector<read_event_listener_t> listeners_;
 };
 
-class TapeEditStream : public Reader {
+using ReaderObserver = Observer<Reader>;
+
+// This should work on TapeIRecordStream since since record encoding might not
+// correspond to bytes in the input
+class TapeEditStream : public Delegate<Reader, Reader, Reader> {
 public:
-  TapeEditStream(Reader &input) : input_(input) {}
+  TapeEditStream(Reader &input) : Delegate(input) {}
 
   // Replace chars in [first, last) with replacement
   void addEdit(pos_type first, pos_type last, std::string replacement) {
     edits_.insert({first, last, replacement});
   }
-
-  pos_type tellg() const override { return tellg_; }
-  bool eof() const override { return input_.eof(); }
-  bool fail() const override { return input_.fail(); }
 
   inline std::streamsize read(char *buffer, std::streamsize count) override {
     if (!initialized_) {
@@ -188,7 +209,6 @@ protected:
     }
   };
 
-  Reader &input_;
   std::set<Edit> edits_;
   std::set<Edit>::iterator editIt_;
   Edit nextEdit_{0, 0, ""};
@@ -197,6 +217,7 @@ protected:
 };
 
 // Interface for reading encodings of tapes.
+// Constructs ready to read the first record
 class TapeIRecordStream : public Reader {
 public:
   virtual ~TapeIRecordStream() = default;
@@ -215,103 +236,108 @@ public:
   virtual size_t getRecordNum() const = 0;
 };
 
-// Reads P7B format as records on PierceFuller IBM tapes
-//
-// Bit 7 is set for first byte of a record
-// Bit 6 is parity, odd for binary, even for BCD
-// Bits 5-0 are data
-//
-class P7BIStream : public TapeIRecordStream {
+template <typename INPUT, typename INTERFACE>
+class Delegate<TapeIRecordStream, INPUT, INTERFACE>
+    : public Delegate<Reader, INPUT, INTERFACE> {
+  using delgate_t = Delegate<Reader, INPUT, INTERFACE>;
 
 public:
-  P7BIStream(Reader &input);
+  using delgate_t::Delegate;
 
-  // Rrturns true if there is a next record, false if not
-  bool nextRecord() override;
+  // Returns true if already at EOR and positions for next record
+  bool nextRecord() override { return delgate_t::input_.nextRecord(); }
+  // At end of record
+  bool isEOR() const override { return delgate_t::input_.isEOR(); };
+  // At end of tape
+  bool isEOT() const override { return delgate_t::input_.isEOT(); };
+  // Problem reading input stream
+  bool fail() const override { return delgate_t::input_.fail(); }
 
-  bool isEOR() const override {
-    return bufferNext_ == recordEnd_ && recordEnd_ < bufferEnd_;
-  }
-  bool isEOT() const override { return eot_; }
-  bool eof() const override { return input_.eof(); }
-  bool fail() const override { return error_; }
-
-  // Reads up to size bytes into buffer, not crossing a record boundary
-  std::streamsize read(char *buffer, std::streamsize size) override {
-    off_type offset = tellg();
-    size_t readSize = readInternal(buffer, size);
-    return readSize;
-  }
-
-  // Position in underlying stream for next read
-  pos_type tellg() const override {
-    return bufferPos_ + off_type(bufferNext_ - tapeBuffer_.data());
-  }
-
-  // Position in underlying stream for start of record
-  pos_type getRecordPos() const override { return recordPos_; }
-  // 0-based record number
-  size_t getRecordNum() const override { return recordNum_; }
-
-protected:
-  inline size_t inputRead(char *buffer, size_t size) {
-    off_type offset = tellg();
-    size_t readSize = input_.read(buffer, size);
-    return readSize;
-  }
-
-  size_t readInternal(char *buffer, size_t size);
-
-  void fillTapeBuffer();
-
-  // Scan for the next begin of record mark
-  void findNextBOR();
-
-  static constexpr size_t bufferSize_ = 1024;
-
-  bool initialized_ = false;
-  Reader &input_;
-  std::array<char, bufferSize_> tapeBuffer_{0};
-
-  // Next buffer char to use
-  char *bufferNext_{tapeBuffer_.data()};
-  // Pos of next buffer to use
-  pos_type bufferPos_;
-  // Last valid char in buffer
-  char *bufferEnd_{tapeBuffer_.data()};
-  // Last char in record if less than bufferEnd_;
-  char *recordEnd_;
-  pos_type recordPos_;
-
-  bool eot_{false};
-  bool error_{false};
-  size_t recordNum_{0};
+  delgate_t::pos_type getRecordPos() const override {
+    return delgate_t::input_.getRecordPos();
+  };
+  // Record number
+  size_t getRecordNum() const override {
+    return delgate_t::input_.getRecordNum();
+  };
 };
 
-class ShareReader : public TapeIRecordStream {
+using TapeIRecordStreamObserver = Observer<TapeIRecordStream>;
+
+// How to tell when the next deck has started? Short symbolic record?
+// Records should be multiples of 72/80/84(?)
+// BCD/binary is determined by whether majority of chars are even/odd parity
+// Deck header is 1 card record
+// Deck data is 1 or more multi-card records. Deck header should indicate
+// BCD/binary
+class ShareReader
+    : public Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream> {
+  using delegate_t =
+      Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream>;
+
 public:
   // Positions at the first deck.
-  ShareReader(TapeIRecordStream &input) : input_(input) {}
+  ShareReader(TapeIRecordStream &input) : delegate_t(input) {}
 
   // Moves to the next deck. Returns true if successful. Otherwise eod() or
   // fail() will be true.
-  bool nextDeck();
+  bool nextDeck() {
+    bool haveHeader = input_.nextRecord();
+    if (!haveHeader) {
+      return false;
+    }
+    readingHeader_ = true;
+    readingRecord_ = false;
+    return true;
+  }
   // Returns true if end of deck is reached
   bool eod() const;
-  // No more decks
-  bool eof() const override;
-  // Something bad happened
-  bool fail() const override;
+
   // Reads 7-bit from the deck header. Returns 0 at end of header.
-  std::streamsize header(char *buffer, std::streamsize count);
+  std::streamsize header(char *buffer, std::streamsize count) {
+    if (readingHeader_) {
+      auto numRead = input_.read(buffer, count);
+      if (0 == numRead) {
+        readingHeader_ = false;
+        readingRecord_ = true;
+      }
+      return numRead;
+    } else {
+      return 0;
+    }
+  }
+
+  // Position in underlying stream for next read
+  pos_type tellg() const override { return input_.tellg(); }
+
+  // Position in underlying stream for start of record
+  pos_type getRecordPos() const override { return input_.getRecordPos(); }
+  // 0-based record number
+  size_t getRecordNum() const override { return input_.getRecordNum(); }
+
+  bool isEOR() const override { return input_.isEOR(); }
+  bool isEOT() const override { return input_.isEOT(); }
+
   // Reads 7-bit from the deck data. Returns 0 at end of record.
-  std::streamsize read(char *buffer, std::streamsize count) override;
+  std::streamsize read(char *buffer, std::streamsize count) override {
+    if (!readingRecord_) {
+      return 0;
+    }
+    auto numRead = input_.read(buffer, count);
+    return numRead;
+  }
   // Moves to the next record in the deck, returning false at the end of the
   // deck.
-  bool nextRecord() override;
+  bool nextRecord() override {
+    if (readingRecord_) {
+      return input_.nextRecord();
+    }
+    return false;
+  }
 
 protected:
-  TapeIRecordStream &input_;
+  bool readingHeader_{false};
+  bool readingRecord_{false};
 };
 
 // Reads a 7-bit tape stream generating events for records

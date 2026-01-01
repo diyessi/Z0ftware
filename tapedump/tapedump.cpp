@@ -27,6 +27,7 @@
 #include "Z0ftware/card.hpp"
 #include "Z0ftware/charset.hpp"
 #include "Z0ftware/config.h"
+#include "Z0ftware/p7bistream.hpp"
 #include "Z0ftware/parity.hpp"
 #include "Z0ftware/tape.hpp"
 #include "Z0ftware/word.hpp"
@@ -132,8 +133,9 @@ protected:
 class DumpTapeAdapter : public LowLevelTapeParser {
 public:
   DumpTapeAdapter(P7BIStream &tapeIStream, BCDHandler &bcdHandler)
-      : LowLevelTapeParser(tapeIStream), readerMonitor_(tapeIStream), bcdHandler_(bcdHandler) {
-    readerMonitor_.addReadEventListener(
+      : LowLevelTapeParser(tapeIStream), readerObserver_(tapeIStream),
+        bcdHandler_(bcdHandler) {
+    readerObserver_.addReadEventListener(
         [this](off_type offset, char *buffer, size_t size) {
           onRead(offset, buffer, size);
         });
@@ -305,7 +307,7 @@ public:
   }
 
 protected:
-  ReaderMonitor readerMonitor_;
+  ReaderObserver readerObserver_;
   BCDHandler bcdHandler_;
   size_t width_{width};
   size_t grouping_{grouping};

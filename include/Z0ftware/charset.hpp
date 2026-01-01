@@ -29,6 +29,8 @@
 #include "Z0ftware/unicode.hpp"
 
 #include <array>
+#include <iomanip>
+#include <iostream>
 
 /**
  * @brief Information about the UTF8 to use for a BCD or Hollerith character. In
@@ -91,18 +93,32 @@ static const utf8_t utf8_record_mark{"⧧"};
 static const utf8_t utf8_triple_plus{"⧻"};
 static const utf8_t utf8_group_mark{"⯒"};
 
-template<typename T>
-using glyphs_t = std::array<utf8_t, 1 << T::bit_size()>;
+template <typename T> using glyphs_t = std::array<utf8_t, 1 << T::bit_size()>;
 
-using parity_glyphs_t = glyphs_t<parity_bcd_t>;
+template <typename T>
+class GlyphsImp : public std::array<utf8_t, 1 << T::bit_size()> {
+public:
+  using std::array<utf8_t, 1 << T::bit_size()>::array;
 
-std::unique_ptr<parity_glyphs_t> getOctalLowGlyphs();
-std::unique_ptr<parity_glyphs_t> getOctalHighGlyphs();
+  std::ostream &print_this(std::ostream &os) const {
+    for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
+      os << std::setw(2) << std::setfill('0') << i.value() << " " << std::oct
+         << std::setw(3) << std::setfill('0') << evenParity(i.value()).value()
+         << " " << std::setw(1) << std::dec
+         << (*this).at(evenParity(i.value()).value()) << " "
+         << (*this).at(oddParity(i.value()).value()) << "\n";
+    }
+    return os << std::endl;
+  }
+};
+
+using parity_glyphs_t = GlyphsImp<parity_bcd_t>;
 
 class CharsetForTape {
 public:
   virtual ~CharsetForTape() = default;
-  virtual std::unique_ptr<parity_glyphs_t> getTapeCharset(bool alternate) const = 0;
+  virtual std::unique_ptr<parity_glyphs_t>
+  getTapeCharset(bool alternate) const = 0;
 };
 
 struct CollateGlyphCardTapeItem {
@@ -119,7 +135,8 @@ public:
   CollateGlyphCardTape(items_t &&items) : items_(std::move(items)) {}
   const items_t &getItems() const { return items_; }
 
-  std::unique_ptr<parity_glyphs_t> getTapeCharset(bool alternate) const override;
+  std::unique_ptr<parity_glyphs_t>
+  getTapeCharset(bool alternate) const override;
 
   items_t items_;
 };

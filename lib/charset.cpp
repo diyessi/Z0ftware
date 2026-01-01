@@ -23,22 +23,6 @@
 #include "Z0ftware/charset.hpp"
 #include "Z0ftware/unicode.hpp"
 
-std::unique_ptr<parity_glyphs_t> getOctalLowGlyphs(){
-    auto glyphs = std::make_unique<parity_glyphs_t>();
-    for(parity_bcd_t i=0; i< 1 << parity_bcd_t::bit_size(); ++i) {
-        (*glyphs)[i.value()] = std::string({char('0' + ldb<0, 3>(i))});
-    }
-    return glyphs;
-}
-
-std::unique_ptr<parity_glyphs_t> getOctalHighGlyphs(){
-    auto glyphs = std::make_unique<parity_glyphs_t>();
-    for(parity_bcd_t i=0; i< 1 << parity_bcd_t::bit_size(); ++i) {
-        (*glyphs)[i.value()] = std::string({char('0' + ldb<3, 3>(i))});
-    }
-    return glyphs;
-}
-
 // https://bitsavers.org/pdf/ibm/702/22-6173-1_702prelim_Feb56.pdf page 76
 // 11-0 -> 0- 2A (Prints &) (pg 79)
 // 12-0 -> 0+ 3A (Prints -) (pg 79)

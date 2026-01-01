@@ -23,10 +23,11 @@
 // https://www.piercefuller.com/oldibm-shadow/709x.html
 // https://www.piercefuller.com/library/magtape7.html
 
-#include "Z0ftware/bcd.hpp"
 #include "Z0ftware/charset.hpp"
 #include "Z0ftware/config.h"
+#include "Z0ftware/p7bistream.hpp"
 #include "Z0ftware/tape.hpp"
+#include "Z0ftware/utils.hpp"
 
 #include "llvm/Support/CommandLine.h"
 
@@ -91,6 +92,10 @@ llvm::cl::opt<bool> showTapePos("show-tape-pos",
 llvm::cl::opt<std::string> edits("edits",
                                  llvm::cl::desc("Edits for tape file"));
 
+llvm::cl::opt<bool> useShareReader("share-reader",
+                                   llvm::cl::desc("Use share reader"),
+                                   llvm::cl::init(false));
+
 } // namespace
 
 // Share tapes encode card decks on IBM70x tapes.
@@ -115,14 +120,7 @@ public:
       : LowLevelTapeParser(tapeIStream),
         tapeChars_(charSet.getTapeCharset(true)) {
     // Show character set
-    for (bcd_t i = bcd_t::min(); i <= bcd_t::max(); ++i) {
-      std::cout << std::setw(2) << std::setfill('0') << i.value() << " "
-                << std::oct << std::setw(3) << std::setfill('0')
-                << evenParity(i.value()).value() << " " << std::setw(1)
-                << std::dec << tapeChars_->at(evenParity(i.value()).value())
-                << " " << tapeChars_->at(oddParity(i.value()).value()) << "\n";
-    }
-    std::cout << std::endl;
+    std::cout << *tapeChars_;
   }
 
   size_t getCurrentDeck() { return nextDeck_ - 1; }
@@ -322,21 +320,21 @@ int main(int argc, const char **argv) {
     IStreamReader iStreamReader(input);
     Reader *reader = &iStreamReader;
 
-    std::unique_ptr<ReaderMonitor> inputReadMonitor;
+    std::unique_ptr<ReaderObserver> inputReadObserver;
     if (dumpInputReads) {
-      inputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
-      reader = inputReadMonitor.get();
-      inputReadMonitor->addReadEventListener(hexDump("Input", 4, 64));
+      inputReadObserver = std::make_unique<ReaderObserver>(*reader);
+      reader = inputReadObserver.get();
+      inputReadObserver->addReadEventListener(hexDump("Input", 4, 64));
     }
 
-    std::unique_ptr<ReaderMonitor> editInputReadMonitor;
-    std::unique_ptr<ReaderMonitor> editOutputReadMonitor;
+    std::unique_ptr<ReaderObserver> editInputReadObserver;
+    std::unique_ptr<ReaderObserver> editOutputReadObserver;
     std::unique_ptr<TapeEditStream> editReader;
     if (!edits.empty()) {
       if (dumpEditInputReads) {
-        editInputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
-        reader = editInputReadMonitor.get();
-        editInputReadMonitor->addReadEventListener(noteRead("EditInput"));
+        editInputReadObserver = std::make_unique<ReaderObserver>(*reader);
+        reader = editInputReadObserver.get();
+        editInputReadObserver->addReadEventListener(noteRead("EditInput"));
       }
 
       std::ifstream editsFile(edits);
@@ -352,34 +350,39 @@ int main(int argc, const char **argv) {
       }
 
       if (dumpEditOutputReads) {
-        editOutputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
-        reader = editOutputReadMonitor.get();
-        editOutputReadMonitor->addReadEventListener(noteRead("EditOutput"));
+        editOutputReadObserver = std::make_unique<ReaderObserver>(*reader);
+        reader = editOutputReadObserver.get();
+        editOutputReadObserver->addReadEventListener(noteRead("EditOutput"));
       }
     }
 
-    std::unique_ptr<ReaderMonitor> p7BInputReadMonitor;
-    std::unique_ptr<ReaderMonitor> p7BOutputReadMonitor;
+    std::unique_ptr<ReaderObserver> p7BInputReadObserver;
+    std::unique_ptr<TapeIRecordStreamObserver> p7BOutputReadObserver;
 
     if (dumpP7BInputReads) {
-      p7BInputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
-      reader = p7BInputReadMonitor.get();
-      p7BInputReadMonitor->addReadEventListener(octDump("P7B Input", 6, 72));
+      p7BInputReadObserver = std::make_unique<ReaderObserver>(*reader);
+      reader = p7BInputReadObserver.get();
+      p7BInputReadObserver->addReadEventListener(octDump("P7B Input", 6, 72));
     }
 
     std::unique_ptr<P7BIStream> p7biStream =
         std::make_unique<P7BIStream>(*reader);
-    reader = p7biStream.get();
+    TapeIRecordStream *tapeReader = p7biStream.get();
 
     if (dumpP7BOutputReads) {
-      p7BOutputReadMonitor = std::make_unique<ReaderMonitor>(*reader);
-      reader = p7BOutputReadMonitor.get();
-      p7BOutputReadMonitor->addReadEventListener(octDump("P7B Output", 6, 72));
+      p7BOutputReadObserver =
+          std::make_unique<TapeIRecordStreamObserver>(*tapeReader);
+      tapeReader = p7BOutputReadObserver.get();
+      p7BOutputReadObserver->addReadEventListener(octDump("P7B Output", 6, 72));
     }
 
-    ShareExtractor extractor(*p7biStream, collateGlyphCardTape);
-    extractor.read();
-    input.close();
+    if (useShareReader) {
+      ShareReader shareReader(*p7biStream);
+    } else {
+      ShareExtractor extractor(*p7biStream, collateGlyphCardTape);
+      extractor.read();
+      input.close();
+    }
   }
 
   return EXIT_SUCCESS;

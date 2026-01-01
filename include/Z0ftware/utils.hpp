@@ -27,6 +27,17 @@
 #include <sstream>
 #include <string>
 
+template <typename T>
+concept HasPrintThis = requires(std::ostream &os, T const &t) {
+  { t.print_this(os) };
+};
+
+template <HasPrintThis T>
+std::ostream &operator<<(std::ostream &os, const T &t) {
+  t.print_this(os);
+  return os;
+}
+
 std::string_view trim(std::string_view text);
 std::string_view rightTrim(std::string_view text);
 
