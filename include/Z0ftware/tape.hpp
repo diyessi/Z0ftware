@@ -32,6 +32,8 @@
 
 #include <iostream>
 
+#include "Z0ftware/utils.hpp"
+
 class CharStreamTypes {
 public:
   using stream_type = std::istream;
@@ -41,11 +43,6 @@ public:
   using pos_type = stream_type::pos_type;
   using off_type = stream_type::off_type;
 };
-
-// Delegates methods for DELEGATES (extending INTERFACE) to INPUT (extends
-// DELEGATES)
-template <typename DELEGATES, typename INPUT, typename INTERFACE>
-class Delegate;
 
 class Reader : public CharStreamTypes {
 public:
@@ -129,93 +126,6 @@ protected:
 
 using ReaderObserver = Observer<Reader>;
 
-// This should work on TapeIRecordStream since since record encoding might not
-// correspond to bytes in the input
-class TapeEditStream : public Delegate<Reader, Reader, Reader> {
-public:
-  TapeEditStream(Reader &input) : Delegate(input) {}
-
-  // Replace chars in [first, last) with replacement
-  void addEdit(pos_type first, pos_type last, std::string replacement) {
-    edits_.insert({first, last, replacement});
-  }
-
-  inline std::streamsize read(char *buffer, std::streamsize count) override {
-    if (!initialized_) {
-      tellg_ = input_.tellg();
-      editIt_ = edits_.begin();
-      nextEdit_ = Edit{0, 0, ""};
-      initialized_ = true;
-      if (editIt_ == edits_.end()) {
-        nextEdit_.begin = std::numeric_limits<off_type>::max();
-        nextEdit_.end = std::numeric_limits<off_type>::max();
-        nextEdit_.replacement = "";
-      }
-    }
-
-    if (input_.eof() || input_.fail()) {
-      return 0;
-    }
-
-    while (true) {
-      while (nextEdit_.begin == nextEdit_.end &&
-             nextEdit_.replacement.empty()) {
-        if (editIt_ == edits_.end()) {
-          nextEdit_.begin = std::numeric_limits<off_type>::max();
-          nextEdit_.end = std::numeric_limits<off_type>::max();
-          nextEdit_.replacement = "";
-          break;
-        } else {
-          nextEdit_ = *editIt_++;
-        }
-      }
-
-      off_type pos = input_.tellg();
-      if (pos < nextEdit_.begin) {
-        // Read up to next edit position
-        auto readSize = input_.read(
-            buffer, std::min(count, std::streamsize(nextEdit_.begin - pos)));
-        tellg_ = tellg_ + readSize;
-        return readSize;
-      }
-      while (pos < nextEdit_.end) {
-        // Skip over deletion
-        auto readSize = input_.read(
-            buffer, std::min(count, std::streamsize(nextEdit_.end - pos)));
-        pos = input_.tellg();
-        nextEdit_.begin = pos;
-      }
-      if (!nextEdit_.replacement.empty()) {
-        auto copySize =
-            std::min(count, std::streamsize(nextEdit_.replacement.size()));
-        std::copy(nextEdit_.replacement.begin(),
-                  nextEdit_.replacement.begin() + copySize, &buffer[0]);
-        tellg_ = tellg_ + pos_type(copySize);
-        nextEdit_.replacement = nextEdit_.replacement.substr(copySize);
-        return copySize;
-      }
-    }
-  }
-
-protected:
-  struct Edit {
-    off_type begin;
-    off_type end;
-    std::string replacement;
-
-    friend auto operator<=>(const Edit &e1, const Edit &e2) {
-      auto high = (e1.begin <=> e2.begin);
-      return 0 == high ? (e1.end <=> e2.end) : high;
-    }
-  };
-
-  std::set<Edit> edits_;
-  std::set<Edit>::iterator editIt_;
-  Edit nextEdit_{0, 0, ""};
-  bool initialized_{false};
-  off_type tellg_{0};
-};
-
 // Interface for reading encodings of tapes.
 // Constructs ready to read the first record
 class TapeIRecordStream : public Reader {
@@ -263,111 +173,5 @@ public:
 };
 
 using TapeIRecordStreamObserver = Observer<TapeIRecordStream>;
-
-// How to tell when the next deck has started? Short symbolic record?
-// Records should be multiples of 72/80/84(?)
-// BCD/binary is determined by whether majority of chars are even/odd parity
-// Deck header is 1 card record
-// Deck data is 1 or more multi-card records. Deck header should indicate
-// BCD/binary
-class ShareReader
-    : public Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream> {
-  using delegate_t =
-      Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream>;
-
-public:
-  // Positions at the first deck.
-  ShareReader(TapeIRecordStream &input) : delegate_t(input) {}
-
-  // Moves to the next deck. Returns true if successful. Otherwise eod() or
-  // fail() will be true.
-  bool nextDeck() {
-    bool haveHeader = input_.nextRecord();
-    if (!haveHeader) {
-      return false;
-    }
-    readingHeader_ = true;
-    readingRecord_ = false;
-    return true;
-  }
-  // Returns true if end of deck is reached
-  bool eod() const;
-
-  // Reads 7-bit from the deck header. Returns 0 at end of header.
-  std::streamsize header(char *buffer, std::streamsize count) {
-    if (readingHeader_) {
-      auto numRead = input_.read(buffer, count);
-      if (0 == numRead) {
-        readingHeader_ = false;
-        readingRecord_ = true;
-      }
-      return numRead;
-    } else {
-      return 0;
-    }
-  }
-
-  // Position in underlying stream for next read
-  pos_type tellg() const override { return input_.tellg(); }
-
-  // Position in underlying stream for start of record
-  pos_type getRecordPos() const override { return input_.getRecordPos(); }
-  // 0-based record number
-  size_t getRecordNum() const override { return input_.getRecordNum(); }
-
-  bool isEOR() const override { return input_.isEOR(); }
-  bool isEOT() const override { return input_.isEOT(); }
-
-  // Reads 7-bit from the deck data. Returns 0 at end of record.
-  std::streamsize read(char *buffer, std::streamsize count) override {
-    if (!readingRecord_) {
-      return 0;
-    }
-    auto numRead = input_.read(buffer, count);
-    return numRead;
-  }
-  // Moves to the next record in the deck, returning false at the end of the
-  // deck.
-  bool nextRecord() override {
-    if (readingRecord_) {
-      return input_.nextRecord();
-    }
-    return false;
-  }
-
-protected:
-  bool readingHeader_{false};
-  bool readingRecord_{false};
-};
-
-// Reads a 7-bit tape stream generating events for records
-class LowLevelTapeParser : public virtual CharStreamTypes {
-public:
-  LowLevelTapeParser(TapeIRecordStream &tapeIStream)
-      : tapeIStream_(tapeIStream) {}
-
-  void read();
-  void stopReading() { reading_ = false; }
-  pos_type getRecordPos() const { return tapeIStream_.getRecordPos(); }
-  pos_type tellg() const { return tapeIStream_.tellg(); }
-  size_t getRecordNum() const { return tapeIStream_.getRecordNum(); }
-
-  // Events
-
-  // Buffer read from input
-  // pos is file position
-  virtual void onRecordData(char *buffer, size_t size) {}
-  virtual void onBinaryRecordData() {}
-  virtual void onBCDRecordData() {}
-  virtual void onBeginOfRecord() {}
-  virtual void onEndOfRecord() {}
-  virtual void onEndOfFile() {}
-  virtual void onEndOfTape() {}
-
-protected:
-  TapeIRecordStream &tapeIStream_;
-  bool reading_{true};
-  std::vector<char> record_;
-};
 
 #endif

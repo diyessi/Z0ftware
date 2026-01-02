@@ -27,6 +27,11 @@
 #include <sstream>
 #include <string>
 
+// Delegates methods for DELEGATES (extending INTERFACE) to INPUT (extends
+// DELEGATES)
+template <typename DELEGATES, typename INPUT, typename INTERFACE>
+class Delegate;
+
 template <typename T>
 concept HasPrintThis = requires(std::ostream &os, T const &t) {
   { t.print_this(os) };

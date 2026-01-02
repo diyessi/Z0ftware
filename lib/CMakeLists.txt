@@ -12,7 +12,7 @@ add_library(Z0ftware
     parity.cpp
     parser.cpp
     p7bistream.cpp
-    tape.cpp
+    sharereader.cpp
     utils.cpp
 )
 
