@@ -27,77 +27,20 @@
 
 // This should work on TapeIRecordStream since since record encoding might not
 // correspond to bytes in the input
-class TapeEditStream : public Delegate<Reader, Reader, Reader> {
+class ReaderEditor : public Delegate<Reader, Reader, Reader> {
 public:
-  TapeEditStream(Reader &input) : Delegate(input) {}
+  ReaderEditor(Reader &input) : Delegate(input) {}
 
-  // Replace chars in [first, last) with replacement
-  void addEdit(pos_type first, pos_type last, std::string replacement) {
-    edits_.insert({first, last, replacement});
-  }
+  // Replace chars in [begin, end) with replacement
+  void addEdit(pos_type begin, pos_type end, std::string replacement);
 
-  inline std::streamsize read(char *buffer, std::streamsize count) override {
-    if (!initialized_) {
-      tellg_ = input_.tellg();
-      editIt_ = edits_.begin();
-      nextEdit_ = Edit{0, 0, ""};
-      initialized_ = true;
-      if (editIt_ == edits_.end()) {
-        nextEdit_.begin = std::numeric_limits<off_type>::max();
-        nextEdit_.end = std::numeric_limits<off_type>::max();
-        nextEdit_.replacement = "";
-      }
-    }
-
-    if (input_.eof() || input_.fail()) {
-      return 0;
-    }
-
-    while (true) {
-      while (nextEdit_.begin == nextEdit_.end &&
-             nextEdit_.replacement.empty()) {
-        if (editIt_ == edits_.end()) {
-          nextEdit_.begin = std::numeric_limits<off_type>::max();
-          nextEdit_.end = std::numeric_limits<off_type>::max();
-          nextEdit_.replacement = "";
-          break;
-        } else {
-          nextEdit_ = *editIt_++;
-        }
-      }
-
-      off_type pos = input_.tellg();
-      if (pos < nextEdit_.begin) {
-        // Read up to next edit position
-        auto readSize = input_.read(
-            buffer, std::min(count, std::streamsize(nextEdit_.begin - pos)));
-        tellg_ = tellg_ + readSize;
-        return readSize;
-      }
-      while (pos < nextEdit_.end) {
-        // Skip over deletion
-        auto readSize = input_.read(
-            buffer, std::min(count, std::streamsize(nextEdit_.end - pos)));
-        pos = input_.tellg();
-        nextEdit_.begin = pos;
-      }
-      if (!nextEdit_.replacement.empty()) {
-        auto copySize =
-            std::min(count, std::streamsize(nextEdit_.replacement.size()));
-        std::copy(nextEdit_.replacement.begin(),
-                  nextEdit_.replacement.begin() + copySize, &buffer[0]);
-        tellg_ = tellg_ + pos_type(copySize);
-        nextEdit_.replacement = nextEdit_.replacement.substr(copySize);
-        return copySize;
-      }
-    }
-  }
+  std::streamsize read(char *buffer, std::streamsize count) override;
 
 protected:
   struct Edit {
-    off_type begin;
-    off_type end;
-    std::string replacement;
+    off_type begin{0};
+    off_type end{0};
+    std::string replacement{""};
 
     friend auto operator<=>(const Edit &e1, const Edit &e2) {
       auto high = (e1.begin <=> e2.begin);
@@ -107,7 +50,39 @@ protected:
 
   std::set<Edit> edits_;
   std::set<Edit>::iterator editIt_;
-  Edit nextEdit_{0, 0, ""};
+  Edit nextEdit_{.begin = 0, .end = 0, .replacement = ""};
+  bool initialized_{false};
+  off_type tellg_{0};
+};
+
+class TapeIRecordStreamEditor
+    : public Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream> {
+public:
+  TapeIRecordStreamEditor(TapeIRecordStream &input) : Delegate(input) {}
+
+  // Replace [first, last) in recordNum with replacement
+  void addEdit(size_t recordNum, pos_type begin, pos_type end,
+               std::string replacement);
+
+  std::streamsize read(char *buffer, std::streamsize count) override;
+
+protected:
+  struct Edit {
+    size_t recordNum{0};
+    off_type begin{0};
+    off_type end{0};
+    std::string replacement{""};
+
+    friend auto operator<=>(const Edit &e1, const Edit &e2) {
+      auto record = (e1.recordNum <=> e2.recordNum);
+      auto high = 0 == record ? (e1.begin <=> e2.begin) : record;
+      return 0 == high ? (e1.end <=> e2.end) : high;
+    }
+  };
+
+  std::set<Edit> edits_;
+  std::set<Edit>::iterator editIt_;
+  Edit nextEdit_{.recordNum = 0, .begin = 0, .end = 0, .replacement = ""};
   bool initialized_{false};
   off_type tellg_{0};
 };

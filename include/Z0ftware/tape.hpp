@@ -54,21 +54,24 @@ public:
   virtual bool fail() const = 0;
 };
 
-template <typename INPUT, typename INTERFACE>
-class Delegate<Reader, INPUT, INTERFACE> : public INTERFACE {
+// Interface for reading encodings of tapes.
+// Constructs ready to read the first record
+class TapeIRecordStream : public Reader {
 public:
-  Delegate(INPUT &input) : input_(input) {}
+  virtual ~TapeIRecordStream() = default;
 
-  std::streamsize read(typename INPUT::char_type *s,
-                       std::streamsize count) override {
-    return input_.read(s, count);
-  }
-  typename INPUT::pos_type tellg() const override { return input_.tellg(); }
-  bool eof() const override { return input_.eof(); }
-  bool fail() const override { return input_.fail(); }
+  // Returns true if already at EOR and positions for next record
+  virtual bool nextRecord() = 0;
+  // At end of record
+  virtual bool isEOR() const = 0;
+  // At end of tape
+  virtual bool isEOT() const = 0;
+  // Problem reading input stream
+  virtual bool fail() const = 0;
 
-protected:
-  INPUT &input_;
+  virtual pos_type getRecordPos() const = 0;
+  // Record number
+  virtual size_t getRecordNum() const = 0;
 };
 
 class IStreamReader : public Reader {
@@ -90,12 +93,29 @@ protected:
   stream_type &input_;
 };
 
+template <typename INPUT, typename INTERFACE>
+class Delegate<Reader, INPUT, INTERFACE> : public INTERFACE {
+public:
+  Delegate(INPUT &input) : input_(input) {}
+
+  std::streamsize read(typename INPUT::char_type *s,
+                       std::streamsize count) override {
+    return input_.read(s, count);
+  }
+  typename INPUT::pos_type tellg() const override { return input_.tellg(); }
+  bool eof() const override { return input_.eof(); }
+  bool fail() const override { return input_.fail(); }
+
+protected:
+  INPUT &input_;
+};
+
 template <typename INTERFACE>
 class Observer : public Delegate<INTERFACE, INTERFACE, INTERFACE> {
   using delgate_t = Delegate<INTERFACE, INTERFACE, INTERFACE>;
 
 public:
-  Observer(INTERFACE &input) : delgate_t(input), base_(input.tellg()) {}
+  Observer(INTERFACE &input) : delgate_t(input) {}
 
   using read_event_listener_t =
       std::function<void(typename delgate_t::off_type offset, char *buffer,
@@ -106,45 +126,19 @@ public:
   }
 
   std::streamsize read(char *buffer, std::streamsize count) override {
-    typename delgate_t ::off_type offset = delgate_t::tellg() - base_;
+    auto offset = delgate_t::tellg();
     std::streamsize numRead = delgate_t::read(buffer, count);
-    onInputRead(offset, buffer, numRead);
+    for (auto listener : listeners_) {
+      listener(offset, buffer, numRead);
+    }
     return numRead;
   }
 
 protected:
-  void onInputRead(delgate_t::off_type offset, char *buffer,
-                   std::streamsize numRead) {
-    for (auto listener : listeners_) {
-      listener(offset, buffer, numRead);
-    }
-  }
-
-  delgate_t::pos_type base_;
   std::vector<read_event_listener_t> listeners_;
 };
 
 using ReaderObserver = Observer<Reader>;
-
-// Interface for reading encodings of tapes.
-// Constructs ready to read the first record
-class TapeIRecordStream : public Reader {
-public:
-  virtual ~TapeIRecordStream() = default;
-
-  // Returns true if already at EOR and positions for next record
-  virtual bool nextRecord() = 0;
-  // At end of record
-  virtual bool isEOR() const = 0;
-  // At end of tape
-  virtual bool isEOT() const = 0;
-  // Problem reading input stream
-  virtual bool fail() const = 0;
-
-  virtual pos_type getRecordPos() const = 0;
-  // Record number
-  virtual size_t getRecordNum() const = 0;
-};
 
 template <typename INPUT, typename INTERFACE>
 class Delegate<TapeIRecordStream, INPUT, INTERFACE>

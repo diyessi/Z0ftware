@@ -42,6 +42,10 @@
 // parity of 6-bit characters. An one card deck identifier record precedes each
 // deck, which consists of one or more records or multiple cards each. Blank
 // cards pad the record to uniform size.
+//
+// TODO: Don't implement TapeIRecordStream; instead use a record-invisible
+// deck/card interface where the header card record size determines the card
+// width for the deck.
 class ShareReader
     : public Delegate<TapeIRecordStream, TapeIRecordStream, TapeIRecordStream> {
   using delegate_t =

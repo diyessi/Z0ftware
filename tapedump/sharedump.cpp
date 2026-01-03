@@ -52,14 +52,25 @@ llvm::cl::opt<bool> dumpInputReads("dump-input-reads",
                                    llvm::cl::desc("dump file reads"),
                                    llvm::cl::init(false));
 
-llvm::cl::opt<bool> dumpEditInputReads("dump-edit-input-reads",
-                                       llvm::cl::desc("dump edit input reads"),
-                                       llvm::cl::init(false));
+llvm::cl::opt<bool>
+    dumpOffsetEditInputs("dump-offset-edit-inputs",
+                         llvm::cl::desc("dump edit input reads"),
+                         llvm::cl::init(false));
 
 llvm::cl::opt<bool>
-    dumpEditOutputReads("dump-edit-output-reads",
-                        llvm::cl::desc("dump edit output reads"),
-                        llvm::cl::init(false));
+    dumpOffsetEditOutputds("dump-offset-edit-outputs",
+                           llvm::cl::desc("dump edit output reads"),
+                           llvm::cl::init(false));
+
+llvm::cl::opt<bool>
+    dumpRecordOffsetEditInputs("dump-record-offset-edit-inputs",
+                               llvm::cl::desc("dump edit input reads"),
+                               llvm::cl::init(false));
+
+llvm::cl::opt<bool>
+    dumpRecordOffsetEditOutputs("dump-record-offset-edit-outputs",
+                                llvm::cl::desc("dump edit output reads"),
+                                llvm::cl::init(false));
 
 llvm::cl::opt<bool>
     dumpP7BInputReads("dump-p7b-input-reads",
@@ -136,7 +147,7 @@ static auto octDump(std::string title, size_t charGroupSize, size_t lineSize) {
 
 static auto noteRead(std::string title) {
   return [title](P7BIStream::pos_type pos, char *buffer, size_t size) {
-    std::cout << "*** " << title << "t: " << pos << ":" << size << std::endl;
+    std::cout << "*** " << title << ": " << pos << ":" << size << std::endl;
   };
 };
 
@@ -171,32 +182,40 @@ int main(int argc, const char **argv) {
       inputReadObserver->addReadEventListener(hexDump("Input", 4, 64));
     }
 
-    std::unique_ptr<ReaderObserver> editInputReadObserver;
-    std::unique_ptr<ReaderObserver> editOutputReadObserver;
-    std::unique_ptr<TapeEditStream> editReader;
+    json editObj;
     if (!edits.empty()) {
-      if (dumpEditInputReads) {
-        editInputReadObserver = std::make_unique<ReaderObserver>(*reader);
-        reader = editInputReadObserver.get();
-        editInputReadObserver->addReadEventListener(noteRead("EditInput"));
-      }
-
       std::ifstream editsFile(edits);
-      json editObj = json::parse(editsFile);
-      editReader = std::make_unique<TapeEditStream>(*reader);
-      reader = editReader.get();
-      auto &editList = editObj["edits"];
-      for (auto &editItem : editList) {
-        size_t start = editItem[0];
-        size_t end = editItem[1];
-        std::string replacement = editItem[2];
-        editReader->addEdit(start, end, replacement);
+      editObj = json::parse(editsFile);
+    }
+
+    std::unique_ptr<ReaderEditor> offsetEditor;
+    std::unique_ptr<ReaderObserver> offsetEditorInputObserver;
+    std::unique_ptr<ReaderObserver> offsetEditorOutputObserver;
+    if (!edits.empty()) {
+      if (dumpOffsetEditInputs) {
+        offsetEditorInputObserver = std::make_unique<ReaderObserver>(*reader);
+        reader = offsetEditorInputObserver.get();
+        offsetEditorInputObserver->addReadEventListener(
+            noteRead("Edit offset input"));
       }
 
-      if (dumpEditOutputReads) {
-        editOutputReadObserver = std::make_unique<ReaderObserver>(*reader);
-        reader = editOutputReadObserver.get();
-        editOutputReadObserver->addReadEventListener(noteRead("EditOutput"));
+      auto &readerEditList = editObj["offsets"];
+      if (!readerEditList.empty()) {
+        offsetEditor = std::make_unique<ReaderEditor>(*reader);
+        reader = offsetEditor.get();
+        for (auto &editItem : readerEditList) {
+          size_t start = editItem[0];
+          size_t end = editItem[1];
+          std::string replacement = editItem[2];
+          offsetEditor->addEdit(start, end, replacement);
+        }
+      }
+
+      if (dumpOffsetEditOutputds) {
+        offsetEditorOutputObserver = std::make_unique<ReaderObserver>(*reader);
+        reader = offsetEditorOutputObserver.get();
+        offsetEditorOutputObserver->addReadEventListener(
+            noteRead("Edit offset output"));
       }
     }
 
@@ -220,15 +239,51 @@ int main(int argc, const char **argv) {
       p7BOutputReadObserver->addReadEventListener(octDump("P7B Output", 6, 72));
     }
 
+    std::unique_ptr<TapeIRecordStreamEditor> recordOffsetEditor;
+    std::unique_ptr<TapeIRecordStreamObserver> recordOffsetEditorInputObserver;
+    std::unique_ptr<TapeIRecordStreamObserver> recordOffsetEditorOutputObserver;
+    if (!edits.empty()) {
+      auto &tapeIRecordEditList = editObj["record-offsets"];
+      if (!tapeIRecordEditList.empty()) {
+
+        if (dumpRecordOffsetEditInputs) {
+          recordOffsetEditorInputObserver =
+              std::make_unique<TapeIRecordStreamObserver>(*tapeReader);
+          tapeReader = recordOffsetEditorInputObserver.get();
+          recordOffsetEditorInputObserver->addReadEventListener(
+              noteRead("Edit record input"));
+        }
+
+        recordOffsetEditor =
+            std::make_unique<TapeIRecordStreamEditor>(*tapeReader);
+        tapeReader = recordOffsetEditor.get();
+        for (auto &editItem : tapeIRecordEditList) {
+          size_t recordNum = editItem[0];
+          size_t start = editItem[1];
+          size_t end = editItem[2];
+          std::string replacement = editItem[3];
+          recordOffsetEditor->addEdit(recordNum, start, end, replacement);
+        }
+
+        if (dumpRecordOffsetEditOutputs) {
+          recordOffsetEditorOutputObserver =
+              std::make_unique<TapeIRecordStreamObserver>(*tapeReader);
+          tapeReader = recordOffsetEditorOutputObserver.get();
+          recordOffsetEditorOutputObserver->addReadEventListener(
+              noteRead("Edit record output"));
+        }
+      }
+    }
+
     std::unique_ptr<parity_glyphs_t> tapeChars =
         collateGlyphCardTape.getTapeCharset(true);
     size_t cardNumber = 0;
-    ShareReader shareReader(*p7biStream);
+    ShareReader shareReader(*tapeReader);
 
-    auto showPosition = [&shareReader, &cardNumber]() {
+    auto showPosition = [&shareReader, &cardNumber](Reader::pos_type offset) {
       if (showTapePos) {
         std::cout << std::setw(12) << std::setfill('0')
-                  << shareReader.getRecordPos() << " ";
+                  << shareReader.getRecordPos() + offset << " ";
       }
       if (showCardNumber) {
         std::cout << std::setw(4) << std::setfill('0')
@@ -298,7 +353,7 @@ int main(int argc, const char **argv) {
         }
         if (shareReader.isBinary()) {
           if (showThisDeck) {
-            showPosition();
+            showPosition(0);
             std::cout << "Binary\n";
           }
           cardNumber += size / lineSize;
@@ -316,7 +371,7 @@ int main(int argc, const char **argv) {
                                              [](char c) { return c != ' '; })) {
 
                 if (showThisDeck) {
-                  showPosition();
+                  showPosition(linePos);
                   std::cout << view << "\n";
                 }
               }
